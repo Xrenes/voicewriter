@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>VoiceWriter — hold a key, speak, and it types for you</title>
+    <meta
+      name="description"
+      content="A tiny Windows app for voice dictation. Hold Alt+C, speak, release — your words are transcribed and typed into whatever field you're in. Runs in the background, no window."
+    />
+    <meta property="og:title" content="VoiceWriter" />
+    <meta
+      property="og:description"
+      content="Hold Alt+C, speak, release. Your words get typed into the focused field. Local Whisper + Groq, fully private, no window."
+    />
+    <meta property="og:type" content="website" />
+    <link rel="icon" href="favicon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="wrap">
+      <header class="nav">
+        <span class="logo">
+          <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true">
+            <rect x="9" y="2" width="6" height="12" rx="3" fill="currentColor" />
+            <path
+              d="M5 11a7 7 0 0 0 14 0"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+            />
+            <line
+              x1="12"
+              y1="18"
+              x2="12"
+              y2="22"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+            />
+          </svg>
+          VoiceWriter
+        </span>
+        <a class="nav-gh" href="https://github.com/Xrenes/voicewriter" target="_blank" rel="noopener">
+          GitHub
+        </a>
+      </header>
+
+      <main>
+        <section class="hero">
+          <h1>Hold a key. Speak. It types for you.</h1>
+          <p class="lede">
+            A tiny Windows app that turns your voice into text — anywhere you can type.
+            Hold <kbd>Alt</kbd>+<kbd>C</kbd>, say your sentence, release. The words appear in
+            the field you were already in. No window, no clicking around.
+          </p>
+
+          <div class="cta">
+            <a class="btn primary" id="dlExe" href="#" rel="noopener">
+              Download&nbsp;.exe
+              <span class="sub" id="exeSize"></span>
+            </a>
+            <a class="btn" id="dlMsi" href="#" rel="noopener">
+              Download&nbsp;.msi
+              <span class="sub" id="msiSize"></span>
+            </a>
+          </div>
+          <p class="fineprint">
+            Windows 10/11 · 64-bit · <span id="relVer">v0.1.0</span> ·
+            <a id="relLink" href="https://github.com/Xrenes/voicewriter/releases" target="_blank" rel="noopener">all releases</a>
+          </p>
+        </section>
+
+        <section class="how">
+          <h2>How it works</h2>
+          <ol>
+            <li><strong>Install and forget it.</strong> VoiceWriter starts with your PC and sits in the tray — no window on screen.</li>
+            <li><strong>Click into any text field</strong> — an email, a chat box, your editor, a form.</li>
+            <li><strong>Hold <kbd>Alt</kbd>+<kbd>C</kbd> and speak.</strong> Release the keys when you're done.</li>
+            <li><strong>Your sentence is typed in</strong> — punctuation and spelling included — right where your cursor was.</li>
+          </ol>
+        </section>
+
+        <section class="features">
+          <div class="feat">
+            <h3>Accurate by default</h3>
+            <p>Uses Groq's Whisper Large v3 for state-of-the-art accuracy on names, numbers and punctuation. Falls back to a local model when you're offline.</p>
+          </div>
+          <div class="feat">
+            <h3>Private</h3>
+            <p>Local mode never leaves your machine. Your Groq API key is stored in the Windows Credential Manager, not a plain file.</p>
+          </div>
+          <div class="feat">
+            <h3>Out of the way</h3>
+            <p>No window unless you open it from the tray. ~25&nbsp;MB of RAM. Click anywhere else and the settings panel tucks itself away.</p>
+          </div>
+          <div class="feat">
+            <h3>Hold-to-talk</h3>
+            <p>One motion: hold, speak, release. No toggling, no "start/stop recording" buttons. The hotkey is rebindable.</p>
+          </div>
+        </section>
+
+        <section class="install-note">
+          <h2>First launch on Windows</h2>
+          <p>
+            The app isn't code-signed yet, so Windows SmartScreen may show
+            <em>"Windows protected your PC."</em> To continue: click
+            <strong>More info</strong> → <strong>Run anyway</strong>. This is expected for
+            small independent tools; the source of the installers is the
+            <a href="https://github.com/Xrenes/voicewriter/releases" target="_blank" rel="noopener">GitHub Releases page</a>.
+          </p>
+          <p class="dim">
+            After install, VoiceWriter runs in the background. Open the tray (the ▲ near the
+            clock), click the VoiceWriter icon, and paste a free Groq API key from
+            <a href="https://console.groq.com" target="_blank" rel="noopener">console.groq.com</a>
+            — or skip it and download the local model from the same panel.
+          </p>
+        </section>
+      </main>
+
+      <footer>
+        <span>VoiceWriter · <span id="relVerFoot">v0.1.0</span></span>
+        <span>Not affiliated with Groq or OpenAI.</span>
+      </footer>
+    </div>
+
+    <script src="download.js"></script>
+  </body>
+</html>
