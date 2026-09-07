@@ -4,7 +4,7 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>VoiceWriter — you won't have to write a single word again</title>
-<meta name="description" content="A tiny Windows app for voice dictation. Hold Alt+C, speak, release — your words are transcribed and typed into whatever field has focus. Runs in the background, no window." />
+<meta name="description" content="A tiny Windows app for voice dictation. Hold Alt+C, speak, release — your words are transcribed and typed into whatever field has focus. No window." />
 <meta name="theme-color" content="#000000" />
 
 <meta property="og:title" content="VoiceWriter — you won't have to write a single word again" />
@@ -13,295 +13,137 @@
 <meta property="og:image" content="assets/icon.png" />
 
 <link rel="icon" href="favicon.svg" type="image/svg+xml" />
-<link rel="icon" href="assets/icon.png" type="image/png" />
+<link rel="icon" href="assets/favicon.ico" sizes="any" />
 <link rel="apple-touch-icon" href="assets/icon.png" />
 
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500&display=swap" rel="stylesheet" />
 
 <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
-<div class="scroll-progress" id="scrollProgress" aria-hidden="true"></div>
+
+<div class="bg-glow" aria-hidden="true"></div>
 
 <header class="site-header" id="siteHeader">
   <div class="wrap header-inner">
     <a class="brand" href="#top" aria-label="VoiceWriter home">
-      <img src="assets/icon.png" alt="" width="32" height="32" class="brand-mark" />
-      <span class="brand-name">VoiceWriter</span>
+      <img src="assets/icon.png" alt="" width="26" height="26" class="brand-mark" />
+      <span>VoiceWriter</span>
     </a>
-    <nav class="header-nav" aria-label="Primary">
-      <a href="#how">How it works</a>
-      <a href="#features">Features</a>
-      <a href="#accuracy">Accuracy</a>
-      <a href="#faq">FAQ</a>
-    </nav>
-    <a href="#download" class="btn btn-accent btn-sm header-cta">Download</a>
+    <a href="#get" class="btn btn-accent btn-sm">Download</a>
   </div>
 </header>
 
 <main id="main">
   <span id="top"></span>
 
-  <!-- HERO -->
+  <!-- HERO — centered -->
   <section class="hero wrap">
-    <div class="hero-copy">
-      <p class="eyebrow">Voice dictation for Windows</p>
-      <h1>
-        You won't have to
-        <span class="wipe-word">write<span class="wipe-underline" aria-hidden="true"></span></span>
-        a single word again.
-      </h1>
-      <p class="lead">
-        Click into any text field. Hold <span class="mono">Alt</span>+<span class="mono">C</span>,
-        say your sentence, and let go. The words appear where your cursor was —
-        spelling and punctuation included. No window, no clicking around.
-      </p>
-      <div class="hero-actions">
-        <a href="#download" class="btn btn-accent btn-lg">
-          Download for Windows
-        </a>
-        <a href="#how" class="btn btn-ghost btn-lg">See how it works</a>
-      </div>
-      <p class="hero-meta">
-        Free &nbsp;·&nbsp; Windows 10 / 11, 64-bit &nbsp;·&nbsp; 3&nbsp;MB &nbsp;·&nbsp;
-        <span class="mono">v0.1.0</span>
-      </p>
+    <p class="eyebrow">Voice dictation for Windows</p>
+    <h1>
+      You won't have to
+      <span class="ink">write<span class="ink-line" aria-hidden="true"></span></span>
+      a single word again.
+    </h1>
+    <p class="lead">
+      Click into any field. Hold <span class="k">Alt</span><span class="k">C</span>,
+      say your sentence, let go. The words appear where your cursor was —
+      spelling and punctuation included. No window, ever.
+    </p>
+    <div class="hero-actions">
+      <a href="#get" class="btn btn-accent btn-lg">Download for Windows</a>
+      <a href="#how" class="btn btn-ghost btn-lg">How it works</a>
     </div>
+    <p class="hero-meta">Free · Windows 10 / 11, 64-bit · <span class="mono">v0.1.0</span></p>
 
-    <!-- Signature element: a live recreation of the dictation flow -->
-    <div class="hero-demo" aria-hidden="true">
-      <div class="demo-frame">
-        <div class="demo-bar">
-          <span class="demo-dot"></span>
-          <span class="demo-key">Alt</span><span class="demo-key">C</span> hold to talk
-          <span class="demo-wave">
-            <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
-          </span>
+    <!-- Signature animated centerpiece: waveform → typed line -->
+    <div class="stage" aria-hidden="true">
+      <div class="stage-inner">
+        <div class="wave" id="wave">
+          <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+          <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+          <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
         </div>
-        <p class="demo-script" id="demoScript">
-          <span class="w">Hold</span> <span class="w">the</span> <span class="w">key</span>
-          <span class="w">and</span> <span class="w">speak.</span> <span class="w">Your</span>
-          <span class="w">words</span> <span class="w">are</span> <span class="w">typed</span>
-          <span class="w">in</span> <span class="w">as</span> <span class="w">you</span>
-          <span class="w">go,</span> <span class="w">exactly</span> <span class="w">where</span>
-          <span class="w">your</span> <span class="w">cursor</span> <span class="w">was.</span>
-          <span class="demo-cursor" id="demoCursor"></span>
-        </p>
+        <p class="typed" id="typed"><span class="caret"></span></p>
+        <div class="stage-key"><span class="k">Alt</span><span class="k">C</span> held</div>
       </div>
-      <p class="demo-caption">No window appears. The text lands in whatever field you were already in.</p>
     </div>
   </section>
 
-  <!-- TRUST STRIP -->
-  <section class="trust wrap" aria-label="At a glance">
-    <div class="trust-item"><strong>No window</strong><span>lives in the system tray</span></div>
-    <div class="trust-item"><strong>Private</strong><span>local mode never leaves the PC</span></div>
-    <div class="trust-item"><strong>Hold to talk</strong><span>one motion, no toggles</span></div>
-    <div class="trust-item"><strong>~25 MB RAM</strong><span>starts with your PC</span></div>
-  </section>
+  <!-- ONE COMPACT SECTION: how + what -->
+  <section id="how" class="slab wrap">
+    <div class="slab-head">
+      <h2>Hold, speak, release.</h2>
+      <p>That's the whole interaction. Everything else stays out of the way.</p>
+    </div>
 
-  <!-- HOW IT WORKS -->
-  <section id="how" class="section wrap">
-    <header class="section-head">
-      <p class="eyebrow">How it works</p>
-      <h2>Four steps, then you forget it's there.</h2>
-    </header>
-    <ol class="steps">
-      <li class="step">
-        <span class="step-num mono">01</span>
-        <h3>Install and forget it</h3>
-        <p>VoiceWriter starts with your PC and sits in the tray. There is no window on screen unless you open one.</p>
-      </li>
-      <li class="step">
-        <span class="step-num mono">02</span>
-        <h3>Click into a field</h3>
-        <p>An email, a chat box, a code editor, a form — anywhere you would normally type.</p>
-      </li>
-      <li class="step">
-        <span class="step-num mono">03</span>
-        <h3>Hold <span class="mono">Alt</span>+<span class="mono">C</span> and speak</h3>
-        <p>Hold the keys, say what you want written, and release them when you're done. The hotkey is rebindable.</p>
-      </li>
-      <li class="step">
-        <span class="step-num mono">04</span>
-        <h3>Your sentence is typed in</h3>
-        <p>Punctuation and spelling included, right where your cursor was. It pastes as one block, so nothing is dropped.</p>
-      </li>
+    <ol class="flow">
+      <li><span class="n">1</span><p>Install it. VoiceWriter starts with your PC and sits in the tray — no window on screen.</p></li>
+      <li><span class="n">2</span><p>Click into any text field, then hold <span class="k">Alt</span><span class="k">C</span> and speak.</p></li>
+      <li><span class="n">3</span><p>Release. Your sentence is pasted in as one block — nothing dropped, punctuation intact.</p></li>
     </ol>
-  </section>
 
-  <!-- FEATURES -->
-  <section id="features" class="section wrap">
-    <header class="section-head">
-      <p class="eyebrow">What's inside</p>
-      <h2>Built to stay out of your way.</h2>
-    </header>
-    <div class="feature-grid">
-      <article class="feature feature-wide">
+    <div class="cards">
+      <article class="card">
         <h3>Accurate by default</h3>
-        <p>Uses Groq's Whisper Large v3 for state-of-the-art accuracy on names, numbers, and punctuation. Falls back to a local model automatically when you're offline or without a key.</p>
+        <p>Groq's Whisper Large v3 for sharp names, numbers and punctuation. Falls back to a local model when offline.</p>
       </article>
-      <article class="feature">
-        <h3>Runs offline too</h3>
-        <p>Download a local whisper.cpp model once and dictation works with no network at all. Your audio never leaves the machine.</p>
+      <article class="card">
+        <h3>Private option</h3>
+        <p>Download a local model once and it runs entirely on your CPU. Your audio never leaves the machine.</p>
       </article>
-      <article class="feature">
-        <h3>Keys, not clicks</h3>
-        <p>Hold to talk, release to insert. No "start recording" button, no toggle to forget. Just one motion.</p>
+      <article class="card">
+        <h3>Invisible</h3>
+        <p>Nothing on screen unless you open settings from the tray. Click away and it hides. ~25&nbsp;MB idle.</p>
       </article>
-      <article class="feature">
-        <h3>No window in the way</h3>
-        <p>Nothing on screen unless you open the settings panel from the tray. Click anywhere else and it tucks itself away.</p>
-      </article>
-      <article class="feature">
-        <h3>Light on the machine</h3>
-        <p>About 25 MB of memory sitting idle. It starts with Windows and waits for the hotkey — nothing more.</p>
-      </article>
-      <article class="feature">
+      <article class="card">
         <h3>Your key stays yours</h3>
-        <p>The Groq API key is held in the Windows Credential Manager, not a plain-text file. Local mode needs no key at all.</p>
-      </article>
-      <article class="feature">
-        <h3>Usage at a glance</h3>
-        <p>The tray panel shows requests today, requests per minute, and an estimated share of the free-tier daily limit — green, then amber, then red.</p>
-      </article>
-    </div>
-  </section>
-
-  <!-- ACCURACY -->
-  <section id="accuracy" class="section wrap">
-    <header class="section-head">
-      <p class="eyebrow">Accuracy</p>
-      <h2>Cloud when you want it, local when you need it.</h2>
-    </header>
-    <div class="feature-grid">
-      <article class="feature">
-        <h3>Groq — best spelling</h3>
-        <p>Paste a free key from <a href="https://console.groq.com" target="_blank" rel="noopener">console.groq.com</a>. A few seconds of audio go to Groq's Whisper and come back as clean, punctuated text — sharp on proper nouns and figures.</p>
-      </article>
-      <article class="feature">
-        <h3>Local — fully private</h3>
-        <p>Pick a model size in the tray panel and download it once. Everything then runs on your CPU with no connection. Slower, but nothing leaves the PC.</p>
-      </article>
-      <article class="feature">
-        <h3>Auto — no thinking</h3>
-        <p>Leave it on Auto and VoiceWriter uses Groq when it can and the local model when it can't. You never have to switch modes by hand.</p>
+        <p>The Groq API key lives in the Windows Credential Manager, shown only masked. Local mode needs none.</p>
       </article>
     </div>
   </section>
 
   <!-- DOWNLOAD -->
-  <section id="download" class="section wrap">
-    <div class="download-panel">
-      <div class="download-main">
+  <section id="get" class="get wrap">
+    <div class="get-card">
+      <div class="get-main">
         <p class="eyebrow">Download</p>
         <h2>VoiceWriter for Windows</h2>
-        <p class="download-lead">Pick either installer. The local speech model is downloaded later from inside the app if you want offline mode.</p>
+        <p class="get-lead">Either installer works. The local model is fetched later from inside the app if you want offline mode.</p>
 
         <a href="https://github.com/Xrenes/voicewriter/releases/latest/download/VoiceWriter_0.1.0_x64-setup.exe"
-           class="btn btn-accent btn-lg download-btn" id="dlExe">
-          Installer &nbsp;·&nbsp; .exe<span class="dl-size mono" id="exeSize"></span>
+           class="btn btn-accent btn-lg get-btn" id="dlExe">
+          Installer · .exe<span class="sz mono" id="exeSize"></span>
         </a>
-        <p class="download-sub">
-          NSIS installer, adds shortcuts &nbsp;·&nbsp;
-          <span class="mono" id="exeSizeSub">~3&nbsp;MB</span> &nbsp;·&nbsp; <span class="mono">v0.1.0</span>
-        </p>
-
         <a href="https://github.com/Xrenes/voicewriter/releases/latest/download/VoiceWriter_0.1.0_x64_en-US.msi"
-           class="btn btn-lg download-btn download-btn-alt" id="dlMsi">
-          MSI &nbsp;·&nbsp; VoiceWriter_0.1.0_x64_en-US.msi<span class="dl-size mono" id="msiSize"></span>
+           class="btn btn-lg get-btn get-btn-alt" id="dlMsi">
+          MSI · for managed installs<span class="sz mono" id="msiSize"></span>
         </a>
-        <p class="download-sub">
-          For managed / group-policy installs &nbsp;·&nbsp;
-          <span class="mono" id="msiSizeSub">~5&nbsp;MB</span>
-        </p>
 
-        <p class="download-sub download-req">Windows 10 / 11, 64-bit</p>
-
-        <p class="download-links">
+        <p class="get-links">
           <a href="https://github.com/Xrenes/voicewriter/releases" id="relLink">All releases</a>
-          &nbsp;·&nbsp;
+          ·
           <a href="https://github.com/Xrenes/voicewriter">Source &amp; issues</a>
         </p>
       </div>
 
-      <div class="download-side">
-        <h3>Before the first launch</h3>
-        <p>
-          Windows may show a blue “Windows protected your PC” screen because the
-          app isn't signed yet. Click <strong>More info</strong>, then
-          <strong>Run anyway</strong>. Signing is on the roadmap.
-        </p>
-        <h3>First-run setup</h3>
-        <p>
-          Open the tray (the ▲ near the clock), click the VoiceWriter icon, and
-          either paste a free Groq API key or download a local model from the
-          same panel.
-        </p>
-        <h3>Uninstall</h3>
-        <p>
-          Settings&nbsp;&rsaquo;&nbsp;Apps &rsaquo; VoiceWriter &rsaquo; Uninstall.
-          It removes the app and its Start Menu shortcut.
-        </p>
-      </div>
-    </div>
-  </section>
-
-  <!-- FAQ -->
-  <section id="faq" class="section wrap">
-    <header class="section-head">
-      <p class="eyebrow">Questions</p>
-      <h2>Straight answers.</h2>
-    </header>
-    <div class="faq">
-      <details>
-        <summary>Does my voice get sent anywhere?</summary>
-        <p>Only if you choose the Groq engine. In that mode a few seconds of audio per dictation are sent to Groq's API and the text comes back. In Local mode nothing leaves your machine — the model runs on your CPU. Auto mode uses Groq when it can reach it and the local model otherwise.</p>
-      </details>
-      <details>
-        <summary>Do I need an API key?</summary>
-        <p>No. Download a local model from the tray panel and VoiceWriter works fully offline with no account. A free Groq key just gives you higher accuracy and much faster results.</p>
-      </details>
-      <details>
-        <summary>Where is my Groq key stored?</summary>
-        <p>In the Windows Credential Manager, not a plain-text file. The settings panel only ever shows a masked version of it.</p>
-      </details>
-      <details>
-        <summary>Why does Windows warn me when I run it?</summary>
-        <p>The installer isn't code-signed yet, so SmartScreen flags it as coming from an unknown publisher. Choose <strong>More info &rsaquo; Run anyway</strong>. The installers come straight from the GitHub Releases page.</p>
-      </details>
-      <details>
-        <summary>Where does the text go?</summary>
-        <p>Into whatever text field had focus when you pressed the hotkey. VoiceWriter copies the transcript and pastes it as one block, so long sentences and unusual spellings come through intact.</p>
-      </details>
-      <details>
-        <summary>Is there a Mac or Linux version?</summary>
-        <p>Windows only for now. The app uses Windows audio, tray, and input APIs directly, so a port isn't a quick change.</p>
-      </details>
-      <details>
-        <summary>How do I close it?</summary>
-        <p>Open the tray icon and choose Quit, or end the process from Task Manager. Closing the settings window just hides it — the app keeps listening for the hotkey.</p>
-      </details>
+      <aside class="get-side">
+        <p><strong>First launch:</strong> Windows may show “Windows protected your PC” — the app isn't signed yet. Click <strong>More info › Run anyway</strong>.</p>
+        <p><strong>Setup:</strong> open the tray (▲ near the clock), click the VoiceWriter icon, then paste a free <a href="https://console.groq.com" target="_blank" rel="noopener">Groq key</a> or download a local model.</p>
+        <p><strong>Offline?</strong> Yes — with a local model, nothing leaves your PC. <strong>Mac / Linux?</strong> Not yet, Windows only.</p>
+      </aside>
     </div>
   </section>
 </main>
 
 <footer class="site-footer">
   <div class="wrap footer-inner">
-    <div class="footer-brand">
-      <img src="assets/icon.png" alt="" width="28" height="28" />
-      <span>VoiceWriter</span>
-    </div>
-    <p class="footer-note">Background voice dictation for Windows. <span class="mono">v0.1.0</span> &nbsp;·&nbsp; Not affiliated with Groq or OpenAI.</p>
-    <nav class="footer-links" aria-label="Footer">
-      <a href="#how">How it works</a>
-      <a href="#features">Features</a>
-      <a href="#download">Download</a>
-      <a href="#faq">FAQ</a>
-    </nav>
+    <span class="footer-brand"><img src="assets/icon.png" alt="" width="22" height="22" /> VoiceWriter</span>
+    <span class="footer-note"><span class="mono">v0.1.0</span> · not affiliated with Groq or OpenAI</span>
+    <a href="https://github.com/Xrenes/voicewriter">GitHub</a>
   </div>
 </footer>
 
