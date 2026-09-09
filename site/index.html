@@ -57,7 +57,7 @@
       <a href="#get" class="btn btn-accent btn-lg">Download for Windows</a>
       <a href="#how" class="btn btn-ghost btn-lg">How it works</a>
     </div>
-    <p class="hero-meta">Free · Windows 10 / 11, 64-bit · <span class="mono">v0.1.0</span></p>
+    <p class="hero-meta">Free · Windows 10 / 11, 64-bit · <span class="mono">v0.2.0</span></p>
 
     <!-- Signature animated centerpiece: waveform → typed line -->
     <div class="stage" aria-hidden="true">
@@ -83,25 +83,33 @@
     <ol class="flow">
       <li><span class="n">1</span><p>Install it. VoiceWriter starts with your PC and sits in the tray — no window on screen.</p></li>
       <li><span class="n">2</span><p>Click into any text field, then hold <span class="k">Alt</span><span class="k">C</span> and speak.</p></li>
-      <li><span class="n">3</span><p>Release. Your sentence is pasted in as one block — nothing dropped, punctuation intact.</p></li>
+      <li><span class="n">3</span><p>Release. Your sentence appears instantly, then quietly cleans itself up a moment later.</p></li>
     </ol>
 
     <div class="cards">
       <article class="card">
-        <h3>Accurate by default</h3>
-        <p>Groq's Whisper Large v3 for sharp names, numbers and punctuation. Falls back to a local model when offline.</p>
+        <h3>Fast, then polished</h3>
+        <p>The transcript lands the instant it's ready. An AI grammar-and-punctuation pass runs in the background and silently replaces it when done — no waiting.</p>
+      </article>
+      <article class="card">
+        <h3>Works everywhere</h3>
+        <p>Types into stubborn web apps too — Google&nbsp;Docs, Sheets, Gmail, HubSpot, Aloware — using native Windows input, not a browser hack.</p>
+      </article>
+      <article class="card">
+        <h3>Knows code from prose</h3>
+        <p>Dictate a Linux command and "dash dash force" becomes <span class="mono">--force</span>; it's kept verbatim, not "corrected". Prose still gets full cleanup.</p>
+      </article>
+      <article class="card">
+        <h3>Two languages, two keys</h3>
+        <p>Hold <span class="k">Alt</span><span class="k">C</span> for English (romanized Banglish passes through untouched). Hold <span class="k">Alt</span><span class="k">X</span> for Bangla — types বাংলা script.</p>
       </article>
       <article class="card">
         <h3>Private option</h3>
         <p>Download a local model once and it runs entirely on your CPU. Your audio never leaves the machine.</p>
       </article>
       <article class="card">
-        <h3>Invisible</h3>
-        <p>Nothing on screen unless you open settings from the tray. Click away and it hides. ~25&nbsp;MB idle.</p>
-      </article>
-      <article class="card">
-        <h3>Your key stays yours</h3>
-        <p>The Groq API key lives in the Windows Credential Manager, shown only masked. Local mode needs none.</p>
+        <h3>Invisible &amp; light</h3>
+        <p>Nothing on screen unless you open settings from the tray. Click away and it hides. ~25&nbsp;MB idle. Key stored in Windows Credential Manager.</p>
       </article>
     </div>
   </section>
@@ -114,11 +122,11 @@
         <h2>VoiceWriter for Windows</h2>
         <p class="get-lead">Either installer works. The local model is fetched later from inside the app if you want offline mode.</p>
 
-        <a href="https://github.com/Xrenes/voicewriter/releases/latest/download/VoiceWriter_0.1.0_x64-setup.exe"
+        <a href="https://github.com/Xrenes/voicewriter/releases/latest/download/VoiceWriter_0.2.0_x64-setup.exe"
            class="btn btn-accent btn-lg get-btn" id="dlExe">
           Installer · .exe<span class="sz mono" id="exeSize"></span>
         </a>
-        <a href="https://github.com/Xrenes/voicewriter/releases/latest/download/VoiceWriter_0.1.0_x64_en-US.msi"
+        <a href="https://github.com/Xrenes/voicewriter/releases/latest/download/VoiceWriter_0.2.0_x64_en-US.msi"
            class="btn btn-lg get-btn get-btn-alt" id="dlMsi">
           MSI · for managed installs<span class="sz mono" id="msiSize"></span>
         </a>
@@ -133,6 +141,7 @@
       <aside class="get-side">
         <p><strong>First launch:</strong> Windows may show “Windows protected your PC” — the app isn't signed yet. Click <strong>More info › Run anyway</strong>.</p>
         <p><strong>Setup:</strong> open the tray (▲ near the clock), click the VoiceWriter icon, then paste a free <a href="https://console.groq.com" target="_blank" rel="noopener">Groq key</a> or download a local model.</p>
+        <p><strong>Hotkeys:</strong> <span class="k">Alt</span><span class="k">C</span> English · <span class="k">Alt</span><span class="k">X</span> Bangla. Both are rebindable in settings.</p>
         <p><strong>Offline?</strong> Yes — with a local model, nothing leaves your PC. <strong>Mac / Linux?</strong> Not yet, Windows only.</p>
       </aside>
     </div>
@@ -142,7 +151,7 @@
 <footer class="site-footer">
   <div class="wrap footer-inner">
     <span class="footer-brand"><img src="assets/icon.png" alt="" width="22" height="22" /> VoiceWriter</span>
-    <span class="footer-note"><span class="mono">v0.1.0</span> · not affiliated with Groq or OpenAI</span>
+    <span class="footer-note"><span class="mono">v0.2.0</span> · not affiliated with Groq or OpenAI</span>
     <a href="https://github.com/Xrenes/voicewriter">GitHub</a>
   </div>
 </footer>
