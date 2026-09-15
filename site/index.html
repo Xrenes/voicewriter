@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>VoiceWriter — you won't have to write a single word again</title>
+<meta name="description" content="A tiny Windows app for voice dictation. Hold Alt+C, speak, release — your words are transcribed and typed into whatever field has focus. No window." />
+<meta name="theme-color" content="#000000" />
+
+<meta property="og:title" content="VoiceWriter — you won't have to write a single word again" />
+<meta property="og:description" content="Hold Alt+C, speak, release. Your words get typed into the focused field. Local Whisper + Groq, private, no window." />
+<meta property="og:type" content="website" />
+<meta property="og:image" content="assets/icon.png" />
+
+<link rel="icon" href="favicon.svg" type="image/svg+xml" />
+<link rel="icon" href="assets/favicon.ico" sizes="any" />
+<link rel="apple-touch-icon" href="assets/icon.png" />
+
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500&display=swap" rel="stylesheet" />
+
+<link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+<a class="skip-link" href="#main">Skip to content</a>
+
+<div class="bg-glow" aria-hidden="true"></div>
+
+<header class="site-header" id="siteHeader">
+  <div class="wrap header-inner">
+    <a class="brand" href="#top" aria-label="VoiceWriter home">
+      <img src="assets/icon.png" alt="" width="26" height="26" class="brand-mark" />
+      <span>VoiceWriter</span>
+    </a>
+    <a href="#get" class="btn btn-accent btn-sm">Download</a>
+  </div>
+</header>
+
+<main id="main">
+  <span id="top"></span>
+
+  <!-- HERO — centered -->
+  <section class="hero wrap">
+    <p class="eyebrow">Voice dictation for Windows</p>
+    <h1>
+      You won't have to
+      <span class="ink">write<span class="ink-line" aria-hidden="true"></span></span>
+      a single word again.
+    </h1>
+    <p class="lead">
+      Click into any field. Hold <span class="k">Alt</span><span class="k">C</span>,
+      say your sentence, let go. The words appear where your cursor was —
+      spelling and punctuation included. No window, ever.
+    </p>
+    <div class="hero-actions">
+      <a href="#get" class="btn btn-accent btn-lg">Download for Windows</a>
+      <a href="#how" class="btn btn-ghost btn-lg">How it works</a>
+    </div>
+    <p class="hero-meta">Free · Windows 10 / 11, 64-bit · <span class="mono">v0.2.0</span></p>
+
+    <!-- Signature animated centerpiece: waveform → typed line -->
+    <div class="stage" aria-hidden="true">
+      <div class="stage-inner">
+        <div class="wave" id="wave">
+          <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+          <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+          <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+        </div>
+        <p class="typed" id="typed"><span class="caret"></span></p>
+        <div class="stage-key"><span class="k">Alt</span><span class="k">C</span> held</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ONE COMPACT SECTION: how + what -->
+  <section id="how" class="slab wrap">
+    <div class="slab-head">
+      <h2>Hold, speak, release.</h2>
+      <p>That's the whole interaction. Everything else stays out of the way.</p>
+    </div>
+
+    <ol class="flow">
+      <li><span class="n">1</span><p>Install it. VoiceWriter starts with your PC and sits in the tray — no window on screen.</p></li>
+      <li><span class="n">2</span><p>Click into any text field, then hold <span class="k">Alt</span><span class="k">C</span> and speak.</p></li>
+      <li><span class="n">3</span><p>Release. Your sentence appears instantly, then quietly cleans itself up a moment later.</p></li>
+    </ol>
+
+    <div class="cards">
+      <article class="card">
+        <h3>Fast, then polished</h3>
+        <p>The transcript lands the instant it's ready. An AI grammar-and-punctuation pass runs in the background and silently replaces it when done — no waiting.</p>
+      </article>
+      <article class="card">
+        <h3>Works everywhere</h3>
+        <p>Types into stubborn web apps too — Google&nbsp;Docs, Sheets, Gmail, HubSpot, Aloware — using native Windows input, not a browser hack.</p>
+      </article>
+      <article class="card">
+        <h3>Knows code from prose</h3>
+        <p>Dictate a Linux command and "dash dash force" becomes <span class="mono">--force</span>; it's kept verbatim, not "corrected". Prose still gets full cleanup.</p>
+      </article>
+      <article class="card">
+        <h3>Two languages, two keys</h3>
+        <p>Hold <span class="k">Alt</span><span class="k">C</span> for English (romanized Banglish passes through untouched). Hold <span class="k">Alt</span><span class="k">X</span> for Bangla — types বাংলা script.</p>
+      </article>
+      <article class="card">
+        <h3>Private option</h3>
+        <p>Download a local model once and it runs entirely on your CPU. Your audio never leaves the machine.</p>
+      </article>
+      <article class="card">
+        <h3>Invisible &amp; light</h3>
+        <p>Nothing on screen unless you open settings from the tray. Click away and it hides. ~25&nbsp;MB idle. Key stored in Windows Credential Manager.</p>
+      </article>
+    </div>
+  </section>
+
+  <!-- DOWNLOAD -->
+  <section id="get" class="get wrap">
+    <div class="get-card">
+      <div class="get-main">
+        <p class="eyebrow">Download</p>
+        <h2>VoiceWriter for Windows</h2>
+        <p class="get-lead">Either installer works. The local model is fetched later from inside the app if you want offline mode.</p>
+
+        <a href="https://github.com/Xrenes/voicewriter/releases/latest/download/VoiceWriter_0.2.0_x64-setup.exe"
+           class="btn btn-accent btn-lg get-btn" id="dlExe">
+          Installer · .exe<span class="sz mono" id="exeSize"></span>
+        </a>
+        <a href="https://github.com/Xrenes/voicewriter/releases/latest/download/VoiceWriter_0.2.0_x64_en-US.msi"
+           class="btn btn-lg get-btn get-btn-alt" id="dlMsi">
+          MSI · for managed installs<span class="sz mono" id="msiSize"></span>
+        </a>
+
+        <p class="get-links">
+          <a href="https://github.com/Xrenes/voicewriter/releases" id="relLink">All releases</a>
+          ·
+          <a href="https://github.com/Xrenes/voicewriter">Source &amp; issues</a>
+        </p>
+      </div>
+
+      <aside class="get-side">
+        <p><strong>First launch:</strong> Windows may show “Windows protected your PC” — the app isn't signed yet. Click <strong>More info › Run anyway</strong>.</p>
+        <p><strong>Setup:</strong> open the tray (▲ near the clock), click the VoiceWriter icon, then paste a free <a href="https://console.groq.com" target="_blank" rel="noopener">Groq key</a> or download a local model.</p>
+        <p><strong>Hotkeys:</strong> <span class="k">Alt</span><span class="k">C</span> English · <span class="k">Alt</span><span class="k">X</span> Bangla. Both are rebindable in settings.</p>
+        <p><strong>Offline?</strong> Yes — with a local model, nothing leaves your PC. <strong>Mac / Linux?</strong> Not yet, Windows only.</p>
+      </aside>
+    </div>
+  </section>
+</main>
+
+<footer class="site-footer">
+  <div class="wrap footer-inner">
+    <span class="footer-brand"><img src="assets/icon.png" alt="" width="22" height="22" /> VoiceWriter</span>
+    <span class="footer-note"><span class="mono">v0.2.0</span> · not affiliated with Groq or OpenAI</span>
+    <a href="https://github.com/Xrenes/voicewriter">GitHub</a>
+  </div>
+</footer>
+
+<script src="main.js"></script>
+</body>
+</html>

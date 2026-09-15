@@ -2,14 +2,22 @@
 
 Hold **Alt+C** while speaking, then release to type your words into the focused text field.
 Wait for transcription to finish before starting another recording.
-No window, no cloud — transcription runs locally with whisper.cpp.
+No window, no cloud — transcription runs locally with whisper.cpp (or Groq, if you set an API key).
 
+- **Website:** https://xrenes.github.io/voicewriter/
+- **Downloads:** see [Releases](https://github.com/Xrenes/voicewriter/releases) —
+  `.exe` (NSIS installer) and `.msi`.
 - **Headless**: starts with no visible window; lives in the system tray.
 - **Global hotkey**: `Alt+C` (editable in Settings) records while held and transcribes on release.
   Quick taps shorter than 0.3 seconds of audio are ignored.
 - **Local STT**: whisper.cpp via `whisper-rs`. The model is downloaded on first run.
 - **Insertion**: types into the focused field, or copies to clipboard, or both.
+- **Speak selected text aloud**: select text anywhere, press a hotkey (default `Control+Alt+C`)
+  to hear it read back via Groq TTS (English only for now). Press again to stop.
 - **Cross-platform**: Windows and Linux (X11). See notes below.
+
+This repository contains both the application source (`src/`, `src-tauri/`) and the
+marketing website (`site/`).
 
 ---
 
@@ -72,6 +80,10 @@ Alt+C ──► cpal records mic ──► resample to 16 kHz mono
 - `src-tauri/src/typer.rs` — keystroke / clipboard insertion
 - `src-tauri/src/model.rs` — model file paths + first-run download
 - `src-tauri/src/settings.rs` — persisted settings (`settings.json`)
+- `src-tauri/src/speak.rs` — "speak selected text aloud": selection capture, Groq TTS, playback
+- `src-tauri/src/groq.rs` — Groq API calls (transcription, cleanup, text-to-speech)
+- `src-tauri/src/keychain.rs` — OS keychain storage for the two independent Groq API keys
+  (dictation and speak-aloud)
 - `src/` — the setup/status window (plain TS + Vite)
 
 Models and settings live in the OS app-data dir
@@ -95,7 +107,7 @@ Models and settings live in the OS app-data dir
 - Streaming / live partial transcription
 - Voice punctuation commands ("new line", "comma")
 - GPU-accelerated whisper builds
-
+- Speak-aloud in languages other than English
 
 ## Inserting into desktop apps and websites
 
@@ -103,7 +115,7 @@ Click inside an editable field, hold Alt+C while speaking, then release all keys
 Keep the cursor in that field until transcription and optional AI cleanup finish.
 Cleanup runs before one insertion; it no longer selects and replaces text later.
 
-Settings ? Insert text offers:
+Settings → Insert text offers:
 
 - **Paste (recommended)**: native Ctrl+V, with delayed clipboard restoration.
 - **Paste and keep on clipboard**: useful for slow web editors or manual recovery.
@@ -130,7 +142,6 @@ This verifies insertion separately from microphone/transcription. Signed-in
 Gmail, Google Docs, Google Sheets, and every third-party app are not covered by
 this automated smoke test.
 
-
 ### Hold-to-talk selection protection (Windows)
 
 The Windows repeat guard suppresses repeated trigger-key downs after a registered
@@ -151,3 +162,28 @@ fixtures are not live HubSpot, Aloware or Google Sheets account tests. The harne
 requires exclusive foreground interaction and stops if the target loses focus.
 Results are written incrementally to `src-tauri/target/insertion-100-results.json`;
 a partial file is not evidence of a completed 100-case run.
+
+---
+
+## Website & releases
+
+The `site/` folder is the marketing site, auto-deployed to GitHub Pages via
+[`.github/workflows/pages.yml`](.github/workflows/pages.yml) on every push to `main`
+that touches `site/`.
+
+### Local site preview
+
+```bash
+cd site
+python -m http.server 8000
+# open http://localhost:8000
+```
+
+### Releasing a new version
+
+1. Build the installers (`npm run tauri build`).
+2. Draft a GitHub Release here, tag `vX.Y.Z`.
+3. Upload `VoiceWriter_X.Y.Z_x64-setup.exe` and `VoiceWriter_X.Y.Z_x64_en-US.msi`.
+4. The website reads the latest release from the GitHub API, so the download
+   buttons update automatically. The `download.js` fallback URLs use
+   `/releases/latest/download/…` and keep working without changes.
