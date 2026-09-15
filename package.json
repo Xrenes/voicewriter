@@ -1,6 +1,6 @@
 {
   "name": "voicewriter",
-  "version": "0.1.0",
+  "version": "0.3.0",
   "description": "Voice writing assistant — press Alt+C, speak, and the transcript is typed into the focused field.",
   "type": "module",
   "scripts": {
