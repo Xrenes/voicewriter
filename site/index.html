@@ -33,7 +33,10 @@
       <img src="assets/icon.png" alt="" width="26" height="26" class="brand-mark" />
       <span>VoiceWriter</span>
     </a>
-    <a href="#get" class="btn btn-accent btn-sm">Download</a>
+    <nav class="header-actions">
+      <a href="#help" class="btn btn-ghost btn-sm">Help</a>
+      <a href="#get" class="btn btn-accent btn-sm">Download</a>
+    </nav>
   </div>
 </header>
 
@@ -57,7 +60,7 @@
       <a href="#get" class="btn btn-accent btn-lg">Download for Windows</a>
       <a href="#how" class="btn btn-ghost btn-lg">How it works</a>
     </div>
-    <p class="hero-meta">Free · Windows 10 / 11, 64-bit · <span class="mono">v0.2.0</span></p>
+    <p class="hero-meta">Free · Windows 10 / 11, 64-bit · <span class="mono">v0.3.0</span></p>
 
     <!-- Signature animated centerpiece: waveform → typed line -->
     <div class="stage" aria-hidden="true">
@@ -122,11 +125,11 @@
         <h2>VoiceWriter for Windows</h2>
         <p class="get-lead">Either installer works. The local model is fetched later from inside the app if you want offline mode.</p>
 
-        <a href="https://github.com/Xrenes/voicewriter/releases/latest/download/VoiceWriter_0.2.0_x64-setup.exe"
+        <a href="https://github.com/Xrenes/voicewriter/releases/latest/download/VoiceWriter_0.3.0_x64-setup.exe"
            class="btn btn-accent btn-lg get-btn" id="dlExe">
           Installer · .exe<span class="sz mono" id="exeSize"></span>
         </a>
-        <a href="https://github.com/Xrenes/voicewriter/releases/latest/download/VoiceWriter_0.2.0_x64_en-US.msi"
+        <a href="https://github.com/Xrenes/voicewriter/releases/latest/download/VoiceWriter_0.3.0_x64_en-US.msi"
            class="btn btn-lg get-btn get-btn-alt" id="dlMsi">
           MSI · for managed installs<span class="sz mono" id="msiSize"></span>
         </a>
@@ -146,12 +149,38 @@
       </aside>
     </div>
   </section>
+
+  <!-- TROUBLESHOOTING / FAQ -->
+  <section id="help" class="slab wrap">
+    <div class="slab-head">
+      <h2>Troubleshooting</h2>
+      <p>Common setup issues and how to fix them.</p>
+    </div>
+
+    <div class="cards">
+      <article class="card">
+        <h3>Speak-aloud test fails: “requires terms acceptance”</h3>
+        <p>
+          If testing your Speak-aloud key in Settings returns an error like
+          <span class="mono">Groq speech 400: The model 'canopylabs/orpheus-v1-english' requires terms acceptance</span>,
+          this is a one-time approval Groq requires on their side — it isn't a VoiceWriter bug and no app setting fixes it.
+        </p>
+        <ol class="flow flow-compact">
+          <li><span class="n">1</span><p>Sign in at <a href="https://console.groq.com" target="_blank" rel="noopener">console.groq.com</a> using the same account that owns the API key you pasted into VoiceWriter.</p></li>
+          <li><span class="n">2</span><p>Open the model's Playground page directly: <a href="https://console.groq.com/playground?model=canopylabs%2Forpheus-v1-english" target="_blank" rel="noopener">console.groq.com/playground?model=canopylabs%2Forpheus-v1-english</a></p></li>
+          <li><span class="n">3</span><p>Accept the terms prompt shown for that model. This approval is org-wide, not per-key.</p></li>
+          <li><span class="n">4</span><p>If you don't see an accept option, your account is likely a Member rather than an Owner/Admin of that Groq organization. Ask your org's Owner/Admin to open the same link and accept — one acceptance covers everyone using keys under that org.</p></li>
+          <li><span class="n">5</span><p>Back in VoiceWriter, open Settings and click <strong>Test</strong> next to the Speak-aloud key again to confirm it now works.</p></li>
+        </ol>
+      </article>
+    </div>
+  </section>
 </main>
 
 <footer class="site-footer">
   <div class="wrap footer-inner">
     <span class="footer-brand"><img src="assets/icon.png" alt="" width="22" height="22" /> VoiceWriter</span>
-    <span class="footer-note"><span class="mono">v0.2.0</span> · not affiliated with Groq or OpenAI</span>
+    <span class="footer-note"><span class="mono">v0.3.0</span> · not affiliated with Groq or OpenAI</span>
     <a href="https://github.com/Xrenes/voicewriter">GitHub</a>
   </div>
 </footer>
