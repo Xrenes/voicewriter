@@ -1,0 +1,78 @@
+[package]
+name = "voicewriter"
+version = "0.2.0"
+description = "Voice writing assistant"
+authors = ["ifti237@gmail.com"]
+edition = "2021"
+rust-version = "1.77"
+
+[lib]
+name = "voicewriter_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = ["tray-icon", "image-png"] }
+tauri-plugin-store = "2"
+tauri-plugin-global-shortcut = "2"
+tauri-plugin-single-instance = "2"
+tauri-plugin-autostart = "2"
+tauri-plugin-clipboard-manager = "2"
+
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+anyhow = "1"
+parking_lot = "0.12"
+once_cell = "1"
+
+# Audio capture + resampling
+cpal = "0.15"
+rubato = "0.16"
+
+# Audio playback (text-to-speech output). Groq's TTS response is a
+# streamed WAV with a placeholder 0xFFFFFFFF RIFF size (unknown length while
+# streaming); rodio's bundled `wav` (hound) decoder rejects that as malformed,
+# so we use the symphonia-backed WAV decoder instead, which tolerates it.
+rodio = { version = "0.19", default-features = false, features = ["symphonia-wav"] }
+
+# Local speech-to-text (whisper.cpp bindings) — fallback engine
+whisper-rs = "0.16"
+
+# Keystroke / clipboard injection into the focused field
+enigo = { version = "0.6", features = ["serde"] }
+
+# Groq API upload (multipart) + model download
+reqwest = { version = "0.12", default-features = false, features = [
+    "blocking",
+    "multipart",
+    "json",
+    "rustls-tls",
+] }
+
+# Minimal WAV writer for the Groq upload
+hound = "3"
+
+# Groq API key storage in the OS keychain (Windows Credential Manager / Secret Service)
+keyring = { version = "3", features = ["windows-native", "sync-secret-service"] }
+
+# Timestamps for usage counters
+time = { version = "0.3", features = ["formatting"] }
+
+# Raw Windows input injection (SendInput) — more compatible with Chromium/Electron
+# fields than enigo for Ctrl+V and Unicode typing.
+[target.'cfg(windows)'.dependencies]
+windows = { version = "0.58", features = [
+    "Win32_UI_Input_KeyboardAndMouse",
+    "Win32_Foundation",
+    "Win32_UI_WindowsAndMessaging",
+] }
+
+[dev-dependencies]
+arboard = "3"
+global-hotkey = "0.8"
+
+[profile.release]
+opt-level = "s"
+strip = true

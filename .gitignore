@@ -1,0 +1,19 @@
+# dependencies
+node_modules/
+
+# build output
+dist/
+src-tauri/target/
+src-tauri/gen/schemas/
+
+# downloaded whisper models (large)
+src-tauri/models/*.bin
+src-tauri/models/*.part
+
+# os / editor
+.DS_Store
+Thumbs.db
+*.log
+
+# Claude Code local session/tooling state
+.claude/

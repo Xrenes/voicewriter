@@ -1,0 +1,214 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>VoiceWriter</title>
+    <link rel="stylesheet" href="/src/styles.css" />
+  </head>
+  <body>
+    <div class="titlebar" data-tauri-drag-region>
+      <span class="titlebar-name" data-tauri-drag-region>VoiceWriter</span>
+    </div>
+
+    <main class="app">
+      <header class="head">
+        <div class="brand">
+          <span class="dot" id="statusDot"></span>
+          <h1>VoiceWriter</h1>
+        </div>
+        <p class="status" id="statusText">Idle</p>
+      </header>
+
+      <section class="card">
+        <div class="row">
+          <label>Hotkey</label>
+          <div class="hotkey">
+            <input id="hotkey" type="text" value="Alt+C" readonly />
+            <button id="hotkeyEdit" class="ghost">Change</button>
+          </div>
+        </div>
+        <p class="hint">Hold to talk. Release to insert the text into the focused field.</p>
+
+        <div id="secondLanguageSection" hidden>
+          <div class="row">
+            <label>Second language</label>
+            <div class="hotkey">
+              <input id="hotkey2" type="text" value="Alt+X" readonly />
+              <button id="hotkey2Edit" class="ghost">Change</button>
+            </div>
+          </div>
+          <div class="row">
+            <label for="language2">Its language</label>
+            <input id="language2" type="text" value="bn" spellcheck="false" />
+          </div>
+          <p class="hint dim">
+            Hold this key to dictate in the second language (default Bangla, <span class="mono">bn</span>).
+            Clear the hotkey to disable it.
+          </p>
+        </div>
+
+        <div class="row">
+          <label>Speak selection</label>
+          <div class="hotkey">
+            <input id="hotkeySpeak" type="text" value="Control+Alt+C" readonly />
+            <button id="hotkeySpeakEdit" class="ghost">Change</button>
+          </div>
+        </div>
+        <p class="hint dim">
+          Select text anywhere, press this key to hear it read aloud (English only, via Groq).
+          Press again to stop. Clear the hotkey to disable it.
+        </p>
+
+        <div class="row speak-status-row" id="speakStatusRow" hidden>
+          <span id="speakStatusText">Idle</span>
+        </div>
+        <div class="progress speak-progress" id="speakProgressWrap" hidden>
+          <div class="progress-bar speak-progress-bar" id="speakProgressBar"></div>
+        </div>
+      </section>
+
+      <section class="card">
+        <div class="row">
+          <label>Groq API key</label>
+          <span class="keyval" id="keyStatus">Checking…</span>
+        </div>
+        <div class="row key-actions">
+          <button id="keyReplace" class="ghost">Replace</button>
+          <button id="keyTest" class="ghost">Test</button>
+          <button id="keyClear" class="ghost danger" hidden>Remove</button>
+        </div>
+        <div class="row key-edit" id="keyEditRow" hidden>
+          <input id="keyInput" type="password" placeholder="gsk_..." spellcheck="false" />
+          <button id="keySave" class="primary">Save</button>
+        </div>
+        <p class="hint" id="keyHint">
+          With a key, dictation uses Groq for best accuracy. Without one it uses the local model.
+        </p>
+      </section>
+
+      <section class="card">
+        <div class="row">
+          <label>Speak-aloud API key</label>
+          <span class="keyval" id="speakKeyStatus">Checking…</span>
+        </div>
+        <div class="row key-actions">
+          <button id="speakKeyReplace" class="ghost">Replace</button>
+          <button id="speakKeyTest" class="ghost">Test</button>
+          <button id="speakKeyClear" class="ghost danger" hidden>Remove</button>
+        </div>
+        <div class="row key-edit" id="speakKeyEditRow" hidden>
+          <input id="speakKeyInput" type="password" placeholder="gsk_..." spellcheck="false" />
+          <button id="speakKeySave" class="primary">Save</button>
+        </div>
+        <p class="hint" id="speakKeyHint">
+          Separate Groq key used only for "speak selected text aloud." Required for that feature.
+        </p>
+      </section>
+
+      <section class="card">
+        <div class="usage-nums">
+          <div><span id="uToday">0</span><em>requests today</em></div>
+          <div><span id="uRpm">0</span><em>requests / min</em></div>
+        </div>
+        <div class="meter">
+          <div class="meter-head">
+            <span>Daily usage (est.)</span>
+            <span id="meterPct">0%</span>
+          </div>
+          <div class="meter-track">
+            <div class="meter-fill" id="meterFill"></div>
+          </div>
+        </div>
+        <p class="hint dim">
+          Approximate against Groq free-tier daily limits. Not account billing.
+        </p>
+      </section>
+
+      <section class="card">
+        <div class="row">
+          <label for="engine">Engine</label>
+          <select id="engine">
+            <option value="auto">Auto — Groq, local fallback</option>
+            <option value="groq">Groq only</option>
+            <option value="local">Local only</option>
+          </select>
+        </div>
+        <div class="row">
+          <label for="groqModel">Groq model</label>
+          <select id="groqModel">
+            <option value="whisper-large-v3-turbo">large-v3-turbo — fast</option>
+            <option value="whisper-large-v3">large-v3 — most accurate</option>
+          </select>
+        </div>
+        <div class="row">
+          <label for="micDevice">Microphone</label>
+          <select id="micDevice">
+            <option value="">System default</option>
+          </select>
+        </div>
+        <div class="row">
+          <label for="language">Language</label>
+          <input id="language" type="text" value="en" spellcheck="false" />
+        </div>
+      </section>
+
+      <section class="card">
+        <div class="row">
+          <label for="model">Local model</label>
+          <select id="model">
+            <option value="base.en">base.en — fast (~148 MB)</option>
+            <option value="small.en">small.en — better (~488 MB)</option>
+            <option value="small">small — multilingual (~488 MB)</option>
+            <option value="medium">medium — best (~1.5 GB)</option>
+          </select>
+        </div>
+        <div class="row model-status">
+          <span id="modelState">Checking…</span>
+          <button id="modelDownload" class="primary" hidden>Download</button>
+        </div>
+        <div class="progress" id="progressWrap" hidden>
+          <div class="progress-bar" id="progressBar"></div>
+        </div>
+      </section>
+
+      <section class="card">
+        <div class="row">
+          <label for="insertion">Insert text</label>
+          <select id="insertion">
+            <option value="paste">Paste (recommended)</option>
+            <option value="both">Paste and keep on clipboard</option>
+            <option value="type">Type characters</option>
+            <option value="clipboard">Clipboard only</option>
+          </select>
+        </div>
+        <p class="hint">Click the text field first. Hold the hotkey to speak, then release all keys and keep the cursor there until insertion finishes.</p>
+        <p class="hint dim">If a field rejects paste, try Type characters. For Google Sheets, edit the cell first to keep the text in one cell.</p>
+      </section>
+
+      <section class="card">
+        <label class="check">
+          <input type="checkbox" id="polish" />
+          Clean up with AI
+        </label>
+        <p class="hint dim">
+          Fixes grammar, punctuation and filler words via Groq before typing.
+          Falls back to local rules when offline.
+        </p>
+      </section>
+
+      <section class="card">
+        <label class="check">
+          <input type="checkbox" id="autostart" />
+          Start on login
+        </label>
+      </section>
+
+      <footer class="foot">
+        <span class="build">v0.1.0</span>
+      </footer>
+    </main>
+
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
