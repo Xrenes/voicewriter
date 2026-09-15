@@ -145,6 +145,7 @@ h1, h2, h3 {
   border-bottom-color: var(--border);
 }
 .header-inner { display: flex; align-items: center; justify-content: space-between; height: 60px; }
+.header-actions { display: flex; align-items: center; gap: 10px; }
 .brand {
   display: inline-flex; align-items: center; gap: 9px;
   color: var(--text); font-family: var(--font-display); font-weight: 700;
@@ -268,6 +269,12 @@ h1, h2, h3 {
 }
 .flow p { margin: 0; font-size: 0.94rem; color: var(--dim); }
 .flow p .k { color: var(--text); }
+
+.flow-compact {
+  grid-template-columns: 1fr;
+  gap: 10px;
+  margin-bottom: 0;
+}
 
 .cards {
   display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px;
