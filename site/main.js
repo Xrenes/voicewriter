@@ -56,7 +56,7 @@
 
   /* ---- Reveal-on-scroll ---- */
   var targets = document.querySelectorAll(
-    ".slab-head, .flow li, .card, .get-card"
+    ".slab-head, .flow li, .card, .get-card, .wheel-demo"
   );
   targets.forEach(function (el) {
     el.classList.add("reveal");
@@ -69,7 +69,7 @@
     });
   };
   group(".flow li", ".flow");
-  group(".card", ".cards");
+  group(".card", ".cards, .keys-cards");
 
   var showAll = function () {
     targets.forEach(function (el) {

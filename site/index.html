@@ -3,12 +3,12 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>VoiceWriter — you won't have to write a single word again</title>
-<meta name="description" content="A tiny Windows app for voice dictation. Hold Alt+C, speak, release — your words are transcribed and typed into whatever field has focus. No window." />
+<title>VoiceWriter — dictate, refine, translate, and record. All from one hotkey.</title>
+<meta name="description" content="A tiny Windows app for voice dictation, AI text refinement, live translation with natural speech, and mic recording with transcripts — all from your keyboard. No window, ever." />
 <meta name="theme-color" content="#000000" />
 
-<meta property="og:title" content="VoiceWriter — you won't have to write a single word again" />
-<meta property="og:description" content="Hold Alt+C, speak, release. Your words get typed into the focused field. Local Whisper + Groq, private, no window." />
+<meta property="og:title" content="VoiceWriter — dictate, refine, translate, and record" />
+<meta property="og:description" content="Hold Alt+C to dictate. Press Shift+Alt+C for a radial menu that refines, translates, speaks, and records. Private, no window." />
 <meta property="og:type" content="website" />
 <meta property="og:image" content="assets/icon.png" />
 
@@ -34,7 +34,9 @@
       <span>VoiceWriter</span>
     </a>
     <nav class="header-actions">
-      <a href="#help" class="btn btn-ghost btn-sm">Help</a>
+      <a href="#wheel" class="btn btn-ghost btn-sm nav-hide-sm">Wheel</a>
+      <a href="#keys" class="btn btn-ghost btn-sm nav-hide-sm">API keys</a>
+      <a href="#help" class="btn btn-ghost btn-sm nav-hide-sm">Help</a>
       <a href="#get" class="btn btn-accent btn-sm">Download</a>
     </nav>
   </div>
@@ -43,9 +45,9 @@
 <main id="main">
   <span id="top"></span>
 
-  <!-- HERO — centered -->
+  <!-- HERO -->
   <section class="hero wrap">
-    <p class="eyebrow">Voice dictation for Windows</p>
+    <p class="eyebrow">Voice dictation &amp; AI writing toolkit for Windows</p>
     <h1>
       You won't have to
       <span class="ink">write<span class="ink-line" aria-hidden="true"></span></span>
@@ -53,14 +55,16 @@
     </h1>
     <p class="lead">
       Click into any field. Hold <span class="k">Alt</span><span class="k">C</span>,
-      say your sentence, let go. The words appear where your cursor was —
-      spelling and punctuation included. No window, ever.
+      say your sentence, let go — it's typed where your cursor was. Select text and
+      press <span class="k">Shift</span><span class="k">Alt</span><span class="k">C</span>
+      to refine it, translate it, hear it spoken aloud, or start recording a
+      conversation. No window, ever.
     </p>
     <div class="hero-actions">
       <a href="#get" class="btn btn-accent btn-lg">Download for Windows</a>
-      <a href="#how" class="btn btn-ghost btn-lg">How it works</a>
+      <a href="#wheel" class="btn btn-ghost btn-lg">See the refine wheel</a>
     </div>
-    <p class="hero-meta">Free · Windows 10 / 11, 64-bit · <span class="mono">v0.3.0</span></p>
+    <p class="hero-meta">Free · Windows 10 / 11, 64-bit · <span class="mono">v0.4.0</span></p>
 
     <!-- Signature animated centerpiece: waveform → typed line -->
     <div class="stage" aria-hidden="true">
@@ -76,11 +80,11 @@
     </div>
   </section>
 
-  <!-- ONE COMPACT SECTION: how + what -->
+  <!-- HOW DICTATION WORKS -->
   <section id="how" class="slab wrap">
     <div class="slab-head">
       <h2>Hold, speak, release.</h2>
-      <p>That's the whole interaction. Everything else stays out of the way.</p>
+      <p>That's the core interaction. Everything else is one more keypress away.</p>
     </div>
 
     <ol class="flow">
@@ -103,7 +107,7 @@
         <p>Dictate a Linux command and "dash dash force" becomes <span class="mono">--force</span>; it's kept verbatim, not "corrected". Prose still gets full cleanup.</p>
       </article>
       <article class="card">
-        <h3>Two languages, two keys</h3>
+        <h3>Two dictation keys</h3>
         <p>Hold <span class="k">Alt</span><span class="k">C</span> for English (romanized Banglish passes through untouched). Hold <span class="k">Alt</span><span class="k">X</span> for Bangla — types বাংলা script.</p>
       </article>
       <article class="card">
@@ -112,7 +116,146 @@
       </article>
       <article class="card">
         <h3>Invisible &amp; light</h3>
-        <p>Nothing on screen unless you open settings from the tray. Click away and it hides. ~25&nbsp;MB idle. Key stored in Windows Credential Manager.</p>
+        <p>Nothing on screen unless you open settings from the tray. Click away and it hides. ~25&nbsp;MB idle. Keys stored in Windows Credential Manager.</p>
+      </article>
+    </div>
+  </section>
+
+  <!-- REFINE WHEEL -->
+  <section id="wheel" class="slab wheel-slab wrap">
+    <div class="slab-head">
+      <p class="eyebrow">New</p>
+      <h2>Select text. Press one hotkey. Get a wheel of actions.</h2>
+      <p>Select any text on screen and press <span class="k">Shift</span><span class="k">Alt</span><span class="k">C</span> — a small radial menu appears right at your cursor. No selection? It still opens; you just get a heads-up if you pick a text action with nothing selected.</p>
+    </div>
+
+    <div class="wheel-demo" aria-hidden="true">
+      <svg viewBox="0 0 240 240" class="wheel-svg">
+        <circle cx="120" cy="120" r="118" class="wheel-ring-bg" />
+        <g class="wheel-wedges">
+          <path d="M120 120 L120 4 A116 116 0 0 1 216 62 Z" class="wedge w1" />
+          <path d="M120 120 L216 62 A116 116 0 0 1 216 178 Z" class="wedge w2" />
+          <path d="M120 120 L216 178 A116 116 0 0 1 120 236 Z" class="wedge w3" />
+          <path d="M120 120 L120 236 A116 116 0 0 1 24 178 Z" class="wedge w4" />
+          <path d="M120 120 L24 178 A116 116 0 0 1 24 62 Z" class="wedge w5" />
+          <path d="M120 120 L24 62 A116 116 0 0 1 120 4 Z" class="wedge w6" />
+        </g>
+        <circle cx="120" cy="120" r="34" class="wheel-hub" />
+      </svg>
+      <ul class="wheel-legend">
+        <li><span class="dot d1"></span>Refine wording</li>
+        <li><span class="dot d2"></span>Make professional</li>
+        <li><span class="dot d3"></span>Translate to Bangla</li>
+        <li><span class="dot d4"></span>Translate… (EN / BN / ES / IT)</li>
+        <li><span class="dot d5"></span>Record audio</li>
+      </ul>
+    </div>
+
+    <div class="cards">
+      <article class="card">
+        <h3>Refine</h3>
+        <p>Fixes grammar, spelling, and punctuation only — same meaning, same tone, same length. Won't rewrite what's already correct.</p>
+      </article>
+      <article class="card">
+        <h3>Make professional</h3>
+        <p>Rewrites tone for formal or business communication while preserving every fact and request in the original.</p>
+      </article>
+      <article class="card">
+        <h3>Translate</h3>
+        <p>One-click Bangla, or open the Translate submenu for English, Bangla, Spanish, or Italian. Powered by Groq's chat models with a faithfulness check before anything is shown.</p>
+      </article>
+      <article class="card">
+        <h3>Copied, not pasted</h3>
+        <p>Results are copied to your clipboard and shown in a clean preview panel — nothing is auto-typed into the app you were using. You paste it when you're ready.</p>
+      </article>
+    </div>
+  </section>
+
+  <!-- TRANSLATE + SPEECH -->
+  <section id="speech" class="slab wrap">
+    <div class="slab-head">
+      <h2>Translations that can talk back.</h2>
+      <p>English and Bangla translations are spoken aloud automatically after they appear — using the TTS engine best suited to each language.</p>
+    </div>
+
+    <div class="cards">
+      <article class="card">
+        <h3>Natural Bangla speech</h3>
+        <p>Bangla translations are voiced through ElevenLabs' multilingual model — natural-sounding, not robotic. Works on ElevenLabs' free tier, no credit card required.</p>
+      </article>
+      <article class="card">
+        <h3>English speech via Groq</h3>
+        <p>English translations and the standalone "speak selected text" hotkey use Groq's Orpheus text-to-speech model — fast and free within Groq's published quota.</p>
+      </article>
+      <article class="card">
+        <h3>Spanish &amp; Italian, text-only</h3>
+        <p>These translations appear instantly in the preview panel and copy to your clipboard, same as Refine and Make&nbsp;professional — no speech, no extra API calls.</p>
+      </article>
+      <article class="card">
+        <h3>Offline speech, too</h3>
+        <p>The standalone speak-aloud hotkey falls back to eSpeak&nbsp;NG — a free, open-source, fully offline voice — for scripts and languages Groq doesn't cover.</p>
+      </article>
+    </div>
+  </section>
+
+  <!-- RECORDING -->
+  <section id="record" class="slab wrap">
+    <div class="slab-head">
+      <p class="eyebrow">New</p>
+      <h2>Record a conversation, get a transcript.</h2>
+      <p>Pick the Record wedge from the wheel to start capturing your microphone. A small floating dot follows you around while it records.</p>
+    </div>
+
+    <ol class="flow">
+      <li><span class="n">1</span><p>Press <span class="k">Shift</span><span class="k">Alt</span><span class="k">C</span> and choose Record. A tiny transparent icon appears and blinks red while it's listening.</p></li>
+      <li><span class="n">2</span><p>Click it again to stop. A clean confirm window shows an audio preview and lets you pick the filename and folder.</p></li>
+      <li><span class="n">3</span><p>Confirm, and the recording is transcribed in English and opened in a dedicated chat-style transcript window — the audio and text are both saved to disk too.</p></li>
+    </ol>
+
+    <div class="cards">
+      <article class="card">
+        <h3>No Notepad, no clutter</h3>
+        <p>Everything opens in VoiceWriter's own transcript viewer. The <span class="mono">.wav</span> and <span class="mono">.txt</span> files are still saved to your chosen folder — nothing else pops up.</p>
+      </article>
+      <article class="card">
+        <h3>English-only transcription</h3>
+        <p>Recordings are transcribed in English specifically, rather than auto-detected, so accents and background noise don't cause language mix-ups.</p>
+      </article>
+    </div>
+  </section>
+
+  <!-- API KEYS -->
+  <section id="keys" class="slab wrap">
+    <div class="slab-head">
+      <h2>Getting your API keys</h2>
+      <p>VoiceWriter runs on your own free API keys — nothing is billed through the app, and both providers below have a free tier with no credit card required.</p>
+    </div>
+
+    <div class="cards keys-cards">
+      <article class="card key-card">
+        <h3>Groq — dictation, refine, translate, English speech</h3>
+        <p>Used for Whisper transcription, the refine/translate wheel actions, and Orpheus text-to-speech.</p>
+        <ol class="flow flow-compact">
+          <li><span class="n">1</span><p>Create a free account at <a href="https://console.groq.com" target="_blank" rel="noopener">console.groq.com</a>.</p></li>
+          <li><span class="n">2</span><p>Open <a href="https://console.groq.com/keys" target="_blank" rel="noopener">console.groq.com/keys</a> and click <strong>Create API Key</strong>.</p></li>
+          <li><span class="n">3</span><p>Copy the key (starts with <span class="mono">gsk_</span>) and paste it into VoiceWriter's tray settings.</p></li>
+        </ol>
+      </article>
+      <article class="card key-card">
+        <h3>ElevenLabs — natural Bangla speech</h3>
+        <p>Used only for voicing Bangla translations in the wheel. Optional if you don't need spoken Bangla.</p>
+        <ol class="flow flow-compact">
+          <li><span class="n">1</span><p>Sign up free at <a href="https://elevenlabs.io/sign-up" target="_blank" rel="noopener">elevenlabs.io/sign-up</a> — no credit card required.</p></li>
+          <li><span class="n">2</span><p>Open <a href="https://elevenlabs.io/app/settings/api-keys" target="_blank" rel="noopener">elevenlabs.io/app/settings/api-keys</a> and generate a key.</p></li>
+          <li><span class="n">3</span><p>Make sure the key has <span class="mono">text_to_speech</span> and <span class="mono">voices_read</span> permissions enabled, then paste it into VoiceWriter's tray settings.</p></li>
+        </ol>
+      </article>
+    </div>
+
+    <div class="cards">
+      <article class="card">
+        <h3>Per-key usage meters</h3>
+        <p>Settings shows a live usage bar for each key — Groq dictation, Groq speech, and ElevenLabs — tracked separately against each provider's real published free-tier limits, so you always know how much headroom is left.</p>
       </article>
     </div>
   </section>
@@ -125,11 +268,11 @@
         <h2>VoiceWriter for Windows</h2>
         <p class="get-lead">Either installer works. The local model is fetched later from inside the app if you want offline mode.</p>
 
-        <a href="https://github.com/Xrenes/voicewriter/releases/latest/download/VoiceWriter_0.3.0_x64-setup.exe"
+        <a href="https://github.com/Xrenes/voicewriter/releases/latest/download/VoiceWriter_0.4.0_x64-setup.exe"
            class="btn btn-accent btn-lg get-btn" id="dlExe">
           Installer · .exe<span class="sz mono" id="exeSize"></span>
         </a>
-        <a href="https://github.com/Xrenes/voicewriter/releases/latest/download/VoiceWriter_0.3.0_x64_en-US.msi"
+        <a href="https://github.com/Xrenes/voicewriter/releases/latest/download/VoiceWriter_0.4.0_x64_en-US.msi"
            class="btn btn-lg get-btn get-btn-alt" id="dlMsi">
           MSI · for managed installs<span class="sz mono" id="msiSize"></span>
         </a>
@@ -143,9 +286,9 @@
 
       <aside class="get-side">
         <p><strong>First launch:</strong> Windows may show “Windows protected your PC” — the app isn't signed yet. Click <strong>More info › Run anyway</strong>.</p>
-        <p><strong>Setup:</strong> open the tray (▲ near the clock), click the VoiceWriter icon, then paste a free <a href="https://console.groq.com" target="_blank" rel="noopener">Groq key</a> or download a local model.</p>
-        <p><strong>Hotkeys:</strong> <span class="k">Alt</span><span class="k">C</span> English · <span class="k">Alt</span><span class="k">X</span> Bangla. Both are rebindable in settings.</p>
-        <p><strong>Offline?</strong> Yes — with a local model, nothing leaves your PC. <strong>Mac / Linux?</strong> Not yet, Windows only.</p>
+        <p><strong>Setup:</strong> open the tray (▲ near the clock), click the VoiceWriter icon, then paste a free <a href="https://console.groq.com/keys" target="_blank" rel="noopener">Groq key</a> (and optionally an <a href="https://elevenlabs.io/app/settings/api-keys" target="_blank" rel="noopener">ElevenLabs key</a>) or download a local model.</p>
+        <p><strong>Hotkeys:</strong> <span class="k">Alt</span><span class="k">C</span> dictate English · <span class="k">Alt</span><span class="k">X</span> dictate Bangla · <span class="k">Shift</span><span class="k">Alt</span><span class="k">C</span> refine wheel · <span class="k">Ctrl</span><span class="k">Alt</span><span class="k">C</span> speak selection aloud. All rebindable in settings.</p>
+        <p><strong>Offline?</strong> Dictation, yes — with a local model, nothing leaves your PC. Refine/translate/speech features need an internet connection. <strong>Mac / Linux?</strong> Not yet, Windows only.</p>
       </aside>
     </div>
   </section>
@@ -173,6 +316,14 @@
           <li><span class="n">5</span><p>Back in VoiceWriter, open Settings and click <strong>Test</strong> next to the Speak-aloud key again to confirm it now works.</p></li>
         </ol>
       </article>
+      <article class="card">
+        <h3>ElevenLabs key fails with 402 “Free users cannot use library voices”</h3>
+        <p>Your selected voice is a paid Voice Library ("professional") voice. Pick one of ElevenLabs' default "premade" voices instead — those work on the free tier. VoiceWriter's settings include a "list available voices" debug button that shows which of your voices are free-tier eligible.</p>
+      </article>
+      <article class="card">
+        <h3>ElevenLabs key fails with 401 “missing the permission voices_read”</h3>
+        <p>Regenerate your key at <a href="https://elevenlabs.io/app/settings/api-keys" target="_blank" rel="noopener">elevenlabs.io/app/settings/api-keys</a> and make sure both <span class="mono">text_to_speech</span> and <span class="mono">voices_read</span> permissions are enabled before saving it in VoiceWriter.</p>
+      </article>
     </div>
   </section>
 </main>
@@ -180,7 +331,7 @@
 <footer class="site-footer">
   <div class="wrap footer-inner">
     <span class="footer-brand"><img src="assets/icon.png" alt="" width="22" height="22" /> VoiceWriter</span>
-    <span class="footer-note"><span class="mono">v0.3.0</span> · not affiliated with Groq or OpenAI</span>
+    <span class="footer-note"><span class="mono">v0.4.0</span> · not affiliated with Groq, ElevenLabs, or OpenAI</span>
     <a href="https://github.com/Xrenes/voicewriter">GitHub</a>
   </div>
 </footer>

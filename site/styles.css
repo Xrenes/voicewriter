@@ -299,6 +299,50 @@ h1, h2, h3 {
 }
 .card p { margin: 0; font-size: 0.92rem; color: var(--dim); }
 
+/* ---------- Refine wheel demo ---------- */
+.wheel-slab { border-top: none; }
+.wheel-demo {
+  display: flex; align-items: center; justify-content: center; gap: 40px;
+  flex-wrap: wrap; margin-bottom: 44px;
+}
+.wheel-svg { width: 220px; height: 220px; flex-shrink: 0; }
+.wheel-ring-bg { fill: var(--panel); stroke: var(--border-mid); stroke-width: 1; }
+.wedge {
+  fill: rgba(110, 168, 254, 0.08);
+  stroke: var(--border);
+  stroke-width: 1.5;
+  transition: fill 0.2s ease;
+}
+.wheel-svg:hover .wedge { fill: rgba(110, 168, 254, 0.14); }
+.wedge.w1 { fill: rgba(110, 168, 254, 0.22); }
+.wedge.w2 { fill: rgba(166, 204, 255, 0.16); }
+.wedge.w3 { fill: rgba(110, 168, 254, 0.16); }
+.wedge.w4 { fill: rgba(166, 204, 255, 0.10); }
+.wedge.w5 { fill: rgba(110, 168, 254, 0.10); }
+.wheel-hub { fill: var(--bg); stroke: var(--border-mid); stroke-width: 1.5; }
+
+.wheel-legend { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.wheel-legend li {
+  display: flex; align-items: center; gap: 10px;
+  font-size: 0.92rem; color: var(--dim);
+}
+.dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+.d1 { background: rgba(110, 168, 254, 0.9); }
+.d2 { background: rgba(166, 204, 255, 0.9); }
+.d3 { background: rgba(110, 168, 254, 0.6); }
+.d4 { background: rgba(166, 204, 255, 0.55); }
+.d5 { background: rgba(110, 168, 254, 0.4); }
+
+/* ---------- API key cards ---------- */
+.keys-cards { grid-template-columns: repeat(2, 1fr); margin-bottom: 14px; }
+.key-card p:first-of-type { margin-bottom: 16px; }
+.key-card .flow-compact .n { border-color: rgba(110, 168, 254, 0.5); }
+
+/* header nav item hidden on small screens to avoid crowding */
+@media (max-width: 760px) {
+  .nav-hide-sm { display: none; }
+}
+
 /* ---------- Download ---------- */
 .get { position: relative; z-index: 1; padding-block: 64px 80px; border-top: 1px solid var(--border); }
 .get-card {
@@ -363,9 +407,10 @@ h1, h2, h3 {
 /* ---------- Responsive ---------- */
 @media (max-width: 820px) {
   .flow { grid-template-columns: 1fr; gap: 14px; }
-  .cards { grid-template-columns: 1fr; }
+  .cards, .keys-cards { grid-template-columns: 1fr; }
   .get-card { grid-template-columns: 1fr; }
   .get-side { border-left: none; border-top: 1px solid var(--border); }
+  .wheel-demo { gap: 24px; }
 }
 @media (max-width: 520px) {
   .hero { padding-top: 44px; }
