@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>VoiceWriter Refine</title>
+    <link rel="stylesheet" href="/src/wheel.css" />
+  </head>
+  <body>
+    <div class="wheel" id="wheel">
+      <svg id="wheelSvg" viewBox="0 0 240 240" width="240" height="240"></svg>
+      <div class="hub" id="hub">
+        <svg class="hub-mark" viewBox="0 0 200 200" aria-hidden="true">
+          <rect class="piece bar" x="22" y="100" width="28" height="66" rx="14" fill="#ffffff"/>
+          <rect class="piece bar" x="58" y="72" width="28" height="94" rx="14" fill="#ffffff"/>
+          <path d="M108 38V139" fill="none" stroke="#ffffff" stroke-width="28" stroke-linecap="round"/>
+          <path d="M108 132V139Q108 166 137 166H172" fill="none" stroke="#ffffff" stroke-width="28" stroke-linecap="round"/>
+        </svg>
+        <span id="hubLabel"></span>
+      </div>
+      <div class="labels" id="labels"></div>
+    </div>
+
+    <div class="preview" id="preview" hidden>
+      <div class="preview-body" id="previewText"></div>
+    </div>
+
+    <script type="module" src="/src/wheel.ts"></script>
+  </body>
+</html>

@@ -66,6 +66,18 @@
         <div class="progress speak-progress" id="speakProgressWrap" hidden>
           <div class="progress-bar speak-progress-bar" id="speakProgressBar"></div>
         </div>
+
+        <div class="row">
+          <label>Refine selection</label>
+          <div class="hotkey">
+            <input id="hotkeyWheel" type="text" value="Shift+Alt+C" readonly />
+            <button id="hotkeyWheelEdit" class="ghost">Change</button>
+          </div>
+        </div>
+        <p class="hint dim">
+          Select text anywhere, press this key for a quick menu (Refine, Make professional).
+          Uses the Groq API key above. Clear the hotkey to disable it.
+        </p>
       </section>
 
       <section class="card">
@@ -85,6 +97,20 @@
         <p class="hint" id="keyHint">
           With a key, dictation uses Groq for best accuracy. Without one it uses the local model.
         </p>
+        <div class="usage-nums">
+          <div><span id="dictUToday">0</span><em id="dictULabel">requests today</em></div>
+          <div><span id="dictURpm">0</span><em>requests / min</em></div>
+        </div>
+        <div class="meter">
+          <div class="meter-head">
+            <span>Daily usage (est.)</span>
+            <span id="dictMeterPct">0%</span>
+          </div>
+          <div class="meter-track">
+            <div class="meter-fill" id="dictMeterFill"></div>
+          </div>
+        </div>
+        <p class="hint dim">Approximate against Groq's free-tier Whisper limits. Not account billing.</p>
       </section>
 
       <section class="card">
@@ -104,25 +130,63 @@
         <p class="hint" id="speakKeyHint">
           Separate Groq key used only for "speak selected text aloud." Required for that feature.
         </p>
-      </section>
-
-      <section class="card">
         <div class="usage-nums">
-          <div><span id="uToday">0</span><em>requests today</em></div>
-          <div><span id="uRpm">0</span><em>requests / min</em></div>
+          <div><span id="speakUToday">0</span><em>requests today</em></div>
+          <div><span id="speakURpm">0</span><em>requests / min</em></div>
         </div>
         <div class="meter">
           <div class="meter-head">
             <span>Daily usage (est.)</span>
-            <span id="meterPct">0%</span>
+            <span id="speakMeterPct">0%</span>
           </div>
           <div class="meter-track">
-            <div class="meter-fill" id="meterFill"></div>
+            <div class="meter-fill" id="speakMeterFill"></div>
           </div>
         </div>
-        <p class="hint dim">
-          Approximate against Groq free-tier daily limits. Not account billing.
+        <p class="hint dim">Approximate against Groq's Orpheus TTS limit (much lower than Whisper's). Not account billing.</p>
+      </section>
+
+      <section class="card">
+        <div class="row">
+          <label>ElevenLabs API key</label>
+          <span class="keyval" id="elevenlabsKeyStatus">Checking…</span>
+        </div>
+        <div class="row key-actions">
+          <button id="elevenlabsKeyReplace" class="ghost">Replace</button>
+          <button id="elevenlabsKeyTest" class="ghost">Test</button>
+          <button id="elevenlabsKeyClear" class="ghost danger" hidden>Remove</button>
+        </div>
+        <div class="row key-edit" id="elevenlabsKeyEditRow" hidden>
+          <input id="elevenlabsKeyInput" type="password" placeholder="ElevenLabs API key" spellcheck="false" />
+          <button id="elevenlabsKeySave" class="primary">Save</button>
+        </div>
+        <div class="row">
+          <label for="elevenlabsVoiceId">Voice ID</label>
+          <input id="elevenlabsVoiceId" type="text" placeholder="e.g. 21m00Tcm4TlvDq8ikWAM" spellcheck="false" />
+        </div>
+        <p class="hint" id="elevenlabsKeyHint">
+          Required for Bangla speech in the refine wheel's "Translate" wedge (natural voice).
+          Free at elevenlabs.io (no card required). Spanish, Italian, and English speech
+          don't need this — they use eSpeak NG / Groq instead.
         </p>
+        <div class="row key-actions">
+          <button id="elevenlabsListVoices" class="ghost">List available voices (debug)</button>
+        </div>
+        <p class="hint dim" id="elevenlabsListHint"></p>
+        <div class="usage-nums">
+          <div><span id="elevenUToday">0</span><em>chars this month</em></div>
+          <div><span id="elevenURpm">0</span><em>requests / min</em></div>
+        </div>
+        <div class="meter">
+          <div class="meter-head">
+            <span>Monthly usage (est.)</span>
+            <span id="elevenMeterPct">0%</span>
+          </div>
+          <div class="meter-track">
+            <div class="meter-fill" id="elevenMeterFill"></div>
+          </div>
+        </div>
+        <p class="hint dim">Approximate against ElevenLabs' free-tier monthly character quota. Not account billing.</p>
       </section>
 
       <section class="card">

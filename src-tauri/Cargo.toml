@@ -20,6 +20,7 @@ tauri-plugin-global-shortcut = "2"
 tauri-plugin-single-instance = "2"
 tauri-plugin-autostart = "2"
 tauri-plugin-clipboard-manager = "2"
+tauri-plugin-dialog = "2"
 
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
@@ -35,10 +36,15 @@ rubato = "0.16"
 # streamed WAV with a placeholder 0xFFFFFFFF RIFF size (unknown length while
 # streaming); rodio's bundled `wav` (hound) decoder rejects that as malformed,
 # so we use the symphonia-backed WAV decoder instead, which tolerates it.
-rodio = { version = "0.19", default-features = false, features = ["symphonia-wav"] }
+# ElevenLabs' free tier ignores any requested WAV output_format and always
+# returns MP3 regardless (WAV output is Pro-tier-and-above only), so MP3
+# decoding is needed too.
+rodio = { version = "0.19", default-features = false, features = ["symphonia-wav", "symphonia-mp3"] }
 
 # Local speech-to-text (whisper.cpp bindings) — fallback engine
-whisper-rs = "0.16"
+# TEMPORARILY DISABLED for local testing: whisper-rs-sys needs libclang,
+# which isn't installed on this machine. Re-enable once LLVM is available.
+# whisper-rs = "0.16"
 
 # Keystroke / clipboard injection into the focused field
 enigo = { version = "0.6", features = ["serde"] }

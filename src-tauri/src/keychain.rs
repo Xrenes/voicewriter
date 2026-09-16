@@ -20,6 +20,9 @@ pub enum Purpose {
     Dictation,
     /// "Speak selected text aloud" (TTS).
     Speak,
+    /// ElevenLabs API key, for natural-voice speech in languages Groq's
+    /// Orpheus TTS doesn't cover (Bangla, Spanish, Italian, ...).
+    ElevenLabs,
 }
 
 impl Purpose {
@@ -29,6 +32,7 @@ impl Purpose {
             // dictation keys keep working without migration.
             Purpose::Dictation => "groq_api_key",
             Purpose::Speak => "groq_api_key_speak",
+            Purpose::ElevenLabs => "elevenlabs_api_key",
         }
     }
 }
@@ -80,10 +84,20 @@ fn mask(key: &str) -> String {
     format!("{head}…{tail}")
 }
 
-/// Loose sanity check so obvious paste errors are caught before storing.
+/// Loose sanity check so obvious paste errors are caught before storing a
+/// Groq key.
 pub fn looks_valid(key: &str) -> bool {
     let k = key.trim();
     k.starts_with("gsk_") && k.len() >= 20 && k.chars().all(|c| c.is_ascii_graphic())
+}
+
+/// Loose sanity check for an ElevenLabs key: unlike Groq's `gsk_` keys,
+/// ElevenLabs documents no fixed prefix for the key value itself (only that
+/// it's sent via the `xi-api-key` header), so this only rules out obviously
+/// wrong pastes (empty, too short, or containing whitespace/control chars).
+pub fn looks_valid_elevenlabs(key: &str) -> bool {
+    let k = key.trim();
+    k.len() >= 20 && k.chars().all(|c| c.is_ascii_graphic())
 }
 
 #[cfg(test)]
@@ -100,5 +114,12 @@ mod tests {
         assert!(looks_valid("gsk_0123456789abcdef0123"));
         assert!(!looks_valid("sk-not-groq-key-here"));
         assert!(!looks_valid("gsk_short"));
+    }
+
+    #[test]
+    fn validates_elevenlabs_length_only() {
+        assert!(looks_valid_elevenlabs("abcdef0123456789abcdef0123456789"));
+        assert!(!looks_valid_elevenlabs("too_short"));
+        assert!(!looks_valid_elevenlabs(""));
     }
 }

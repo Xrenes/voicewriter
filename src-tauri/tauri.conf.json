@@ -26,6 +26,73 @@
         "shadow": true,
         "backgroundColor": "#000000",
         "center": true
+      },
+      {
+        "label": "wheel",
+        "title": "VoiceWriter Refine",
+        "url": "wheel.html",
+        "width": 280,
+        "height": 280,
+        "resizable": false,
+        "fullscreen": false,
+        "visible": false,
+        "skipTaskbar": true,
+        "decorations": false,
+        "transparent": true,
+        "shadow": false,
+        "alwaysOnTop": true,
+        "focus": false
+      },
+      {
+        "label": "recorder",
+        "title": "VoiceWriter Recording",
+        "url": "recorder.html",
+        "width": 44,
+        "height": 44,
+        "resizable": false,
+        "fullscreen": false,
+        "visible": false,
+        "skipTaskbar": true,
+        "decorations": false,
+        "transparent": true,
+        "shadow": false,
+        "alwaysOnTop": true,
+        "focus": false
+      },
+      {
+        "label": "recorder-confirm",
+        "title": "Save Recording",
+        "url": "recorder-confirm.html",
+        "width": 420,
+        "height": 330,
+        "resizable": false,
+        "fullscreen": false,
+        "visible": false,
+        "skipTaskbar": true,
+        "decorations": true,
+        "transparent": false,
+        "shadow": true,
+        "alwaysOnTop": true,
+        "center": true,
+        "backgroundColor": "#000000"
+      },
+      {
+        "label": "transcript",
+        "title": "Recording Transcript",
+        "url": "transcript.html",
+        "width": 480,
+        "height": 620,
+        "minWidth": 320,
+        "minHeight": 300,
+        "resizable": true,
+        "fullscreen": false,
+        "visible": false,
+        "skipTaskbar": true,
+        "decorations": true,
+        "transparent": false,
+        "shadow": true,
+        "center": true,
+        "backgroundColor": "#000000"
       }
     ],
     "security": {
@@ -41,6 +108,11 @@
       "icons/128x128@2x.png",
       "icons/icon.ico"
     ],
+    "resources": {
+      "vendor/espeak-ng/espeak-ng.exe": "espeak-ng.exe",
+      "vendor/espeak-ng/libespeak-ng.dll": "libespeak-ng.dll",
+      "vendor/espeak-ng/espeak-ng-data": "espeak-ng-data"
+    },
     "linux": {
       "deb": {
         "depends": ["libxdo3"]

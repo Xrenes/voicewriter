@@ -7,6 +7,7 @@ interface Settings {
   secondaryHotkey: string;
   secondaryLanguage: string;
   speakHotkey: string;
+  wheelHotkey: string;
   engine: "auto" | "groq" | "local";
   groqModel: string;
   insertion: "type" | "paste" | "clipboard" | "both";
@@ -15,6 +16,7 @@ interface Settings {
   model: string;
   polish: boolean;
   autostart: boolean;
+  elevenlabsVoiceId: string;
 }
 
 type Status = "idle" | "recording" | "transcribing" | "ready" | "speaking" | "error";
@@ -42,15 +44,14 @@ interface KeyStatus {
   masked: string;
 }
 
-interface Usage {
-  today: string;
-  todayRequests: number;
-  todayAudioSecs: number;
-  totalRequests: number;
-  totalAudioSecs: number;
+interface UsageSnapshot {
+  purpose: string;
+  periodLabel: string;
+  periodValue: number;
+  periodCap: number;
+  pct: number;
   requestsPerMin: number;
-  dailyPct: number;
-  lastEngineUsed: string;
+  totalRequests: number;
   lastError?: string | null;
   lastErrorAt?: string | null;
 }
@@ -66,6 +67,8 @@ const hotkey2Edit = $<HTMLButtonElement>("hotkey2Edit");
 const language2Input = $<HTMLInputElement>("language2");
 const hotkeySpeakInput = $<HTMLInputElement>("hotkeySpeak");
 const hotkeySpeakEdit = $<HTMLButtonElement>("hotkeySpeakEdit");
+const hotkeyWheelInput = $<HTMLInputElement>("hotkeyWheel");
+const hotkeyWheelEdit = $<HTMLButtonElement>("hotkeyWheelEdit");
 const speakKeyStatusEl = $("speakKeyStatus");
 const speakKeyReplace = $<HTMLButtonElement>("speakKeyReplace");
 const speakKeyTest = $<HTMLButtonElement>("speakKeyTest");
@@ -74,6 +77,15 @@ const speakKeyEditRow = $("speakKeyEditRow");
 const speakKeyInput = $<HTMLInputElement>("speakKeyInput");
 const speakKeySave = $<HTMLButtonElement>("speakKeySave");
 const speakKeyHint = $("speakKeyHint");
+const elevenlabsKeyStatusEl = $("elevenlabsKeyStatus");
+const elevenlabsKeyReplace = $<HTMLButtonElement>("elevenlabsKeyReplace");
+const elevenlabsKeyTest = $<HTMLButtonElement>("elevenlabsKeyTest");
+const elevenlabsKeyClear = $<HTMLButtonElement>("elevenlabsKeyClear");
+const elevenlabsKeyEditRow = $("elevenlabsKeyEditRow");
+const elevenlabsKeyInput = $<HTMLInputElement>("elevenlabsKeyInput");
+const elevenlabsKeySave = $<HTMLButtonElement>("elevenlabsKeySave");
+const elevenlabsKeyHint = $("elevenlabsKeyHint");
+const elevenlabsVoiceIdInput = $<HTMLInputElement>("elevenlabsVoiceId");
 const keyStatusEl = $("keyStatus");
 const keyReplace = $<HTMLButtonElement>("keyReplace");
 const keyTest = $<HTMLButtonElement>("keyTest");
@@ -82,10 +94,18 @@ const keyEditRow = $("keyEditRow");
 const keyInput = $<HTMLInputElement>("keyInput");
 const keySave = $<HTMLButtonElement>("keySave");
 const keyHint = $("keyHint");
-const uToday = $("uToday");
-const uRpm = $("uRpm");
-const meterPct = $("meterPct");
-const meterFill = $<HTMLDivElement>("meterFill");
+const dictUToday = $("dictUToday");
+const dictURpm = $("dictURpm");
+const dictMeterPct = $("dictMeterPct");
+const dictMeterFill = $<HTMLDivElement>("dictMeterFill");
+const speakUToday = $("speakUToday");
+const speakURpm = $("speakURpm");
+const speakMeterPct = $("speakMeterPct");
+const speakMeterFill = $<HTMLDivElement>("speakMeterFill");
+const elevenUToday = $("elevenUToday");
+const elevenURpm = $("elevenURpm");
+const elevenMeterPct = $("elevenMeterPct");
+const elevenMeterFill = $<HTMLDivElement>("elevenMeterFill");
 const engineSel = $<HTMLSelectElement>("engine");
 const groqModelSel = $<HTMLSelectElement>("groqModel");
 const micSel = $<HTMLSelectElement>("micDevice");
@@ -167,6 +187,7 @@ async function loadSettings() {
   hotkey2Input.value = settings.secondaryHotkey || "(disabled)";
   language2Input.value = settings.secondaryLanguage;
   hotkeySpeakInput.value = settings.speakHotkey || "(disabled)";
+  hotkeyWheelInput.value = settings.wheelHotkey || "(disabled)";
   engineSel.value = settings.engine;
   groqModelSel.value = settings.groqModel;
   langInput.value = settings.language;
@@ -174,6 +195,7 @@ async function loadSettings() {
   insertionSel.value = settings.insertion;
   polishChk.checked = settings.polish;
   autostartChk.checked = settings.autostart;
+  elevenlabsVoiceIdInput.value = settings.elevenlabsVoiceId;
 }
 
 async function save(patch: Partial<Settings>) {
@@ -299,18 +321,122 @@ speakKeyTest.addEventListener("click", async () => {
   }
 });
 
-// ---- Usage ----
+// ---- ElevenLabs key + voice id (natural-voice Bangla speech for the wheel) ----
+async function refreshElevenlabsKey() {
+  const st = await invoke<KeyStatus>("elevenlabs_key_status");
+  if (st.present) {
+    elevenlabsKeyStatusEl.textContent = st.masked;
+    elevenlabsKeyStatusEl.classList.add("ok");
+    elevenlabsKeyClear.hidden = false;
+    elevenlabsKeyTest.hidden = false;
+    elevenlabsKeyHint.textContent =
+      "Bangla speech from the refine wheel uses this key + the voice ID below.";
+  } else {
+    elevenlabsKeyStatusEl.textContent = "No key — Bangla speech disabled";
+    elevenlabsKeyStatusEl.classList.remove("ok");
+    elevenlabsKeyClear.hidden = true;
+    elevenlabsKeyTest.hidden = true;
+    elevenlabsKeyHint.textContent =
+      "Required for Bangla speech in the refine wheel's \"Translate\" wedge (natural voice). " +
+      "Free at elevenlabs.io (no card required). Spanish, Italian, and English speech " +
+      "don't need this — they use eSpeak NG / Groq instead.";
+  }
+}
+
+elevenlabsKeyReplace.addEventListener("click", () => {
+  elevenlabsKeyEditRow.hidden = !elevenlabsKeyEditRow.hidden;
+  if (!elevenlabsKeyEditRow.hidden) elevenlabsKeyInput.focus();
+});
+
+elevenlabsKeySave.addEventListener("click", async () => {
+  const v = elevenlabsKeyInput.value.trim();
+  if (!v) return;
+  elevenlabsKeySave.disabled = true;
+  try {
+    await invoke("set_elevenlabs_key", { key: v });
+    elevenlabsKeyInput.value = "";
+    elevenlabsKeyEditRow.hidden = true;
+    await refreshElevenlabsKey();
+  } catch (e) {
+    elevenlabsKeyHint.textContent = String(e);
+  } finally {
+    elevenlabsKeySave.disabled = false;
+  }
+});
+
+elevenlabsKeyClear.addEventListener("click", async () => {
+  await invoke("clear_elevenlabs_key");
+  await refreshElevenlabsKey();
+});
+
+elevenlabsKeyTest.addEventListener("click", async () => {
+  elevenlabsKeyTest.disabled = true;
+  elevenlabsKeyStatusEl.textContent = "Testing…";
+  try {
+    const r = await invoke<string>("test_elevenlabs_key");
+    elevenlabsKeyStatusEl.textContent = r;
+  } catch (e) {
+    elevenlabsKeyStatusEl.textContent = "Test failed: " + String(e);
+  } finally {
+    elevenlabsKeyTest.disabled = false;
+    setTimeout(refreshElevenlabsKey, 2500);
+  }
+});
+
+elevenlabsVoiceIdInput.addEventListener("change", () =>
+  save({ elevenlabsVoiceId: elevenlabsVoiceIdInput.value.trim() }),
+);
+
+// Prints this account's ElevenLabs voices (name, id, category) to the dev
+// console — helps pick a voice id that actually works via the API on the
+// free tier (see debug_list_elevenlabs_voices's doc comment in lib.rs).
+const elevenlabsListVoicesBtn = $<HTMLButtonElement>("elevenlabsListVoices");
+const elevenlabsListHint = $("elevenlabsListHint");
+elevenlabsListVoicesBtn.addEventListener("click", async () => {
+  elevenlabsListVoicesBtn.disabled = true;
+  elevenlabsListHint.textContent = "Listing…";
+  try {
+    const r = await invoke<string>("debug_list_elevenlabs_voices");
+    elevenlabsListHint.textContent = r;
+  } catch (e) {
+    elevenlabsListHint.textContent = "Failed: " + String(e);
+  } finally {
+    elevenlabsListVoicesBtn.disabled = false;
+  }
+});
+
+// ---- Usage (one meter per API key, since each has its own quota/unit) ----
+function applyUsageMeter(
+  u: UsageSnapshot,
+  valueEl: HTMLElement,
+  labelEl: HTMLElement | null,
+  rpmEl: HTMLElement,
+  pctEl: HTMLElement,
+  fillEl: HTMLDivElement,
+) {
+  valueEl.textContent = Math.round(u.periodValue).toLocaleString();
+  if (labelEl) labelEl.textContent = u.periodLabel;
+  rpmEl.textContent = String(u.requestsPerMin);
+
+  const pct = Math.round(u.pct || 0);
+  pctEl.textContent = pct + "%";
+  fillEl.style.width = Math.max(pct, 1.5) + "%";
+  fillEl.classList.toggle("warn", pct >= 60 && pct < 80);
+  fillEl.classList.toggle("crit", pct >= 80);
+}
+
+const dictULabel = $("dictULabel");
+
 async function refreshUsage() {
   try {
-    const u = await invoke<Usage>("get_usage");
-    uToday.textContent = String(u.todayRequests);
-    uRpm.textContent = String(u.requestsPerMin);
-
-    const pct = Math.round(u.dailyPct || 0);
-    meterPct.textContent = pct + "%";
-    meterFill.style.width = Math.max(pct, 1.5) + "%";
-    meterFill.classList.toggle("warn", pct >= 60 && pct < 80);
-    meterFill.classList.toggle("crit", pct >= 80);
+    const [dict, speak, eleven] = await Promise.all([
+      invoke<UsageSnapshot>("get_usage_dictation"),
+      invoke<UsageSnapshot>("get_usage_speak_aloud"),
+      invoke<UsageSnapshot>("get_usage_elevenlabs"),
+    ]);
+    applyUsageMeter(dict, dictUToday, dictULabel, dictURpm, dictMeterPct, dictMeterFill);
+    applyUsageMeter(speak, speakUToday, null, speakURpm, speakMeterPct, speakMeterFill);
+    applyUsageMeter(eleven, elevenUToday, null, elevenURpm, elevenMeterPct, elevenMeterFill);
   } catch (e) {
     console.error("get_usage failed", e);
   }
@@ -379,7 +505,7 @@ autostartChk.addEventListener("change", async () => {
 interface HotkeyBinding {
   input: HTMLInputElement;
   editBtn: HTMLButtonElement;
-  command: "set_hotkey" | "set_secondary_hotkey" | "set_speak_hotkey";
+  command: "set_hotkey" | "set_secondary_hotkey" | "set_speak_hotkey" | "set_wheel_hotkey";
   get: () => string;
   set: (v: string) => void;
 }
@@ -453,6 +579,13 @@ bindHotkey({
   get: () => settings.speakHotkey,
   set: (v) => (settings.speakHotkey = v),
 });
+bindHotkey({
+  input: hotkeyWheelInput,
+  editBtn: hotkeyWheelEdit,
+  command: "set_wheel_hotkey",
+  get: () => settings.wheelHotkey,
+  set: (v) => (settings.wheelHotkey = v),
+});
 
 language2Input.addEventListener("change", () =>
   save({ secondaryLanguage: language2Input.value.trim() || "bn" }),
@@ -487,6 +620,7 @@ async function boot() {
   await refreshModelState();
   await refreshKey();
   await refreshSpeakKey();
+  await refreshElevenlabsKey();
   await refreshUsage();
   applyStatus("idle");
   invoke("ui_ready").catch(() => {});

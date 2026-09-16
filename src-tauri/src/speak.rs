@@ -149,19 +149,37 @@ pub fn capture_selection(app: &tauri::AppHandle) -> Result<String> {
     Ok(copied)
 }
 
-/// Synthesize `text` via Groq TTS and play it aloud (English only for now).
-/// Blocks until playback finishes naturally or is stopped via `Speaker::stop`.
+/// Synthesize `text` and play it aloud: Groq's neural voice for Latin-script
+/// (English) text, or the bundled offline eSpeak NG engine for other scripts
+/// (e.g. Bangla) that Groq's Orpheus voice doesn't cover. Blocks until
+/// playback finishes naturally or is stopped via `Speaker::stop`.
 pub fn speak(app: &tauri::AppHandle, speaker: &Arc<Speaker>, text: &str) -> Result<()> {
-    let key = crate::keychain::get(crate::keychain::Purpose::Speak)
-        .ok_or_else(|| anyhow!("Speak-aloud Groq API key required — set it in Settings"))?;
-    eprintln!("speak: requesting Groq TTS for {} chars", text.trim().len());
     let t0 = std::time::Instant::now();
-    let audio = crate::groq::speak(text, &key)?;
-    eprintln!("speak: Groq TTS responded after {:?}", t0.elapsed());
+    let audio = if crate::espeak::needs_espeak(text) {
+        // Offline, no API key, no quota — not tracked in usage.
+        eprintln!("speak: non-Latin script detected, using eSpeak NG for {} chars", text.trim().len());
+        crate::espeak::speak(app, text)?
+    } else {
+        let key = crate::keychain::get(crate::keychain::Purpose::Speak)
+            .ok_or_else(|| anyhow!("Speak-aloud Groq API key required — set it in Settings"))?;
+        eprintln!("speak: requesting Groq TTS for {} chars", text.trim().len());
+        let audio = crate::groq::speak(text, &key)?;
+        crate::usage::record_ok(app, crate::usage::Purpose::SpeakAloud, 0.0, 0.0);
+        audio
+    };
+    eprintln!("speak: synthesis responded after {:?}", t0.elapsed());
+    play_and_wait(app, speaker, audio)
+}
 
-    let t1 = std::time::Instant::now();
+/// Play already-synthesized `audio` and block until it finishes (or is
+/// stopped via `Speaker::stop`), emitting the same `Speaking` progress events
+/// as `speak()`. Shared by `speak()` above and the refine wheel's
+/// speak-the-translation flow, which synthesizes audio itself (via eSpeak NG
+/// or Groq, depending on the target language) before handing it off here.
+pub fn play_and_wait(app: &tauri::AppHandle, speaker: &Arc<Speaker>, audio: Vec<u8>) -> Result<()> {
+    let t0 = std::time::Instant::now();
     let gen = speaker.play(audio)?;
-    eprintln!("speak: playback started (gen={gen}) after {:?}, waiting for it to finish", t1.elapsed());
+    eprintln!("speak: playback started (gen={gen})");
     crate::events::emit(app, crate::events::Status::Speaking, Some("playing… 0%".into()));
     speaker.wait_until_done(gen, |pct| {
         crate::events::emit(

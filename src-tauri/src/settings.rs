@@ -20,6 +20,9 @@ pub struct Settings {
     /// Toggle hotkey for "speak selected text aloud" (English only, via Groq
     /// TTS). Press once to speak, press again to stop. Empty = disabled.
     pub speak_hotkey: String,
+    /// Hotkey that opens the "refine selection" wheel menu (Refine / Make
+    /// professional) over the current text selection. Empty = disabled.
+    pub wheel_hotkey: String,
     /// Transcription engine: "auto" (Groq, local fallback) | "groq" | "local".
     pub engine: String,
     /// Groq model id: "whisper-large-v3-turbo" (fast) | "whisper-large-v3" (accurate).
@@ -36,6 +39,10 @@ pub struct Settings {
     /// filler removal) before typing. Falls back to local rules when unavailable.
     pub polish: bool,
     pub autostart: bool,
+    /// ElevenLabs voice id used to speak wheel translations aloud in
+    /// languages Groq's Orpheus TTS doesn't cover. Empty = fall back to the
+    /// offline (robotic) eSpeak NG engine instead.
+    pub elevenlabs_voice_id: String,
 }
 
 impl Default for Settings {
@@ -45,6 +52,7 @@ impl Default for Settings {
             secondary_hotkey: "Alt+X".to_string(),
             secondary_language: "bn".to_string(),
             speak_hotkey: "Control+Alt+C".to_string(),
+            wheel_hotkey: "Shift+Alt+C".to_string(),
             engine: "auto".to_string(),
             groq_model: "whisper-large-v3-turbo".to_string(),
             insertion: "paste".to_string(),
@@ -53,6 +61,7 @@ impl Default for Settings {
             model: "base.en".to_string(),
             polish: true,
             autostart: false,
+            elevenlabs_voice_id: String::new(),
         }
     }
 }
