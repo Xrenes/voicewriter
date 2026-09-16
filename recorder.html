@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>VoiceWriter Recording</title>
+    <link rel="stylesheet" href="/src/recorder.css" />
+  </head>
+  <body>
+    <button class="widget" id="stopBtn" aria-label="Stop recording" data-tauri-drag-region>
+      <svg class="mark" id="mark" viewBox="0 0 200 200" aria-hidden="true">
+        <rect x="22" y="100" width="28" height="66" rx="14" fill="currentColor"/>
+        <rect x="58" y="72" width="28" height="94" rx="14" fill="currentColor"/>
+        <path d="M108 38V139" fill="none" stroke="currentColor" stroke-width="28" stroke-linecap="round"/>
+        <path d="M108 132V139Q108 166 137 166H172" fill="none" stroke="currentColor" stroke-width="28" stroke-linecap="round"/>
+      </svg>
+    </button>
+    <script type="module" src="/src/recorder.ts"></script>
+  </body>
+</html>

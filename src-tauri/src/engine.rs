@@ -116,12 +116,12 @@ pub fn run(
         if let Some(key) = keychain::get(keychain::Purpose::Dictation) {
             match try_groq(&key, cfg, samples) {
                 Ok(text) => {
-                    usage::record_ok(app, "groq", audio_secs);
+                    usage::record_ok(app, usage::Purpose::Dictation, audio_secs, 0.0);
                     return finish(app, cfg, text, "groq");
                 }
                 Err(e) => {
                     let msg = e.to_string();
-                    usage::record_err(app, &msg);
+                    usage::record_err(app, usage::Purpose::Dictation, &msg);
                     if want == "groq" {
                         return Outcome::Failed(format!("Groq failed: {msg}"));
                     }
@@ -133,16 +133,14 @@ pub fn run(
         }
     }
 
-    // --- Local Whisper ---
+    // --- Local Whisper --- (not a metered API call, no usage tracked)
     match try_local(app, engine_lock, cfg, samples) {
         Ok(text) => {
-            usage::record_ok(app, "local", audio_secs);
             raw = text;
             engine = "local";
         }
         Err(e) => {
             let msg = e.to_string();
-            usage::record_err(app, &msg);
             return Outcome::Failed(msg);
         }
     }

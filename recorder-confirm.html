@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Save Recording</title>
+    <link rel="stylesheet" href="/src/recorder-confirm.css" />
+  </head>
+  <body>
+    <main class="app">
+      <header class="head">
+        <h1>Save Recording</h1>
+      </header>
+
+      <section class="card">
+        <div class="row">
+          <label for="filename">File name</label>
+          <input id="filename" type="text" spellcheck="false" />
+        </div>
+        <div class="row">
+          <label>Save to</label>
+          <div class="folder-row">
+            <input id="folder" type="text" readonly />
+            <button id="chooseFolder" class="ghost">Choose location</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="card">
+        <div class="row preview-row">
+          <label>Preview</label>
+        </div>
+        <audio id="player" controls></audio>
+      </section>
+
+      <p class="hint dim" id="hint"></p>
+
+      <footer class="actions">
+        <button id="cancelBtn" class="ghost">Cancel</button>
+        <button id="confirmBtn" class="primary">Transcribe &amp; Save</button>
+      </footer>
+    </main>
+    <script type="module" src="/src/recorder-confirm.ts"></script>
+  </body>
+</html>

@@ -1,0 +1,44 @@
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  width: 44px;
+  height: 44px;
+  background: transparent;
+  overflow: hidden;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.widget {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(0, 0, 0, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 0;
+}
+
+.widget:hover {
+  background: rgba(0, 0, 0, 0.7);
+}
+
+.mark {
+  width: 22px;
+  height: 22px;
+  color: #ffffff;
+  animation: blink-red 1.1s ease-in-out infinite;
+}
+
+@keyframes blink-red {
+  0%, 100% { color: #ffffff; }
+  50% { color: #f87171; }
+}

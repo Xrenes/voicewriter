@@ -1,0 +1,167 @@
+:root {
+  --bg: #000000;
+  --card: #000000;
+  --card-border: #1c1c1e;
+  --text: #ededed;
+  --muted: #8a8a8f;
+  --accent: #6ea8fe;
+  --accent-press: #4b8dfd;
+  --radius: 10px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  background: var(--bg);
+}
+
+html {
+  scrollbar-width: none;
+}
+::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+  display: none;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font: 13px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  -webkit-user-select: none;
+  user-select: none;
+  color-scheme: dark;
+}
+
+.app {
+  padding: 14px 16px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.head h1 {
+  font-size: 15px;
+  margin: 0;
+  font-weight: 600;
+}
+
+.card {
+  background: var(--card);
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius);
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.row > label {
+  color: var(--muted);
+  flex-shrink: 0;
+}
+
+.preview-row {
+  justify-content: flex-start;
+}
+
+input[type="text"] {
+  background: #0d0d0d;
+  border: 1px solid #262628;
+  color: var(--text);
+  border-radius: 7px;
+  padding: 6px 8px;
+  font: inherit;
+  min-width: 0;
+  flex: 1;
+  max-width: 62%;
+}
+
+input[type="text"]:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+input[readonly] {
+  color: var(--muted);
+}
+
+.folder-row {
+  display: flex;
+  gap: 6px;
+  flex: 1;
+  max-width: 62%;
+}
+
+.folder-row input {
+  max-width: none;
+}
+
+audio {
+  width: 100%;
+  height: 34px;
+  /* Chromium reads color-scheme:dark on the page and themes its native
+     controls (dark background, light track/icons) accordingly — this is as
+     close to "blended with the theme" as a native <audio> element gets. */
+  border-radius: 7px;
+  background: #0d0d0d;
+}
+
+.hint {
+  color: var(--muted);
+  font-size: 11.5px;
+  margin: 0;
+  min-height: 14px;
+}
+
+.hint.dim {
+  opacity: 0.7;
+}
+
+.actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+button {
+  font: inherit;
+  border-radius: 7px;
+  padding: 6px 14px;
+  border: 1px solid transparent;
+  cursor: pointer;
+}
+
+button.primary {
+  background: var(--accent);
+  color: #0b1220;
+  font-weight: 600;
+}
+button.primary:active {
+  background: var(--accent-press);
+}
+button.primary:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+button.ghost {
+  background: #0d0d0d;
+  border-color: #262628;
+  color: var(--text);
+}
+button.ghost:hover {
+  border-color: var(--accent);
+}

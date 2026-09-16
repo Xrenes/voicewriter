@@ -95,6 +95,15 @@ mod win {
         Ok(())
     }
 
+    /// Current mouse cursor position in screen coordinates.
+    pub fn cursor_pos() -> (i32, i32) {
+        use windows::Win32::Foundation::POINT;
+        use windows::Win32::UI::WindowsAndMessaging::GetCursorPos;
+        let mut pt = POINT::default();
+        let _ = unsafe { GetCursorPos(&mut pt) };
+        (pt.x, pt.y)
+    }
+
     pub fn wait_for_modifiers() -> Result<()> {
         let deadline = std::time::Instant::now() + Duration::from_secs(3);
         loop {
@@ -362,6 +371,18 @@ pub fn send_copy() -> Result<()> {
 #[cfg(windows)]
 fn type_text(text: &str) -> Result<()> {
     win::type_unicode(text)
+}
+
+/// Current mouse cursor position in screen coordinates, for positioning the
+/// refine-wheel popup near where the user is working.
+#[cfg(windows)]
+pub fn cursor_pos() -> (i32, i32) {
+    win::cursor_pos()
+}
+
+#[cfg(not(windows))]
+pub fn cursor_pos() -> (i32, i32) {
+    (0, 0)
 }
 
 #[cfg(not(windows))]
