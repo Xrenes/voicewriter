@@ -382,6 +382,19 @@ h1, h2, h3 {
 .get-side p { margin: 0; font-size: 0.88rem; color: var(--dim); }
 .get-side strong { color: var(--text); font-weight: 600; }
 
+.setup-steps {
+  margin-top: 18px;
+  border: 1px solid var(--border-mid);
+  border-radius: 16px;
+  background: var(--panel);
+  padding: 26px 30px;
+}
+.setup-steps-head { margin: 0 0 16px; font-size: 0.95rem; color: var(--text); }
+.setup-steps-head strong { color: var(--accent-2); }
+.setup-steps .flow-compact { gap: 14px; }
+.setup-steps .flow-compact p { color: var(--dim); font-size: 0.92rem; }
+.setup-steps .flow-compact strong { color: var(--text); }
+
 /* ---------- Footer ---------- */
 .site-footer { border-top: 1px solid var(--border); padding-block: 30px; }
 .footer-inner {

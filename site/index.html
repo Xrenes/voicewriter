@@ -286,10 +286,18 @@
 
       <aside class="get-side">
         <p><strong>First launch:</strong> Windows may show “Windows protected your PC” — the app isn't signed yet. Click <strong>More info › Run anyway</strong>.</p>
-        <p><strong>Setup:</strong> open the tray (▲ near the clock), click the VoiceWriter icon, then paste a free <a href="https://console.groq.com/keys" target="_blank" rel="noopener">Groq key</a> (and optionally an <a href="https://elevenlabs.io/app/settings/api-keys" target="_blank" rel="noopener">ElevenLabs key</a>) or download a local model.</p>
         <p><strong>Hotkeys:</strong> <span class="k">Alt</span><span class="k">C</span> dictate English · <span class="k">Alt</span><span class="k">X</span> dictate Bangla · <span class="k">Shift</span><span class="k">Alt</span><span class="k">C</span> refine wheel · <span class="k">Ctrl</span><span class="k">Alt</span><span class="k">C</span> speak selection aloud. All rebindable in settings.</p>
         <p><strong>Offline?</strong> Dictation, yes — with a local model, nothing leaves your PC. Refine/translate/speech features need an internet connection. <strong>Mac / Linux?</strong> Not yet, Windows only.</p>
       </aside>
+    </div>
+
+    <div class="setup-steps">
+      <p class="setup-steps-head"><strong>Set up your API keys</strong> — open the tray (▲ near the clock), click the VoiceWriter icon to open Settings, then:</p>
+      <ol class="flow flow-compact">
+        <li><span class="n">1</span><p><strong>Groq</strong> (required — dictation, refine, translate, English speech): create a free key at <a href="https://console.groq.com/keys" target="_blank" rel="noopener">console.groq.com/keys</a> and paste it into the Dictation key field.</p></li>
+        <li><span class="n">2</span><p><strong>ElevenLabs</strong> (optional — natural Bangla speech): sign up free at <a href="https://elevenlabs.io/sign-up" target="_blank" rel="noopener">elevenlabs.io/sign-up</a>, generate a key at <a href="https://elevenlabs.io/app/settings/api-keys" target="_blank" rel="noopener">elevenlabs.io/app/settings/api-keys</a> with <span class="mono">text_to_speech</span> + <span class="mono">voices_read</span> permissions, and paste it into the ElevenLabs key field.</p></li>
+        <li><span class="n">3</span><p>No credit card needed for either. Full walkthrough and troubleshooting: <a href="#keys">API keys</a> section below.</p></li>
+      </ol>
     </div>
   </section>
 
