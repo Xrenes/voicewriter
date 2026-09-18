@@ -25,6 +25,8 @@ pub enum Purpose {
     SpeakAloud,
     /// The refine wheel's Bangla speech via ElevenLabs.
     ElevenLabs,
+    /// The "AI" chat wedge's screenshot/photo Q&A via Groq's vision model.
+    Vision,
 }
 
 /// Free-tier limits per provider/purpose, from each vendor's own docs
@@ -47,6 +49,13 @@ impl Purpose {
             Purpose::Dictation => Cap::RequestsAndAudioPerDay(2_000.0, 28_800.0),
             Purpose::SpeakAloud => Cap::RequestsPerDay(100.0),
             Purpose::ElevenLabs => Cap::CharactersPerMonth(10_000.0),
+            // Vision model is qwen/qwen3.6-27b (see vision.rs — the prior
+            // Llama 4 Scout/Maverick vision models were deprecated by Groq).
+            // Exact free-tier RPD for this model wasn't confirmed from Groq's
+            // docs (their pricing page is JS-rendered); kept at the same
+            // conservative 1,000/day Scout published, pending verification at
+            // console.groq.com/docs/rate-limits.
+            Purpose::Vision => Cap::RequestsPerDay(1_000.0),
         }
     }
 
@@ -55,6 +64,7 @@ impl Purpose {
             Purpose::Dictation => "dictation",
             Purpose::SpeakAloud => "speakAloud",
             Purpose::ElevenLabs => "elevenLabs",
+            Purpose::Vision => "vision",
         }
     }
 }
@@ -145,7 +155,7 @@ pub fn load(app: &AppHandle<Wry>) {
     if let Ok(store) = app.store(STORE_FILE) {
         if let Some(v) = store.get(KEY) {
             if let Ok(map) = serde_json::from_value::<std::collections::HashMap<String, PurposeUsage>>(v) {
-                for purpose in [Purpose::Dictation, Purpose::SpeakAloud, Purpose::ElevenLabs] {
+                for purpose in [Purpose::Dictation, Purpose::SpeakAloud, Purpose::ElevenLabs, Purpose::Vision] {
                     if let Some(mut u) = map.get(purpose.storage_key()).cloned() {
                         roll_over(purpose, &mut u);
                         rt.by_purpose.insert(purpose.storage_key(), u);

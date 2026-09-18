@@ -4,8 +4,8 @@
   --card-border: #1c1c1e;
   --text: #ededed;
   --muted: #8a8a8f;
-  --accent: #6ea8fe;
-  --accent-press: #4b8dfd;
+  --accent: #b23859;
+  --accent-press: #8f2947;
   --ok: #4ade80;
   --rec: #f87171;
   --warn: #fbbf24;
@@ -138,6 +138,60 @@ body {
 /* subtle top highlight so black cards separate from the black page */
 .card + .card {
   margin-top: 0;
+}
+
+/* --- Collapsible settings sections --- */
+.section {
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius);
+  background: var(--card);
+  overflow: hidden;
+}
+
+.section > summary {
+  list-style: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 13px;
+  color: var(--text);
+  user-select: none;
+}
+.section > summary::-webkit-details-marker {
+  display: none;
+}
+.section > summary:hover {
+  background: #0a0a0a;
+}
+.section > summary::after {
+  content: "";
+  width: 8px;
+  height: 8px;
+  border-right: 1.5px solid var(--muted);
+  border-bottom: 1.5px solid var(--muted);
+  transform: rotate(45deg);
+  transition: transform 0.15s ease;
+  flex-shrink: 0;
+}
+.section[open] > summary::after {
+  transform: rotate(-135deg);
+}
+.section[open] > summary {
+  border-bottom: 1px solid var(--card-border);
+}
+
+.section-body {
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.section-body .card {
+  border: 1px solid var(--card-border);
 }
 
 .row {
@@ -362,4 +416,38 @@ button.danger:hover {
 .hint.dim {
   opacity: 0.55;
   font-size: 10px;
+}
+
+/* --- Guide & API Keys section --- */
+.guide-card h3 {
+  margin: 0;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text);
+}
+.guide-card ol {
+  margin: 0;
+  padding-left: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text);
+}
+.guide-card li {
+  line-height: 1.45;
+}
+.guide-card li strong {
+  color: var(--text);
+  font-weight: 600;
+}
+.ext-link {
+  color: var(--accent);
+  text-decoration: none;
+  font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
+  font-size: 11.5px;
+  cursor: pointer;
+}
+.ext-link:hover {
+  text-decoration: underline;
 }

@@ -1,10 +1,26 @@
-//! Microphone capture via cpal.
+//! Microphone + system-audio (WASAPI loopback) capture via cpal.
 //!
 //! `cpal::Stream` is not `Send`, so it cannot live in Tauri's managed state. We
-//! run it on a dedicated OS thread that owns the stream and takes commands over a
-//! channel. `Recorder` is the `Send + Sync` handle to that thread: it records raw
-//! f32 samples while active, then down-mixes to mono and resamples to 16 kHz
-//! (whisper.cpp's required input format) when stopped.
+//! run each stream on its own dedicated OS thread that owns it and takes commands
+//! over a channel. `Recorder` is the `Send + Sync` handle to that thread: it
+//! records raw f32 samples while active, then down-mixes to mono and resamples
+//! to 16 kHz (whisper.cpp's required input format) when stopped.
+//!
+//! System-audio ("what you hear" — e.g. the other party's voice during a call)
+//! capture is WASAPI loopback: cpal has no separate "loopback device" concept —
+//! you open a normal OUTPUT device (`default_output_device()`/`output_devices()`)
+//! and call `.build_input_stream()` on it exactly like a mic. cpal detects the
+//! device's data flow is `eRender` and transparently sets
+//! `AUDCLNT_STREAMFLAGS_LOOPBACK` internally. The one non-obvious part: you must
+//! query the format via `default_output_config()` (the output-side method) since
+//! `default_input_config()` on a render device returns an error. This has worked
+//! unchanged on the `cpal = "0.15"` already pinned in Cargo.toml since cpal's
+//! WASAPI loopback support was added in 2019 — no crate upgrade was needed.
+//!
+//! Mic and loopback are kept as two SEPARATE tracks (not mixed), per an
+//! explicit product decision for call recording — each is its own `Recorder`
+//! running on its own thread, independently resampled (they are not
+//! guaranteed to share a sample rate or channel count).
 
 use anyhow::{anyhow, Context, Result};
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
@@ -15,6 +31,14 @@ use std::sync::Mutex;
 pub const TARGET_SR: u32 = 16_000;
 /// Safety cap so a forgotten "listening" session can't grow without bound.
 const MAX_SECONDS: usize = 240;
+
+/// Which side of the audio path a `Recorder` captures — selects which cpal
+/// device-enumeration/config-query methods to use (see module doc comment).
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub enum Source {
+    Mic,
+    Loopback,
+}
 
 enum Cmd {
     Start { device: String, reply: Sender<Result<()>> },
@@ -28,11 +52,14 @@ pub struct Recorder {
 }
 
 impl Recorder {
-    pub fn spawn() -> Self {
+    pub fn spawn(source: Source) -> Self {
         let (tx, rx) = mpsc::channel::<Cmd>();
         std::thread::Builder::new()
-            .name("audio-capture".into())
-            .spawn(move || audio_thread(rx))
+            .name(match source {
+                Source::Mic => "audio-capture-mic".into(),
+                Source::Loopback => "audio-capture-loopback".into(),
+            })
+            .spawn(move || audio_thread(rx, source))
             .expect("spawn audio thread");
         Self {
             tx,
@@ -79,7 +106,7 @@ struct Active {
     sample_rate: u32,
 }
 
-fn audio_thread(rx: Receiver<Cmd>) {
+fn audio_thread(rx: Receiver<Cmd>, source: Source) {
     let mut active: Option<Active> = None;
     while let Ok(cmd) = rx.recv() {
         match cmd {
@@ -88,7 +115,11 @@ fn audio_thread(rx: Receiver<Cmd>) {
                     let _ = reply.send(Ok(()));
                     continue;
                 }
-                match open_stream(&device) {
+                let opened = match source {
+                    Source::Mic => open_mic_stream(&device),
+                    Source::Loopback => open_loopback_stream(&device),
+                };
+                match opened {
                     Ok(a) => {
                         active = Some(a);
                         let _ = reply.send(Ok(()));
@@ -111,21 +142,14 @@ fn audio_thread(rx: Receiver<Cmd>) {
     }
 }
 
-fn open_stream(device_name: &str) -> Result<Active> {
-    let host = cpal::default_host();
-    let device = if device_name.is_empty() {
-        host.default_input_device()
-            .ok_or_else(|| anyhow!("no default input device"))?
-    } else {
-        host.input_devices()?
-            .find(|d| d.name().map(|n| n == device_name).unwrap_or(false))
-            .or_else(|| host.default_input_device())
-            .ok_or_else(|| anyhow!("input device '{device_name}' not found"))?
-    };
-
-    let config = device
-        .default_input_config()
-        .context("query default input config")?;
+/// Build the `Active` stream state common to both mic and loopback capture —
+/// the only difference between the two is which `cpal::Device` is handed in
+/// and which config-query method was used to get `config` (see callers).
+fn build_active_from_config(
+    device: &cpal::Device,
+    config: cpal::SupportedStreamConfig,
+    err_label: &'static str,
+) -> Result<Active> {
     let channels = config.channels();
     let sample_rate = config.sample_rate().0;
     let sample_format = config.sample_format();
@@ -137,7 +161,7 @@ fn open_stream(device_name: &str) -> Result<Active> {
     let cap_limit = (sample_rate as usize) * channels as usize * MAX_SECONDS;
 
     let buf_cb = buffer.clone();
-    let err_cb = |e| eprintln!("audio stream error: {e}");
+    let err_cb = move |e| eprintln!("{err_label} stream error: {e}");
 
     let stream = match sample_format {
         cpal::SampleFormat::F32 => device.build_input_stream(
@@ -181,6 +205,47 @@ fn open_stream(device_name: &str) -> Result<Active> {
         channels,
         sample_rate,
     })
+}
+
+fn open_mic_stream(device_name: &str) -> Result<Active> {
+    let host = cpal::default_host();
+    let device = if device_name.is_empty() {
+        host.default_input_device()
+            .ok_or_else(|| anyhow!("no default input device"))?
+    } else {
+        host.input_devices()?
+            .find(|d| d.name().map(|n| n == device_name).unwrap_or(false))
+            .or_else(|| host.default_input_device())
+            .ok_or_else(|| anyhow!("input device '{device_name}' not found"))?
+    };
+
+    let config = device
+        .default_input_config()
+        .context("query default input config")?;
+    build_active_from_config(&device, config, "mic")
+}
+
+/// System-audio capture: opens an OUTPUT device and reads it as input.
+/// cpal transparently sets the WASAPI loopback flag when it sees the
+/// device's data flow is render, not capture — see the module doc comment.
+/// The device is queried via `default_output_config()` (NOT
+/// `default_input_config()`, which fails on a render device).
+fn open_loopback_stream(device_name: &str) -> Result<Active> {
+    let host = cpal::default_host();
+    let device = if device_name.is_empty() {
+        host.default_output_device()
+            .ok_or_else(|| anyhow!("no default output device"))?
+    } else {
+        host.output_devices()?
+            .find(|d| d.name().map(|n| n == device_name).unwrap_or(false))
+            .or_else(|| host.default_output_device())
+            .ok_or_else(|| anyhow!("output device '{device_name}' not found"))?
+    };
+
+    let config = device
+        .default_output_config()
+        .context("query default output config for loopback")?;
+    build_active_from_config(&device, config, "loopback")
 }
 
 fn finish(raw: Vec<f32>, channels: u16, sample_rate: u32) -> Result<Vec<f32>> {
@@ -254,11 +319,29 @@ fn resample(input: &[f32], from: u32, to: u32) -> Result<Vec<f32>> {
     Ok(out)
 }
 
-/// Names of available input devices, for the settings dropdown.
+/// Names of available input (microphone) devices, for the settings dropdown.
 pub fn list_input_devices() -> Vec<String> {
     let host = cpal::default_host();
     let mut names = Vec::new();
     if let Ok(devices) = host.input_devices() {
+        for d in devices {
+            if let Ok(name) = d.name() {
+                if !names.contains(&name) {
+                    names.push(name);
+                }
+            }
+        }
+    }
+    names
+}
+
+/// Names of available output (playback) devices, for picking which one to
+/// loopback-capture — useful when the user has more than one (e.g. speakers
+/// plus a virtual cable).
+pub fn list_output_devices() -> Vec<String> {
+    let host = cpal::default_host();
+    let mut names = Vec::new();
+    if let Ok(devices) = host.output_devices() {
         for d in devices {
             if let Ok(name) = d.name() {
                 if !names.contains(&name) {

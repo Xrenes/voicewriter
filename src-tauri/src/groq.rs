@@ -71,6 +71,16 @@ pub fn encode_wav_16k_mono(samples: &[f32]) -> Result<Vec<u8>> {
     Ok(buf.into_inner())
 }
 
+/// Decode a 16-bit PCM WAV (as written by `encode_wav_16k_mono`) back to f32
+/// samples, for mixing two previously-recorded tracks together.
+pub fn decode_wav_16k_mono(wav_bytes: &[u8]) -> Result<Vec<f32>> {
+    let mut reader = hound::WavReader::new(Cursor::new(wav_bytes)).context("wav reader")?;
+    reader
+        .samples::<i16>()
+        .map(|s| s.map(|v| v as f32 / i16::MAX as f32).context("read sample"))
+        .collect()
+}
+
 /// `model` e.g. "whisper-large-v3-turbo" or "whisper-large-v3".
 /// `language` is an ISO code, or "auto" to let Groq detect.
 pub fn transcribe(
@@ -119,6 +129,90 @@ pub fn transcribe(
         .and_then(|t| t.as_str())
         .ok_or_else(|| anyhow!("no 'text' in Groq response"))?;
     Ok(text.trim().to_string())
+}
+
+/// One transcribed sentence/phrase with its start time (seconds) within the
+/// clip it came from — used to best-effort chronologically merge two
+/// separately-recorded tracks (mic + system audio) into one call transcript.
+/// Not real speaker diarization: each segment is just labeled by which whole
+/// track it was transcribed from.
+pub struct Segment {
+    pub start_secs: f64,
+    pub text: String,
+}
+
+/// Like `transcribe`, but requests Groq's `verbose_json` format to also get
+/// per-segment start timestamps, for chronologically merging two separately
+/// recorded tracks (see `record::merge_call_transcript`). Used only by the
+/// wheel's "Record" (call recording) feature — hold-to-talk dictation and
+/// "speak selection" use the plain `transcribe` above, which doesn't need
+/// timing.
+pub fn transcribe_with_segments(
+    wav: Vec<u8>,
+    api_key: &str,
+    model: &str,
+    language: &str,
+) -> Result<(String, Vec<Segment>)> {
+    let client = reqwest::blocking::Client::builder()
+        .timeout(TIMEOUT)
+        .build()
+        .context("build http client")?;
+
+    let part = reqwest::blocking::multipart::Part::bytes(wav)
+        .file_name("clip.wav")
+        .mime_str("audio/wav")?;
+
+    let mut form = reqwest::blocking::multipart::Form::new()
+        .part("file", part)
+        .text("model", model.to_string())
+        .text("response_format", "verbose_json")
+        .text("temperature", "0");
+    if language != "auto" && !language.is_empty() {
+        form = form.text("language", language.to_string());
+    }
+
+    let resp = client
+        .post(ENDPOINT)
+        .bearer_auth(api_key)
+        .multipart(form)
+        .send()
+        .context("send groq request")?;
+
+    let status = resp.status();
+    let body = resp.text().context("read groq response")?;
+
+    if !status.is_success() {
+        let detail = extract_error(&body).unwrap_or_else(|| body.clone());
+        return Err(anyhow!("Groq {}: {}", status.as_u16(), truncate(&detail, 200)));
+    }
+
+    let parsed: serde_json::Value =
+        serde_json::from_str(&body).context("parse groq json")?;
+    let text = parsed
+        .get("text")
+        .and_then(|t| t.as_str())
+        .ok_or_else(|| anyhow!("no 'text' in Groq response"))?
+        .trim()
+        .to_string();
+
+    let segments = parsed
+        .get("segments")
+        .and_then(|s| s.as_array())
+        .map(|arr| {
+            arr.iter()
+                .filter_map(|seg| {
+                    let start_secs = seg.get("start")?.as_f64()?;
+                    let text = seg.get("text")?.as_str()?.trim().to_string();
+                    if text.is_empty() {
+                        return None;
+                    }
+                    Some(Segment { start_secs, text })
+                })
+                .collect()
+        })
+        .unwrap_or_default();
+
+    Ok((text, segments))
 }
 
 use std::sync::Mutex;
@@ -298,6 +392,39 @@ pub fn speak(text: &str, api_key: &str) -> Result<Vec<u8>> {
         return Err(anyhow!("Groq speech returned no audio"));
     }
     Ok(bytes)
+}
+
+/// List every model this API key can actually see, per Groq's own
+/// `/v1/models` endpoint — ground truth for "what model ID do I use", since
+/// Groq's model lineup (especially newer/vision models) shifts often enough
+/// that docs pages and even hardcoded IDs in this codebase can drift stale
+/// or get deprecated without notice (see vision.rs's history: two different
+/// hardcoded vision model IDs both 404'd within the same week).
+pub fn list_models(api_key: &str) -> Result<Vec<String>> {
+    let client = reqwest::blocking::Client::builder().timeout(TIMEOUT).build()?;
+    let resp = client
+        .get("https://api.groq.com/openai/v1/models")
+        .bearer_auth(api_key)
+        .send()
+        .context("send Groq models request")?;
+
+    let status = resp.status();
+    let body = resp.text().context("read Groq models response")?;
+    if !status.is_success() {
+        let detail = extract_error(&body).unwrap_or_else(|| body.clone());
+        return Err(anyhow!("Groq {}: {}", status.as_u16(), truncate(&detail, 200)));
+    }
+
+    let parsed: serde_json::Value = serde_json::from_str(&body)?;
+    let data = parsed
+        .get("data")
+        .and_then(|d| d.as_array())
+        .ok_or_else(|| anyhow!("no 'data' array in Groq models response"))?;
+
+    Ok(data
+        .iter()
+        .filter_map(|m| m.get("id").and_then(|i| i.as_str()).map(str::to_string))
+        .collect())
 }
 
 fn extract_error(body: &str) -> Option<String> {

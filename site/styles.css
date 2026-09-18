@@ -320,6 +320,7 @@ h1, h2, h3 {
 .wedge.w3 { fill: rgba(178, 56, 89, 0.16); }
 .wedge.w4 { fill: rgba(214, 72, 108, 0.10); }
 .wedge.w5 { fill: rgba(178, 56, 89, 0.10); }
+.wedge.w6 { fill: rgba(214, 72, 108, 0.06); }
 .wheel-hub { fill: var(--bg); stroke: var(--border-mid); stroke-width: 1.5; }
 
 .wheel-legend { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
@@ -333,6 +334,7 @@ h1, h2, h3 {
 .d3 { background: rgba(178, 56, 89, 0.6); }
 .d4 { background: rgba(214, 72, 108, 0.55); }
 .d5 { background: rgba(178, 56, 89, 0.4); }
+.d6 { background: rgba(214, 72, 108, 0.35); }
 
 /* ---------- API key cards ---------- */
 .keys-cards { grid-template-columns: repeat(2, 1fr); margin-bottom: 14px; }

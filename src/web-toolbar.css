@@ -1,0 +1,117 @@
+:root {
+  --bg: #000000;
+  --panel: #141414;
+  --border: #2a2a2a;
+  --text: #ffffff;
+  --dim: #9a9a9a;
+  --hover: #202020;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  background: var(--bg);
+  color: var(--text);
+  font: 12.5px system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  color-scheme: dark;
+  overflow: hidden;
+}
+
+body {
+  position: relative;
+}
+
+.bar {
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 0 6px;
+  border-bottom: 1px solid var(--border);
+}
+
+.bar-btn {
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  border-radius: 7px;
+  border: none;
+  background: transparent;
+  color: var(--dim);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+}
+.bar-btn svg {
+  width: 15px;
+  height: 15px;
+}
+.bar-btn:hover:not(:disabled) {
+  background: var(--hover);
+  color: var(--text);
+}
+.bar-btn:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+.close-btn:hover {
+  background: #e5484d;
+  color: #fff;
+}
+
+.resize-edge {
+  position: fixed;
+  z-index: 20;
+}
+.resize-edge.n { top: 0; left: 8px; right: 8px; height: 4px; cursor: ns-resize; }
+.resize-edge.w { top: 8px; bottom: 0; left: 0; width: 6px; cursor: ew-resize; }
+.resize-edge.e { top: 8px; bottom: 0; right: 0; width: 6px; cursor: ew-resize; }
+.resize-edge.nw { top: 0; left: 0; width: 8px; height: 8px; cursor: nwse-resize; }
+.resize-edge.ne { top: 0; right: 0; width: 8px; height: 8px; cursor: nesw-resize; }
+
+.address-wrap {
+  flex: 1;
+  min-width: 0;
+  max-width: 260px;
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.address-icon {
+  position: absolute;
+  left: 11px;
+  width: 12px;
+  height: 12px;
+  color: var(--dim);
+  pointer-events: none;
+}
+
+.address {
+  width: 100%;
+  height: 28px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: var(--text);
+  font: inherit;
+  padding: 0 12px 0 30px;
+  text-align: center;
+  text-overflow: ellipsis;
+}
+.address:hover:not(:focus) {
+  background: var(--hover);
+}
+.address:focus {
+  outline: none;
+  border-color: #fff;
+  background: var(--panel);
+  text-align: left;
+}

@@ -3,12 +3,12 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>VoiceWriter — dictate, refine, translate, and record. All from one hotkey.</title>
-<meta name="description" content="A tiny Windows app for voice dictation, AI text refinement, live translation with natural speech, and mic recording with transcripts — all from your keyboard. No window, ever." />
+<title>VoiceWriter — dictate, refine, translate, record calls, browse, and ask AI. All from one hotkey.</title>
+<meta name="description" content="A tiny Windows app for voice dictation, AI text refinement, live translation with natural speech, call recording with transcripts, a built-in browser, and an AI chat with screenshot Q&A — all from your keyboard. No window, ever." />
 <meta name="theme-color" content="#000000" />
 
-<meta property="og:title" content="VoiceWriter — dictate, refine, translate, and record" />
-<meta property="og:description" content="Hold Alt+C to dictate. Press Shift+Alt+C for a radial menu that refines, translates, speaks, and records. Private, no window." />
+<meta property="og:title" content="VoiceWriter — dictate, refine, translate, record, browse, and ask AI" />
+<meta property="og:description" content="Hold Alt+C to dictate. Press Shift+Alt+C for a radial menu that refines, translates, speaks, records calls, opens a mini browser, and starts an AI chat. Private, no window." />
 <meta property="og:type" content="website" />
 <meta property="og:image" content="assets/icon.png" />
 
@@ -57,14 +57,14 @@
       Click into any field. Hold <span class="k">Alt</span><span class="k">C</span>,
       say your sentence, let go — it's typed where your cursor was. Select text and
       press <span class="k">Shift</span><span class="k">Alt</span><span class="k">C</span>
-      to refine it, translate it, hear it spoken aloud, or start recording a
-      conversation. No window, ever.
+      for a wheel that refines, translates, records a call, opens a mini browser,
+      or starts an AI chat. No window, ever.
     </p>
     <div class="hero-actions">
       <a href="#get" class="btn btn-accent btn-lg">Download for Windows</a>
       <a href="#wheel" class="btn btn-ghost btn-lg">See the refine wheel</a>
     </div>
-    <p class="hero-meta">Free · Windows 10 / 11, 64-bit · <span class="mono">v0.4.0</span></p>
+    <p class="hero-meta">Free · Windows 10 / 11, 64-bit · <span class="mono">v0.5.0</span></p>
 
     <!-- Signature animated centerpiece: waveform → typed line -->
     <div class="stage" aria-hidden="true">
@@ -144,10 +144,11 @@
       </svg>
       <ul class="wheel-legend">
         <li><span class="dot d1"></span>Refine wording</li>
-        <li><span class="dot d2"></span>Make professional</li>
-        <li><span class="dot d3"></span>Translate to Bangla</li>
-        <li><span class="dot d4"></span>Translate… (EN / BN / ES / IT)</li>
-        <li><span class="dot d5"></span>Record audio</li>
+        <li><span class="dot d2"></span>Translate to Bangla</li>
+        <li><span class="dot d3"></span>Translate… (EN / BN / ES / IT)</li>
+        <li><span class="dot d4"></span>Record a call</li>
+        <li><span class="dot d5"></span>Open the mini browser</li>
+        <li><span class="dot d6"></span>Ask AI</li>
       </ul>
     </div>
 
@@ -155,10 +156,6 @@
       <article class="card">
         <h3>Refine</h3>
         <p>Fixes grammar, spelling, and punctuation only — same meaning, same tone, same length. Won't rewrite what's already correct.</p>
-      </article>
-      <article class="card">
-        <h3>Make professional</h3>
-        <p>Rewrites tone for formal or business communication while preserving every fact and request in the original.</p>
       </article>
       <article class="card">
         <h3>Translate</h3>
@@ -189,7 +186,7 @@
       </article>
       <article class="card">
         <h3>Spanish &amp; Italian, text-only</h3>
-        <p>These translations appear instantly in the preview panel and copy to your clipboard, same as Refine and Make&nbsp;professional — no speech, no extra API calls.</p>
+        <p>These translations appear instantly in the preview panel and copy to your clipboard, same as Refine — no speech, no extra API calls.</p>
       </article>
       <article class="card">
         <h3>Offline speech, too</h3>
@@ -202,17 +199,25 @@
   <section id="record" class="slab wrap">
     <div class="slab-head">
       <p class="eyebrow">New</p>
-      <h2>Record a conversation, get a transcript.</h2>
-      <p>Pick the Record wedge from the wheel to start capturing your microphone. A small floating dot follows you around while it records.</p>
+      <h2>Record a call, get a labeled transcript.</h2>
+      <p>Pick the Record wedge from the wheel to capture both sides of a call at once — your microphone and your system audio (what's playing, like the other person's voice). A small, mostly-transparent floating dot follows your cursor while it records, and you can drag it out of the way without stopping the recording.</p>
     </div>
 
     <ol class="flow">
-      <li><span class="n">1</span><p>Press <span class="k">Shift</span><span class="k">Alt</span><span class="k">C</span> and choose Record. A tiny transparent icon appears and blinks red while it's listening.</p></li>
-      <li><span class="n">2</span><p>Click it again to stop. A clean confirm window shows an audio preview and lets you pick the filename and folder.</p></li>
-      <li><span class="n">3</span><p>Confirm, and the recording is transcribed in English and opened in a dedicated chat-style transcript window — the audio and text are both saved to disk too.</p></li>
+      <li><span class="n">1</span><p>Press <span class="k">Shift</span><span class="k">Alt</span><span class="k">C</span> and choose Record. A tiny floating icon appears and blinks red while it's listening — drag it anywhere on screen if it's in your way.</p></li>
+      <li><span class="n">2</span><p>Click it again to stop. A clean confirm window (no title bar, no stray close button — Cancel or Transcribe &amp; Save are the only ways out) shows an audio preview and lets you pick the filename and folder.</p></li>
+      <li><span class="n">3</span><p>Confirm, and both tracks are transcribed in English, best-effort merged in chronological order and labeled <span class="mono">[You]</span> / <span class="mono">[System audio]</span>, then opened in a dedicated chat-style transcript window. The combined audio and the transcript are both saved to disk too.</p></li>
     </ol>
 
     <div class="cards">
+      <article class="card">
+        <h3>One saved recording, not two files</h3>
+        <p>Your mic and system audio are mixed into a single <span class="mono">.wav</span> after transcription — you get one normal-sounding recording of the call, not a pair of separate tracks to manage.</p>
+      </article>
+      <article class="card">
+        <h3>System audio is optional</h3>
+        <p>If nothing was playing, or your setup doesn't support capturing it, VoiceWriter falls back to a mic-only recording automatically — it never blocks or fails the whole feature over the optional track.</p>
+      </article>
       <article class="card">
         <h3>No Notepad, no clutter</h3>
         <p>Everything opens in VoiceWriter's own transcript viewer. The <span class="mono">.wav</span> and <span class="mono">.txt</span> files are still saved to your chosen folder — nothing else pops up.</p>
@@ -224,21 +229,69 @@
     </div>
   </section>
 
+  <!-- WEB BROWSER -->
+  <section id="webwedge" class="slab wrap">
+    <div class="slab-head">
+      <p class="eyebrow">New</p>
+      <h2>A tiny browser, always one hotkey away.</h2>
+      <p>Press <span class="k">Alt</span><span class="k">W</span> to pop open a small in-app browser — no need to alt-tab out to a full browser window just to check something. Press it again to hide the window, press it once more to pick up right where you left off.</p>
+    </div>
+
+    <div class="cards">
+      <article class="card">
+        <h3>Minimal, custom chrome</h3>
+        <p>Back, forward, an address bar, and a share button that copies the current URL — no browser clutter, no native title bar, no stray buttons.</p>
+      </article>
+      <article class="card">
+        <h3>Signed in stays signed in</h3>
+        <p>Email/password sign-in persists across restarts, so you don't have to log back into the same site every time. "Continue with Google" won't work here — that's a Google anti-phishing policy that blocks Google sign-in inside any embedded browser window, in every app that does this, not a VoiceWriter limitation.</p>
+      </article>
+      <article class="card">
+        <h3>Resizable, hidden from the taskbar</h3>
+        <p>Drag any edge to resize it. It never shows up as its own taskbar entry — it's meant to feel like a small utility panel, not another app window.</p>
+      </article>
+    </div>
+  </section>
+
+  <!-- AI CHAT -->
+  <section id="aiwedge" class="slab wrap">
+    <div class="slab-head">
+      <p class="eyebrow">New</p>
+      <h2>Ask AI, with a screenshot if you need one.</h2>
+      <p>Pick the AI wedge from the wheel for a chat window that can see what you attach — a screenshot, a photo from your camera, or a file — and answer questions about it, powered by your choice of Groq's available chat and vision models.</p>
+    </div>
+
+    <div class="cards">
+      <article class="card">
+        <h3>Pick your own model</h3>
+        <p>The model list is fetched live from your Groq account, not hardcoded — each one is automatically test-checked so you can see which are actually working before you pick.</p>
+      </article>
+      <article class="card">
+        <h3>A separate key, if you want one</h3>
+        <p>AI chat uses its own Groq API key slot in Settings, with its own usage meter — use the same key as dictation, or a completely different Groq account.</p>
+      </article>
+      <article class="card">
+        <h3>Attach and ask</h3>
+        <p>Grab a screenshot, snap a camera photo, or attach a file, then ask a question about it right in the chat — replies render with basic formatting (bold, lists) for readability.</p>
+      </article>
+    </div>
+  </section>
+
   <!-- API KEYS -->
   <section id="keys" class="slab wrap">
     <div class="slab-head">
       <h2>Getting your API keys</h2>
-      <p>VoiceWriter runs on your own free API keys — nothing is billed through the app, and both providers below have a free tier with no credit card required.</p>
+      <p>VoiceWriter runs on your own free API keys — nothing is billed through the app, and both providers below have a free tier with no credit card required. Settings also has its own built-in step-by-step guide, with the same links, for every feature.</p>
     </div>
 
     <div class="cards keys-cards">
       <article class="card key-card">
-        <h3>Groq — dictation, refine, translate, English speech</h3>
-        <p>Used for Whisper transcription, the refine/translate wheel actions, and Orpheus text-to-speech.</p>
+        <h3>Groq — dictation, refine, translate, speech, AI chat, call recording</h3>
+        <p>Used for Whisper transcription, the refine/translate wheel actions, Orpheus text-to-speech, the AI chat wedge, and call-recording transcription. Dictation, speak-aloud, and AI chat each have their own key slot in Settings — you can reuse one key everywhere, or use separate Groq accounts.</p>
         <ol class="flow flow-compact">
           <li><span class="n">1</span><p>Create a free account at <a href="https://console.groq.com" target="_blank" rel="noopener">console.groq.com</a>.</p></li>
           <li><span class="n">2</span><p>Open <a href="https://console.groq.com/keys" target="_blank" rel="noopener">console.groq.com/keys</a> and click <strong>Create API Key</strong>.</p></li>
-          <li><span class="n">3</span><p>Copy the key (starts with <span class="mono">gsk_</span>) and paste it into VoiceWriter's tray settings.</p></li>
+          <li><span class="n">3</span><p>Copy the key (starts with <span class="mono">gsk_</span>) and paste it into the matching key field in VoiceWriter's Settings.</p></li>
         </ol>
       </article>
       <article class="card key-card">
@@ -268,11 +321,11 @@
         <h2>VoiceWriter for Windows</h2>
         <p class="get-lead">Either installer works. The local model is fetched later from inside the app if you want offline mode.</p>
 
-        <a href="https://github.com/Xrenes/voicewriter/releases/latest/download/VoiceWriter_0.4.0_x64-setup.exe"
+        <a href="https://github.com/Xrenes/voicewriter/releases/latest/download/VoiceWriter_0.5.0_x64-setup.exe"
            class="btn btn-accent btn-lg get-btn" id="dlExe">
           Installer · .exe<span class="sz mono" id="exeSize"></span>
         </a>
-        <a href="https://github.com/Xrenes/voicewriter/releases/latest/download/VoiceWriter_0.4.0_x64_en-US.msi"
+        <a href="https://github.com/Xrenes/voicewriter/releases/latest/download/VoiceWriter_0.5.0_x64_en-US.msi"
            class="btn btn-lg get-btn get-btn-alt" id="dlMsi">
           MSI · for managed installs<span class="sz mono" id="msiSize"></span>
         </a>
@@ -286,7 +339,7 @@
 
       <aside class="get-side">
         <p><strong>First launch:</strong> Windows may show “Windows protected your PC” — the app isn't signed yet. Click <strong>More info › Run anyway</strong>.</p>
-        <p><strong>Hotkeys:</strong> <span class="k">Alt</span><span class="k">C</span> dictate English · <span class="k">Alt</span><span class="k">X</span> dictate Bangla · <span class="k">Shift</span><span class="k">Alt</span><span class="k">C</span> refine wheel · <span class="k">Ctrl</span><span class="k">Alt</span><span class="k">C</span> speak selection aloud. All rebindable in settings.</p>
+        <p><strong>Hotkeys:</strong> <span class="k">Alt</span><span class="k">C</span> dictate English · <span class="k">Alt</span><span class="k">X</span> dictate Bangla · <span class="k">Shift</span><span class="k">Alt</span><span class="k">C</span> refine wheel · <span class="k">Ctrl</span><span class="k">Alt</span><span class="k">C</span> speak selection aloud · <span class="k">Alt</span><span class="k">W</span> mini browser. All rebindable in settings.</p>
         <p><strong>Offline?</strong> Dictation, yes — with a local model, nothing leaves your PC. Refine/translate/speech features need an internet connection. <strong>Mac / Linux?</strong> Not yet, Windows only.</p>
       </aside>
     </div>
@@ -339,7 +392,7 @@
 <footer class="site-footer">
   <div class="wrap footer-inner">
     <span class="footer-brand"><img src="assets/icon.png" alt="" width="22" height="22" /> VoiceWriter</span>
-    <span class="footer-note"><span class="mono">v0.4.0</span> · not affiliated with Groq, ElevenLabs, or OpenAI</span>
+    <span class="footer-note"><span class="mono">v0.5.0</span> · not affiliated with Groq, ElevenLabs, or OpenAI</span>
     <a href="https://github.com/Xrenes/voicewriter">GitHub</a>
   </div>
 </footer>

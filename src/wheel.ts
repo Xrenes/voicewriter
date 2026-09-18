@@ -20,14 +20,6 @@ const ICON_REFINE =
   '<path d="M6 4v3M4.5 5.5h3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>' +
   '<path d="M19 16v2.5M17.75 17.25h2.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>';
 
-// A briefcase with a rounded handle and a center latch line.
-const ICON_PROFESSIONAL =
-  '<rect x="3" y="8" width="18" height="12" rx="2" stroke="currentColor" stroke-width="1.6"/>' +
-  '<path d="M8.5 8V6.5A2.5 2.5 0 0 1 11 4h2a2.5 2.5 0 0 1 2.5 2.5V8" ' +
-  'stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>' +
-  '<path d="M3 13h18" stroke="currentColor" stroke-width="1.6"/>' +
-  '<rect x="10.5" y="12" width="3" height="2.4" rx="0.6" fill="currentColor"/>';
-
 // A globe with meridian lines — represents translation in general.
 const ICON_GLOBE =
   '<circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.6"/>' +
@@ -47,16 +39,52 @@ const ICON_RECORD =
   '<circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.6"/>' +
   '<circle cx="12" cy="12" r="5" fill="currentColor"/>';
 
+// A magnifying glass — "Find" (capture a screenshot/photo).
+const ICON_FIND =
+  '<circle cx="10.5" cy="10.5" r="6.5" stroke="currentColor" stroke-width="1.7"/>' +
+  '<path d="M15.3 15.3 20 20" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>';
+
+// A camera body with a lens circle.
+const ICON_CAMERA =
+  '<path d="M4 8a2 2 0 0 1 2-2h1.2l.8-1.4A1 1 0 0 1 8.86 4h6.28a1 1 0 0 1 .86.6L16.8 6H18a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z" ' +
+  'fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>' +
+  '<circle cx="12" cy="13" r="3.4" fill="none" stroke="currentColor" stroke-width="1.6"/>';
+
+// A monitor/rectangle with a small stand — full screenshot.
+const ICON_SCREENSHOT =
+  '<rect x="3.5" y="5" width="17" height="12" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.6"/>' +
+  '<path d="M8 20h8M12 17v3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>';
+
+// Four corner brackets around a filled rectangle — select an area.
+const ICON_SELECT_AREA =
+  '<path d="M9 4H6a2 2 0 0 0-2 2v3M15 4h3a2 2 0 0 1 2 2v3M9 20H6a2 2 0 0 1-2-2v-3M15 20h3a2 2 0 0 0 2-2v-3" ' +
+  'fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>' +
+  '<rect x="8" y="8" width="8" height="8" rx="1" fill="currentColor" opacity="0.35"/>';
+
+// A chat bubble with a spark — "AI" chat.
+const ICON_AI =
+  '<path d="M3 6.5A2.5 2.5 0 0 1 5.5 4h13A2.5 2.5 0 0 1 21 6.5v8A2.5 2.5 0 0 1 18.5 17H9l-4 3.5V17H5.5A2.5 2.5 0 0 1 3 14.5z" ' +
+  'stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>' +
+  '<path d="M12 7.5l.9 2.1 2.1.9-2.1.9-.9 2.1-.9-2.1-2.1-.9 2.1-.9z" fill="currentColor"/>';
+
+// A globe-with-browser-window look — "Web" (in-app browser).
+const ICON_WEB =
+  '<rect x="3" y="4.5" width="18" height="15" rx="2" fill="none" stroke="currentColor" stroke-width="1.6"/>' +
+  '<path d="M3 8.5h18" stroke="currentColor" stroke-width="1.6"/>' +
+  '<circle cx="6" cy="6.5" r="0.6" fill="currentColor"/>' +
+  '<circle cx="8" cy="6.5" r="0.6" fill="currentColor"/>';
+
 // Fixed 6-slot ring (like a full loadout wheel), starting at 12 o'clock,
 // going clockwise.
 const TOTAL_SLOTS = 6;
 
 const MAIN_WEDGES: WedgeDef[] = [
   { action: "refine", label: "Refine", icon: ICON_REFINE },
-  { action: "professional", label: "Professional", icon: ICON_PROFESSIONAL },
   { action: "bangla", label: "Bangla", icon: ICON_BANGLA },
   { action: "__translate", label: "Translate", icon: ICON_GLOBE },
   { action: "__record", label: "Record", icon: ICON_RECORD },
+  { action: "__web", label: "Web", icon: ICON_WEB },
+  { action: "__ai", label: "AI", icon: ICON_AI },
 ];
 
 // Second-level menu shown after clicking "Translate": pick a target language.
@@ -65,6 +93,13 @@ const LANGUAGE_WEDGES: WedgeDef[] = [
   { action: "translate:bn", label: "Bangla", icon: ICON_GLOBE },
   { action: "translate:es", label: "Spanish", icon: ICON_GLOBE },
   { action: "translate:it", label: "Italian", icon: ICON_GLOBE },
+];
+
+// Second-level menu shown after clicking "Find": pick a capture source.
+const FIND_WEDGES: WedgeDef[] = [
+  { action: "__find:camera", label: "Camera", icon: ICON_CAMERA },
+  { action: "__find:screenshot", label: "Screenshot", icon: ICON_SCREENSHOT },
+  { action: "__find:area", label: "Select area", icon: ICON_SELECT_AREA },
 ];
 
 let currentWedges = MAIN_WEDGES;
@@ -81,8 +116,15 @@ const hubLabel = document.getElementById("hubLabel") as HTMLSpanElement;
 const labelsLayer = document.getElementById("labels") as HTMLDivElement;
 const preview = document.getElementById("preview") as HTMLDivElement;
 const previewText = document.getElementById("previewText") as HTMLDivElement;
+const permission = document.getElementById("permission") as HTMLDivElement;
+const permissionAllow = document.getElementById("permissionAllow") as HTMLButtonElement;
+const permissionDeny = document.getElementById("permissionDeny") as HTMLButtonElement;
 
 const win = getCurrentWindow();
+
+// Set right before showing the permission panel, so Allow knows which
+// capture source to actually run once consent is granted.
+let pendingCaptureSource: string | null = null;
 
 function polar(cx: number, cy: number, r: number, angleDeg: number) {
   const rad = ((angleDeg - 90) * Math.PI) / 180;
@@ -179,8 +221,76 @@ function onWedgeClick(action: string) {
     invoke("wheel_cancel").catch(() => {});
     return;
   }
+  if (action === "__find") {
+    // Same submenu pattern as Translate: swap the ring to the capture-source
+    // wedges rather than opening a separate window.
+    buildWheel(FIND_WEDGES);
+    return;
+  }
+  if (action.startsWith("__find:")) {
+    const source = action.slice("__find:".length);
+    runCapture(source);
+    return;
+  }
+  if (action === "__ai") {
+    invoke("open_ai_chat_window").catch((e) => showError(String(e)));
+    invoke("wheel_cancel").catch(() => {});
+    return;
+  }
+  if (action === "__web") {
+    invoke("open_web_window").catch((e) => showError(String(e)));
+    invoke("wheel_cancel").catch(() => {});
+    return;
+  }
   runAction(action);
 }
+
+/** Backend command for each Find submenu wedge. */
+const CAPTURE_COMMANDS: Record<string, string> = {
+  camera: "capture_via_camera",
+  screenshot: "capture_via_screenshot",
+  area: "start_region_select",
+};
+
+async function runCapture(source: string) {
+  if (!CAPTURE_COMMANDS[source]) return;
+  const granted = await invoke<boolean>("capture_permission_status").catch(() => false);
+  if (!granted) {
+    pendingCaptureSource = source;
+    showPermissionPrompt();
+    return;
+  }
+  fireCapture(source);
+}
+
+function fireCapture(source: string) {
+  const command = CAPTURE_COMMANDS[source];
+  if (!command) return;
+  // "area" hands off to the region-select overlay window, which does its own
+  // capture+save once the user finishes dragging — everything else captures
+  // immediately. Either way the wheel just needs to get out of the way.
+  invoke(command).catch((e) => showError(String(e)));
+  invoke("wheel_cancel").catch(() => {});
+}
+
+function showPermissionPrompt() {
+  wheel.hidden = true;
+  permission.hidden = false;
+}
+
+permissionAllow.addEventListener("click", async () => {
+  await invoke("grant_capture_permission").catch(() => {});
+  permission.hidden = true;
+  const source = pendingCaptureSource;
+  pendingCaptureSource = null;
+  if (source) fireCapture(source);
+  else invoke("wheel_cancel").catch(() => {});
+});
+
+permissionDeny.addEventListener("click", () => {
+  pendingCaptureSource = null;
+  invoke("wheel_cancel").catch(() => {});
+});
 
 function setLoading(on: boolean) {
   wheel.classList.toggle("loading", on);
@@ -214,11 +324,11 @@ async function runAction(action: string) {
 
 buildWheel(MAIN_WEDGES);
 
-// Escape steps back to the main menu from the language picker, or cancels
-// the whole wheel if already on the main menu.
+// Escape steps back to the main menu from a submenu, or cancels the whole
+// wheel if already on the main menu.
 window.addEventListener("keydown", (ev) => {
   if (ev.key === "Escape") {
-    if (currentWedges === LANGUAGE_WEDGES) {
+    if (currentWedges === LANGUAGE_WEDGES || currentWedges === FIND_WEDGES) {
       buildWheel(MAIN_WEDGES);
     } else {
       invoke("wheel_cancel").catch(() => {});
@@ -228,10 +338,12 @@ window.addEventListener("keydown", (ev) => {
 
 // Clicking anywhere that isn't a wedge dismisses — including the preview
 // panel itself, since it has no buttons of its own (click it to dismiss
-// once you've read/copied the result).
+// once you've read/copied the result). The permission panel DOES have its
+// own buttons, so clicks inside it are excluded — otherwise this handler
+// would race Allow/Not now's own click handler and cancel the wheel first.
 document.body.addEventListener("click", (ev) => {
   const target = ev.target as HTMLElement;
-  if (target.closest(".wedge-path")) return;
+  if (target.closest(".wedge-path") || target.closest(".permission")) return;
   invoke("wheel_cancel").catch(() => {});
 });
 
@@ -242,6 +354,8 @@ document.body.addEventListener("click", (ev) => {
 listen("wheel-reset", () => {
   setLoading(false);
   preview.hidden = true;
+  permission.hidden = true;
+  pendingCaptureSource = null;
   wheel.hidden = false;
   buildWheel(MAIN_WEDGES);
 });

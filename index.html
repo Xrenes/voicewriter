@@ -20,256 +20,435 @@
         <p class="status" id="statusText">Idle</p>
       </header>
 
-      <section class="card">
-        <div class="row">
-          <label>Hotkey</label>
-          <div class="hotkey">
-            <input id="hotkey" type="text" value="Alt+C" readonly />
-            <button id="hotkeyEdit" class="ghost">Change</button>
+      <details class="section">
+        <summary>Hotkeys</summary>
+        <div class="section-body">
+          <div class="card">
+            <div class="row">
+              <label>Hotkey</label>
+              <div class="hotkey">
+                <input id="hotkey" type="text" value="Alt+C" readonly />
+                <button id="hotkeyEdit" class="ghost">Change</button>
+              </div>
+            </div>
+            <p class="hint">Hold to talk. Release to insert the text into the focused field.</p>
+
+            <div id="secondLanguageSection" hidden>
+              <div class="row">
+                <label>Second language</label>
+                <div class="hotkey">
+                  <input id="hotkey2" type="text" value="Alt+X" readonly />
+                  <button id="hotkey2Edit" class="ghost">Change</button>
+                </div>
+              </div>
+              <div class="row">
+                <label for="language2">Its language</label>
+                <input id="language2" type="text" value="bn" spellcheck="false" />
+              </div>
+              <p class="hint dim">
+                Hold this key to dictate in the second language (default Bangla, <span class="mono">bn</span>).
+                Clear the hotkey to disable it.
+              </p>
+            </div>
+
+            <div class="row">
+              <label>Speak selection</label>
+              <div class="hotkey">
+                <input id="hotkeySpeak" type="text" value="Control+Alt+C" readonly />
+                <button id="hotkeySpeakEdit" class="ghost">Change</button>
+              </div>
+            </div>
+            <p class="hint dim">
+              Select text anywhere, press this key to hear it read aloud (English only, via Groq).
+              Press again to stop. Clear the hotkey to disable it.
+            </p>
+
+            <div class="row speak-status-row" id="speakStatusRow" hidden>
+              <span id="speakStatusText">Idle</span>
+            </div>
+            <div class="progress speak-progress" id="speakProgressWrap" hidden>
+              <div class="progress-bar speak-progress-bar" id="speakProgressBar"></div>
+            </div>
+
+            <div class="row">
+              <label>Refine selection</label>
+              <div class="hotkey">
+                <input id="hotkeyWheel" type="text" value="Shift+Alt+C" readonly />
+                <button id="hotkeyWheelEdit" class="ghost">Change</button>
+              </div>
+            </div>
+            <p class="hint dim">
+              Press this key for a quick menu (Refine, Bangla, Translate, Record, Web, AI) — text
+              selection is only needed for Refine/Translate. Uses the Groq API key above.
+              Clear the hotkey to disable it.
+            </p>
+
+            <div class="row">
+              <label>Web browser</label>
+              <div class="hotkey">
+                <input id="hotkeyWeb" type="text" value="Alt+W" readonly />
+                <button id="hotkeyWebEdit" class="ghost">Change</button>
+              </div>
+            </div>
+            <p class="hint dim">
+              Press to open the in-app Web browser (defaults to chatgpt.com) — press again to hide
+              it. Signing in with email/password works; "Continue with Google" does not, since
+              Google blocks sign-in inside any embedded browser window. Clear the hotkey to disable it.
+            </p>
           </div>
         </div>
-        <p class="hint">Hold to talk. Release to insert the text into the focused field.</p>
+      </details>
 
-        <div id="secondLanguageSection" hidden>
-          <div class="row">
-            <label>Second language</label>
-            <div class="hotkey">
-              <input id="hotkey2" type="text" value="Alt+X" readonly />
-              <button id="hotkey2Edit" class="ghost">Change</button>
+      <details class="section">
+        <summary>API Keys &amp; Usage</summary>
+        <div class="section-body">
+          <div class="card">
+            <div class="row">
+              <label>Groq API key</label>
+              <span class="keyval" id="keyStatus">Checking…</span>
+            </div>
+            <div class="row key-actions">
+              <button id="keyReplace" class="ghost">Replace</button>
+              <button id="keyTest" class="ghost">Test</button>
+              <button id="keyClear" class="ghost danger" hidden>Remove</button>
+            </div>
+            <div class="row key-edit" id="keyEditRow" hidden>
+              <input id="keyInput" type="password" placeholder="gsk_..." spellcheck="false" />
+              <button id="keySave" class="primary">Save</button>
+            </div>
+            <p class="hint" id="keyHint">
+              With a key, dictation uses Groq for best accuracy. Without one it uses the local model.
+            </p>
+            <div class="usage-nums">
+              <div><span id="dictUToday">0</span><em id="dictULabel">requests today</em></div>
+              <div><span id="dictURpm">0</span><em>requests / min</em></div>
+            </div>
+            <div class="meter">
+              <div class="meter-head">
+                <span>Daily usage (est.)</span>
+                <span id="dictMeterPct">0%</span>
+              </div>
+              <div class="meter-track">
+                <div class="meter-fill" id="dictMeterFill"></div>
+              </div>
+            </div>
+            <p class="hint dim">Approximate against Groq's free-tier Whisper limits. Not account billing.</p>
+          </div>
+
+          <div class="card">
+            <div class="row">
+              <label>Speak-aloud API key</label>
+              <span class="keyval" id="speakKeyStatus">Checking…</span>
+            </div>
+            <div class="row key-actions">
+              <button id="speakKeyReplace" class="ghost">Replace</button>
+              <button id="speakKeyTest" class="ghost">Test</button>
+              <button id="speakKeyClear" class="ghost danger" hidden>Remove</button>
+            </div>
+            <div class="row key-edit" id="speakKeyEditRow" hidden>
+              <input id="speakKeyInput" type="password" placeholder="gsk_..." spellcheck="false" />
+              <button id="speakKeySave" class="primary">Save</button>
+            </div>
+            <p class="hint" id="speakKeyHint">
+              Separate Groq key used only for "speak selected text aloud." Required for that feature.
+            </p>
+            <div class="usage-nums">
+              <div><span id="speakUToday">0</span><em>requests today</em></div>
+              <div><span id="speakURpm">0</span><em>requests / min</em></div>
+            </div>
+            <div class="meter">
+              <div class="meter-head">
+                <span>Daily usage (est.)</span>
+                <span id="speakMeterPct">0%</span>
+              </div>
+              <div class="meter-track">
+                <div class="meter-fill" id="speakMeterFill"></div>
+              </div>
+            </div>
+            <p class="hint dim">Approximate against Groq's Orpheus TTS limit (much lower than Whisper's). Not account billing.</p>
+          </div>
+
+          <div class="card">
+            <div class="row">
+              <label>ElevenLabs API key</label>
+              <span class="keyval" id="elevenlabsKeyStatus">Checking…</span>
+            </div>
+            <div class="row key-actions">
+              <button id="elevenlabsKeyReplace" class="ghost">Replace</button>
+              <button id="elevenlabsKeyTest" class="ghost">Test</button>
+              <button id="elevenlabsKeyClear" class="ghost danger" hidden>Remove</button>
+            </div>
+            <div class="row key-edit" id="elevenlabsKeyEditRow" hidden>
+              <input id="elevenlabsKeyInput" type="password" placeholder="ElevenLabs API key" spellcheck="false" />
+              <button id="elevenlabsKeySave" class="primary">Save</button>
+            </div>
+            <div class="row">
+              <label for="elevenlabsVoiceId">Voice ID</label>
+              <input id="elevenlabsVoiceId" type="text" placeholder="e.g. 21m00Tcm4TlvDq8ikWAM" spellcheck="false" />
+            </div>
+            <p class="hint" id="elevenlabsKeyHint">
+              Required for Bangla speech in the refine wheel's "Translate" wedge (natural voice).
+              Free at elevenlabs.io (no card required). Spanish, Italian, and English speech
+              don't need this — they use eSpeak NG / Groq instead.
+            </p>
+            <div class="row key-actions">
+              <button id="elevenlabsListVoices" class="ghost">List available voices (debug)</button>
+            </div>
+            <p class="hint dim" id="elevenlabsListHint"></p>
+            <div class="usage-nums">
+              <div><span id="elevenUToday">0</span><em>chars this month</em></div>
+              <div><span id="elevenURpm">0</span><em>requests / min</em></div>
+            </div>
+            <div class="meter">
+              <div class="meter-head">
+                <span>Monthly usage (est.)</span>
+                <span id="elevenMeterPct">0%</span>
+              </div>
+              <div class="meter-track">
+                <div class="meter-fill" id="elevenMeterFill"></div>
+              </div>
+            </div>
+            <p class="hint dim">Approximate against ElevenLabs' free-tier monthly character quota. Not account billing.</p>
+          </div>
+
+          <div class="card">
+            <div class="row">
+              <label for="visionModelSelect">AI model</label>
+              <select id="visionModelSelect" disabled>
+                <option value="">Save a key below to load models…</option>
+              </select>
+            </div>
+            <p class="hint dim" id="visionModelHint"></p>
+            <div class="row">
+              <label>AI (Groq) API key</label>
+              <span class="keyval" id="visionKeyStatus">Checking…</span>
+            </div>
+            <div class="row key-actions">
+              <button id="visionKeyReplace" class="ghost">Replace</button>
+              <button id="visionKeyTest" class="ghost">Test</button>
+              <button id="visionKeyClear" class="ghost danger" hidden>Remove</button>
+            </div>
+            <div class="row key-edit" id="visionKeyEditRow" hidden>
+              <input id="visionKeyInput" type="password" placeholder="gsk_..." spellcheck="false" />
+              <button id="visionKeySave" class="primary">Save</button>
+            </div>
+            <p class="hint" id="visionKeyHint">
+              Separate Groq key used only for the wheel's "AI" chat wedge. You can paste the
+              same key as Dictation above, or use a different Groq account/key.
+            </p>
+            <div class="usage-nums">
+              <div><span id="visionUToday">0</span><em>requests today</em></div>
+              <div><span id="visionURpm">0</span><em>requests / min</em></div>
+            </div>
+            <div class="meter">
+              <div class="meter-head">
+                <span>Daily usage (est.)</span>
+                <span id="visionMeterPct">0%</span>
+              </div>
+              <div class="meter-track">
+                <div class="meter-fill" id="visionMeterFill"></div>
+              </div>
+            </div>
+            <p class="hint dim">Approximate against Groq's free-tier daily request quota for vision. Not account billing.</p>
+            <div class="row">
+              <label>Camera &amp; screen access</label>
+              <button id="resetCapturePermission" class="ghost">Ask again next time</button>
+            </div>
+            <p class="hint dim">Resets the one-time "allow camera &amp; screen capture" prompt shown in the wheel's Find menu.</p>
+          </div>
+        </div>
+      </details>
+
+      <details class="section">
+        <summary>Transcription Engine</summary>
+        <div class="section-body">
+          <div class="card">
+            <div class="row">
+              <label for="engine">Engine</label>
+              <select id="engine">
+                <option value="auto">Auto — Groq, local fallback</option>
+                <option value="groq">Groq only</option>
+                <option value="local">Local only</option>
+              </select>
+            </div>
+            <div class="row">
+              <label for="groqModel">Groq model</label>
+              <select id="groqModel">
+                <option value="whisper-large-v3-turbo">large-v3-turbo — fast</option>
+                <option value="whisper-large-v3">large-v3 — most accurate</option>
+              </select>
+            </div>
+            <div class="row">
+              <label for="micDevice">Microphone</label>
+              <select id="micDevice">
+                <option value="">System default</option>
+              </select>
+            </div>
+            <div class="row">
+              <label for="loopbackDevice">System audio (calls)</label>
+              <select id="loopbackDevice">
+                <option value="">System default output</option>
+              </select>
+            </div>
+            <p class="hint dim">
+              Used by the wheel's "Record" feature to also capture what's playing (e.g. the
+              other party's voice on a call) as a separate track alongside your mic.
+            </p>
+            <div class="row">
+              <label for="language">Language</label>
+              <input id="language" type="text" value="en" spellcheck="false" />
             </div>
           </div>
-          <div class="row">
-            <label for="language2">Its language</label>
-            <input id="language2" type="text" value="bn" spellcheck="false" />
-          </div>
-          <p class="hint dim">
-            Hold this key to dictate in the second language (default Bangla, <span class="mono">bn</span>).
-            Clear the hotkey to disable it.
-          </p>
-        </div>
 
-        <div class="row">
-          <label>Speak selection</label>
-          <div class="hotkey">
-            <input id="hotkeySpeak" type="text" value="Control+Alt+C" readonly />
-            <button id="hotkeySpeakEdit" class="ghost">Change</button>
-          </div>
-        </div>
-        <p class="hint dim">
-          Select text anywhere, press this key to hear it read aloud (English only, via Groq).
-          Press again to stop. Clear the hotkey to disable it.
-        </p>
-
-        <div class="row speak-status-row" id="speakStatusRow" hidden>
-          <span id="speakStatusText">Idle</span>
-        </div>
-        <div class="progress speak-progress" id="speakProgressWrap" hidden>
-          <div class="progress-bar speak-progress-bar" id="speakProgressBar"></div>
-        </div>
-
-        <div class="row">
-          <label>Refine selection</label>
-          <div class="hotkey">
-            <input id="hotkeyWheel" type="text" value="Shift+Alt+C" readonly />
-            <button id="hotkeyWheelEdit" class="ghost">Change</button>
+          <div class="card">
+            <div class="row">
+              <label for="model">Local model</label>
+              <select id="model">
+                <option value="base.en">base.en — fast (~148 MB)</option>
+                <option value="small.en">small.en — better (~488 MB)</option>
+                <option value="small">small — multilingual (~488 MB)</option>
+                <option value="medium">medium — best (~1.5 GB)</option>
+              </select>
+            </div>
+            <div class="row model-status">
+              <span id="modelState">Checking…</span>
+              <button id="modelDownload" class="primary" hidden>Download</button>
+            </div>
+            <div class="progress" id="progressWrap" hidden>
+              <div class="progress-bar" id="progressBar"></div>
+            </div>
           </div>
         </div>
-        <p class="hint dim">
-          Select text anywhere, press this key for a quick menu (Refine, Make professional).
-          Uses the Groq API key above. Clear the hotkey to disable it.
-        </p>
-      </section>
+      </details>
 
-      <section class="card">
-        <div class="row">
-          <label>Groq API key</label>
-          <span class="keyval" id="keyStatus">Checking…</span>
-        </div>
-        <div class="row key-actions">
-          <button id="keyReplace" class="ghost">Replace</button>
-          <button id="keyTest" class="ghost">Test</button>
-          <button id="keyClear" class="ghost danger" hidden>Remove</button>
-        </div>
-        <div class="row key-edit" id="keyEditRow" hidden>
-          <input id="keyInput" type="password" placeholder="gsk_..." spellcheck="false" />
-          <button id="keySave" class="primary">Save</button>
-        </div>
-        <p class="hint" id="keyHint">
-          With a key, dictation uses Groq for best accuracy. Without one it uses the local model.
-        </p>
-        <div class="usage-nums">
-          <div><span id="dictUToday">0</span><em id="dictULabel">requests today</em></div>
-          <div><span id="dictURpm">0</span><em>requests / min</em></div>
-        </div>
-        <div class="meter">
-          <div class="meter-head">
-            <span>Daily usage (est.)</span>
-            <span id="dictMeterPct">0%</span>
-          </div>
-          <div class="meter-track">
-            <div class="meter-fill" id="dictMeterFill"></div>
+      <details class="section">
+        <summary>Text Insertion</summary>
+        <div class="section-body">
+          <div class="card">
+            <div class="row">
+              <label for="insertion">Insert text</label>
+              <select id="insertion">
+                <option value="paste">Paste (recommended)</option>
+                <option value="both">Paste and keep on clipboard</option>
+                <option value="type">Type characters</option>
+                <option value="clipboard">Clipboard only</option>
+              </select>
+            </div>
+            <p class="hint">Click the text field first. Hold the hotkey to speak, then release all keys and keep the cursor there until insertion finishes.</p>
+            <p class="hint dim">If a field rejects paste, try Type characters. For Google Sheets, edit the cell first to keep the text in one cell.</p>
           </div>
         </div>
-        <p class="hint dim">Approximate against Groq's free-tier Whisper limits. Not account billing.</p>
-      </section>
+      </details>
 
-      <section class="card">
-        <div class="row">
-          <label>Speak-aloud API key</label>
-          <span class="keyval" id="speakKeyStatus">Checking…</span>
-        </div>
-        <div class="row key-actions">
-          <button id="speakKeyReplace" class="ghost">Replace</button>
-          <button id="speakKeyTest" class="ghost">Test</button>
-          <button id="speakKeyClear" class="ghost danger" hidden>Remove</button>
-        </div>
-        <div class="row key-edit" id="speakKeyEditRow" hidden>
-          <input id="speakKeyInput" type="password" placeholder="gsk_..." spellcheck="false" />
-          <button id="speakKeySave" class="primary">Save</button>
-        </div>
-        <p class="hint" id="speakKeyHint">
-          Separate Groq key used only for "speak selected text aloud." Required for that feature.
-        </p>
-        <div class="usage-nums">
-          <div><span id="speakUToday">0</span><em>requests today</em></div>
-          <div><span id="speakURpm">0</span><em>requests / min</em></div>
-        </div>
-        <div class="meter">
-          <div class="meter-head">
-            <span>Daily usage (est.)</span>
-            <span id="speakMeterPct">0%</span>
+      <details class="section">
+        <summary>General</summary>
+        <div class="section-body">
+          <div class="card">
+            <label class="check">
+              <input type="checkbox" id="polish" />
+              Clean up with AI
+            </label>
+            <p class="hint dim">
+              Fixes grammar, punctuation and filler words via Groq before typing.
+              Falls back to local rules when offline.
+            </p>
           </div>
-          <div class="meter-track">
-            <div class="meter-fill" id="speakMeterFill"></div>
+
+          <div class="card">
+            <label class="check">
+              <input type="checkbox" id="autostart" />
+              Start on login
+            </label>
           </div>
         </div>
-        <p class="hint dim">Approximate against Groq's Orpheus TTS limit (much lower than Whisper's). Not account billing.</p>
-      </section>
+      </details>
 
-      <section class="card">
-        <div class="row">
-          <label>ElevenLabs API key</label>
-          <span class="keyval" id="elevenlabsKeyStatus">Checking…</span>
-        </div>
-        <div class="row key-actions">
-          <button id="elevenlabsKeyReplace" class="ghost">Replace</button>
-          <button id="elevenlabsKeyTest" class="ghost">Test</button>
-          <button id="elevenlabsKeyClear" class="ghost danger" hidden>Remove</button>
-        </div>
-        <div class="row key-edit" id="elevenlabsKeyEditRow" hidden>
-          <input id="elevenlabsKeyInput" type="password" placeholder="ElevenLabs API key" spellcheck="false" />
-          <button id="elevenlabsKeySave" class="primary">Save</button>
-        </div>
-        <div class="row">
-          <label for="elevenlabsVoiceId">Voice ID</label>
-          <input id="elevenlabsVoiceId" type="text" placeholder="e.g. 21m00Tcm4TlvDq8ikWAM" spellcheck="false" />
-        </div>
-        <p class="hint" id="elevenlabsKeyHint">
-          Required for Bangla speech in the refine wheel's "Translate" wedge (natural voice).
-          Free at elevenlabs.io (no card required). Spanish, Italian, and English speech
-          don't need this — they use eSpeak NG / Groq instead.
-        </p>
-        <div class="row key-actions">
-          <button id="elevenlabsListVoices" class="ghost">List available voices (debug)</button>
-        </div>
-        <p class="hint dim" id="elevenlabsListHint"></p>
-        <div class="usage-nums">
-          <div><span id="elevenUToday">0</span><em>chars this month</em></div>
-          <div><span id="elevenURpm">0</span><em>requests / min</em></div>
-        </div>
-        <div class="meter">
-          <div class="meter-head">
-            <span>Monthly usage (est.)</span>
-            <span id="elevenMeterPct">0%</span>
+      <details class="section">
+        <summary>Guide &amp; API Keys</summary>
+        <div class="section-body">
+          <div class="card guide-card">
+            <h3>Dictation (hold-to-talk)</h3>
+            <ol>
+              <li>Open <a href="#" class="ext-link" data-url="https://console.groq.com/keys">console.groq.com/keys</a> and sign up (free, no card required).</li>
+              <li>Click "Create API Key", give it any name, and copy the key (starts with <span class="mono">gsk_</span>).</li>
+              <li>In this Settings window, open <strong>API Keys &amp; Usage</strong> above and paste it into <strong>Groq API key</strong>, then Save.</li>
+              <li>Click a text field anywhere, hold <strong>Alt+C</strong>, speak, then release — the text is inserted automatically.</li>
+            </ol>
+            <p class="hint dim">Without a key, dictation still works using the local model — just less accurate. See the Transcription Engine section to download it.</p>
           </div>
-          <div class="meter-track">
-            <div class="meter-fill" id="elevenMeterFill"></div>
+
+          <div class="card guide-card">
+            <h3>Speak selection aloud</h3>
+            <ol>
+              <li>Uses its own separate Groq key (Groq gives each key its own free-tier limit). Get one the same way: <a href="#" class="ext-link" data-url="https://console.groq.com/keys">console.groq.com/keys</a>.</li>
+              <li>Paste it into <strong>Speak-aloud API key</strong> in API Keys &amp; Usage, then Save.</li>
+              <li>Select any text on screen, press <strong>Control+Alt+C</strong> to hear it read aloud. Press again to stop.</li>
+            </ol>
+          </div>
+
+          <div class="card guide-card">
+            <h3>Refine wheel (Refine / Bangla / Translate / Record / Web / AI)</h3>
+            <ol>
+              <li>Select some text, then press <strong>Shift+Alt+C</strong> to open the wheel.</li>
+              <li><strong>Refine</strong> and <strong>Bangla</strong> rewrite the selection using your main Groq key (Dictation's key above) — no extra setup.</li>
+              <li><strong>Translate</strong> picks a target language, then re-types the translation. Bangla output uses ElevenLabs for natural speech — see below.</li>
+              <li><strong>Record</strong> and <strong>Web</strong> need no API key at all (see their own guides below).</li>
+              <li><strong>AI</strong> opens a chat window — needs its own Groq key, see below.</li>
+            </ol>
+          </div>
+
+          <div class="card guide-card">
+            <h3>Bangla translate voice (ElevenLabs)</h3>
+            <ol>
+              <li>Open <a href="#" class="ext-link" data-url="https://elevenlabs.io">elevenlabs.io</a> and sign up (free tier, no card required).</li>
+              <li>Go to your profile settings (bottom-left avatar → API Keys) and create a key.</li>
+              <li>Paste it into <strong>ElevenLabs API key</strong> in API Keys &amp; Usage, then Save.</li>
+              <li>Optional: pick a Voice ID from <a href="#" class="ext-link" data-url="https://elevenlabs.io/app/voice-library">elevenlabs.io/app/voice-library</a> (click a voice → copy its ID) and paste it into the Voice ID field. Leave blank to use the default voice.</li>
+            </ol>
+            <p class="hint dim">Only Bangla needs this — Spanish, Italian and English translate speech use eSpeak NG / Groq instead, no key required.</p>
+          </div>
+
+          <div class="card guide-card">
+            <h3>AI chat wedge</h3>
+            <ol>
+              <li>Needs its own Groq key (can be the same key as Dictation, or a separate one/account): <a href="#" class="ext-link" data-url="https://console.groq.com/keys">console.groq.com/keys</a>.</li>
+              <li>Paste it into <strong>AI (Groq) API key</strong> in API Keys &amp; Usage, then Save.</li>
+              <li>Pick a model from the dropdown that appears (each one is tested automatically; pick one marked ✓).</li>
+              <li>Open the wheel (Shift+Alt+C) and click <strong>AI</strong> to start chatting. You can attach an image/screenshot to ask about it.</li>
+            </ol>
+          </div>
+
+          <div class="card guide-card">
+            <h3>Record (voice memo with transcript)</h3>
+            <ol>
+              <li>No API key required for recording itself.</li>
+              <li>Open the wheel (Shift+Alt+C) and click <strong>Record</strong>, or use it from the wheel directly.</li>
+              <li>Speak, then stop — a transcript window opens using your Dictation Groq key if one is set (otherwise the local model).</li>
+            </ol>
+          </div>
+
+          <div class="card guide-card">
+            <h3>Web browser</h3>
+            <ol>
+              <li>No API key required.</li>
+              <li>Press <strong>Alt+W</strong> to open a small in-app browser (defaults to chatgpt.com) — press again to hide it, press once more to reopen where you left off.</li>
+              <li>Change the default site by typing a new URL in its address bar; it's remembered next time.</li>
+              <li>Email/password sign-in works and persists across restarts. "Continue with Google" will not work — Google blocks sign-in inside any embedded browser window as an anti-phishing measure, in every app that does this, not just VoiceWriter.</li>
+            </ol>
+          </div>
+
+          <div class="card guide-card">
+            <h3>"Clean up with AI" (dictation polish)</h3>
+            <ol>
+              <li>Uses your Dictation Groq key above — no separate key needed.</li>
+              <li>Turn it on in the General section above. Falls back to local grammar rules when offline or without a key.</li>
+            </ol>
           </div>
         </div>
-        <p class="hint dim">Approximate against ElevenLabs' free-tier monthly character quota. Not account billing.</p>
-      </section>
-
-      <section class="card">
-        <div class="row">
-          <label for="engine">Engine</label>
-          <select id="engine">
-            <option value="auto">Auto — Groq, local fallback</option>
-            <option value="groq">Groq only</option>
-            <option value="local">Local only</option>
-          </select>
-        </div>
-        <div class="row">
-          <label for="groqModel">Groq model</label>
-          <select id="groqModel">
-            <option value="whisper-large-v3-turbo">large-v3-turbo — fast</option>
-            <option value="whisper-large-v3">large-v3 — most accurate</option>
-          </select>
-        </div>
-        <div class="row">
-          <label for="micDevice">Microphone</label>
-          <select id="micDevice">
-            <option value="">System default</option>
-          </select>
-        </div>
-        <div class="row">
-          <label for="language">Language</label>
-          <input id="language" type="text" value="en" spellcheck="false" />
-        </div>
-      </section>
-
-      <section class="card">
-        <div class="row">
-          <label for="model">Local model</label>
-          <select id="model">
-            <option value="base.en">base.en — fast (~148 MB)</option>
-            <option value="small.en">small.en — better (~488 MB)</option>
-            <option value="small">small — multilingual (~488 MB)</option>
-            <option value="medium">medium — best (~1.5 GB)</option>
-          </select>
-        </div>
-        <div class="row model-status">
-          <span id="modelState">Checking…</span>
-          <button id="modelDownload" class="primary" hidden>Download</button>
-        </div>
-        <div class="progress" id="progressWrap" hidden>
-          <div class="progress-bar" id="progressBar"></div>
-        </div>
-      </section>
-
-      <section class="card">
-        <div class="row">
-          <label for="insertion">Insert text</label>
-          <select id="insertion">
-            <option value="paste">Paste (recommended)</option>
-            <option value="both">Paste and keep on clipboard</option>
-            <option value="type">Type characters</option>
-            <option value="clipboard">Clipboard only</option>
-          </select>
-        </div>
-        <p class="hint">Click the text field first. Hold the hotkey to speak, then release all keys and keep the cursor there until insertion finishes.</p>
-        <p class="hint dim">If a field rejects paste, try Type characters. For Google Sheets, edit the cell first to keep the text in one cell.</p>
-      </section>
-
-      <section class="card">
-        <label class="check">
-          <input type="checkbox" id="polish" />
-          Clean up with AI
-        </label>
-        <p class="hint dim">
-          Fixes grammar, punctuation and filler words via Groq before typing.
-          Falls back to local rules when offline.
-        </p>
-      </section>
-
-      <section class="card">
-        <label class="check">
-          <input type="checkbox" id="autostart" />
-          Start on login
-        </label>
-      </section>
+      </details>
 
       <footer class="foot">
-        <span class="build">v0.1.0</span>
+        <span class="build">v0.5.0</span>
       </footer>
     </main>
 
