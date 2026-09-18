@@ -1,5 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
+import { openUrl } from "@tauri-apps/plugin-opener";
 
 // ---- Types shared with the Rust backend ----
 interface Settings {
@@ -8,15 +9,18 @@ interface Settings {
   secondaryLanguage: string;
   speakHotkey: string;
   wheelHotkey: string;
+  webHotkey: string;
   engine: "auto" | "groq" | "local";
   groqModel: string;
   insertion: "type" | "paste" | "clipboard" | "both";
   micDevice: string;
+  loopbackDevice: string;
   language: string;
   model: string;
   polish: boolean;
   autostart: boolean;
   elevenlabsVoiceId: string;
+  visionModel: string;
 }
 
 type Status = "idle" | "recording" | "transcribing" | "ready" | "speaking" | "error";
@@ -69,6 +73,8 @@ const hotkeySpeakInput = $<HTMLInputElement>("hotkeySpeak");
 const hotkeySpeakEdit = $<HTMLButtonElement>("hotkeySpeakEdit");
 const hotkeyWheelInput = $<HTMLInputElement>("hotkeyWheel");
 const hotkeyWheelEdit = $<HTMLButtonElement>("hotkeyWheelEdit");
+const hotkeyWebInput = $<HTMLInputElement>("hotkeyWeb");
+const hotkeyWebEdit = $<HTMLButtonElement>("hotkeyWebEdit");
 const speakKeyStatusEl = $("speakKeyStatus");
 const speakKeyReplace = $<HTMLButtonElement>("speakKeyReplace");
 const speakKeyTest = $<HTMLButtonElement>("speakKeyTest");
@@ -86,6 +92,14 @@ const elevenlabsKeyInput = $<HTMLInputElement>("elevenlabsKeyInput");
 const elevenlabsKeySave = $<HTMLButtonElement>("elevenlabsKeySave");
 const elevenlabsKeyHint = $("elevenlabsKeyHint");
 const elevenlabsVoiceIdInput = $<HTMLInputElement>("elevenlabsVoiceId");
+const visionKeyStatusEl = $("visionKeyStatus");
+const visionKeyReplace = $<HTMLButtonElement>("visionKeyReplace");
+const visionKeyTest = $<HTMLButtonElement>("visionKeyTest");
+const visionKeyClear = $<HTMLButtonElement>("visionKeyClear");
+const visionKeyEditRow = $("visionKeyEditRow");
+const visionKeyInput = $<HTMLInputElement>("visionKeyInput");
+const visionKeySave = $<HTMLButtonElement>("visionKeySave");
+const visionKeyHint = $("visionKeyHint");
 const keyStatusEl = $("keyStatus");
 const keyReplace = $<HTMLButtonElement>("keyReplace");
 const keyTest = $<HTMLButtonElement>("keyTest");
@@ -106,9 +120,14 @@ const elevenUToday = $("elevenUToday");
 const elevenURpm = $("elevenURpm");
 const elevenMeterPct = $("elevenMeterPct");
 const elevenMeterFill = $<HTMLDivElement>("elevenMeterFill");
+const visionUToday = $("visionUToday");
+const visionURpm = $("visionURpm");
+const visionMeterPct = $("visionMeterPct");
+const visionMeterFill = $<HTMLDivElement>("visionMeterFill");
 const engineSel = $<HTMLSelectElement>("engine");
 const groqModelSel = $<HTMLSelectElement>("groqModel");
 const micSel = $<HTMLSelectElement>("micDevice");
+const loopbackSel = $<HTMLSelectElement>("loopbackDevice");
 const langInput = $<HTMLInputElement>("language");
 const modelSel = $<HTMLSelectElement>("model");
 const modelState = $("modelState");
@@ -188,6 +207,7 @@ async function loadSettings() {
   language2Input.value = settings.secondaryLanguage;
   hotkeySpeakInput.value = settings.speakHotkey || "(disabled)";
   hotkeyWheelInput.value = settings.wheelHotkey || "(disabled)";
+  hotkeyWebInput.value = settings.webHotkey || "(disabled)";
   engineSel.value = settings.engine;
   groqModelSel.value = settings.groqModel;
   langInput.value = settings.language;
@@ -383,6 +403,120 @@ elevenlabsKeyTest.addEventListener("click", async () => {
   }
 });
 
+// ---- AI (Groq) key — separate slot from Dictation's key, for the wheel's "AI" chat wedge ----
+
+// Model dropdown, auto-populated from this Groq key's own actual model list
+// (ground truth for picking a working model ID — Groq deprecates/renames
+// vision models without much warning; see groq::list_models's doc comment
+// in lib.rs, and vision.rs's history: two hardcoded IDs both 404'd within a
+// week of each other). Loads once a key is saved; selecting an option
+// persists it as the model AI chat actually sends requests to.
+const visionModelSelect = $<HTMLSelectElement>("visionModelSelect");
+const visionModelHint = $("visionModelHint");
+
+async function loadVisionModels(preferSelected?: string) {
+  visionModelSelect.disabled = true;
+  const loadingOpt = document.createElement("option");
+  loadingOpt.textContent = "Loading models…";
+  visionModelSelect.replaceChildren(loadingOpt);
+  try {
+    const listing = await invoke<string>("debug_list_groq_models");
+    const models = listing.split("\n").map((m) => m.trim()).filter(Boolean);
+    if (models.length === 0) {
+      const opt = document.createElement("option");
+      opt.textContent = "No models returned";
+      visionModelSelect.replaceChildren(opt);
+      return;
+    }
+    const selected = preferSelected ?? settings.visionModel;
+    const opts = models.map((m) => {
+      const opt = document.createElement("option");
+      opt.value = m;
+      opt.textContent = m;
+      if (m === selected) opt.selected = true;
+      return opt;
+    });
+    visionModelSelect.replaceChildren(...opts);
+    visionModelHint.textContent = `${models.length} models available to this key.`;
+    visionModelSelect.disabled = false;
+  } catch (e) {
+    const opt = document.createElement("option");
+    opt.textContent = "Couldn't load models";
+    visionModelSelect.replaceChildren(opt);
+    visionModelHint.textContent = "Failed: " + String(e);
+  }
+}
+
+visionModelSelect.addEventListener("change", () => {
+  save({ visionModel: visionModelSelect.value });
+});
+
+async function refreshVisionKey() {
+  const st = await invoke<KeyStatus>("vision_key_status");
+  if (st.present) {
+    visionKeyStatusEl.textContent = st.masked;
+    visionKeyStatusEl.classList.add("ok");
+    visionKeyClear.hidden = false;
+    visionKeyTest.hidden = false;
+    visionKeyHint.textContent =
+      "The wheel's \"AI\" chat wedge uses this key. Same Groq account as Dictation works fine.";
+    await loadVisionModels();
+  } else {
+    visionKeyStatusEl.textContent = "No key — AI chat disabled";
+    visionKeyStatusEl.classList.remove("ok");
+    visionKeyClear.hidden = true;
+    visionKeyTest.hidden = true;
+    visionKeyHint.textContent =
+      "Separate Groq key used only for the wheel's \"AI\" chat wedge. You can paste the " +
+      "same key as Dictation above, or use a different Groq account/key.";
+    const opt = document.createElement("option");
+    opt.textContent = "Save a key below to load models…";
+    visionModelSelect.replaceChildren(opt);
+    visionModelSelect.disabled = true;
+    visionModelHint.textContent = "";
+  }
+}
+
+visionKeyReplace.addEventListener("click", () => {
+  visionKeyEditRow.hidden = !visionKeyEditRow.hidden;
+  if (!visionKeyEditRow.hidden) visionKeyInput.focus();
+});
+
+visionKeySave.addEventListener("click", async () => {
+  const v = visionKeyInput.value.trim();
+  if (!v) return;
+  visionKeySave.disabled = true;
+  try {
+    await invoke("set_vision_key", { key: v });
+    visionKeyInput.value = "";
+    visionKeyEditRow.hidden = true;
+    await refreshVisionKey();
+  } catch (e) {
+    visionKeyHint.textContent = String(e);
+  } finally {
+    visionKeySave.disabled = false;
+  }
+});
+
+visionKeyClear.addEventListener("click", async () => {
+  await invoke("clear_vision_key");
+  await refreshVisionKey();
+});
+
+visionKeyTest.addEventListener("click", async () => {
+  visionKeyTest.disabled = true;
+  visionKeyStatusEl.textContent = "Testing…";
+  try {
+    const r = await invoke<string>("test_vision_key");
+    visionKeyStatusEl.textContent = r;
+  } catch (e) {
+    visionKeyStatusEl.textContent = "Test failed: " + String(e);
+  } finally {
+    visionKeyTest.disabled = false;
+    setTimeout(refreshVisionKey, 2500);
+  }
+});
+
 elevenlabsVoiceIdInput.addEventListener("change", () =>
   save({ elevenlabsVoiceId: elevenlabsVoiceIdInput.value.trim() }),
 );
@@ -402,6 +536,22 @@ elevenlabsListVoicesBtn.addEventListener("click", async () => {
     elevenlabsListHint.textContent = "Failed: " + String(e);
   } finally {
     elevenlabsListVoicesBtn.disabled = false;
+  }
+});
+
+const resetCapturePermissionBtn = $<HTMLButtonElement>("resetCapturePermission");
+resetCapturePermissionBtn.addEventListener("click", async () => {
+  resetCapturePermissionBtn.disabled = true;
+  try {
+    await invoke("reset_capture_permission");
+    resetCapturePermissionBtn.textContent = "Will ask again";
+  } catch {
+    resetCapturePermissionBtn.textContent = "Failed";
+  } finally {
+    setTimeout(() => {
+      resetCapturePermissionBtn.textContent = "Ask again next time";
+      resetCapturePermissionBtn.disabled = false;
+    }, 1800);
   }
 });
 
@@ -429,14 +579,16 @@ const dictULabel = $("dictULabel");
 
 async function refreshUsage() {
   try {
-    const [dict, speak, eleven] = await Promise.all([
+    const [dict, speak, eleven, vision] = await Promise.all([
       invoke<UsageSnapshot>("get_usage_dictation"),
       invoke<UsageSnapshot>("get_usage_speak_aloud"),
       invoke<UsageSnapshot>("get_usage_elevenlabs"),
+      invoke<UsageSnapshot>("get_usage_vision"),
     ]);
     applyUsageMeter(dict, dictUToday, dictULabel, dictURpm, dictMeterPct, dictMeterFill);
     applyUsageMeter(speak, speakUToday, null, speakURpm, speakMeterPct, speakMeterFill);
     applyUsageMeter(eleven, elevenUToday, null, elevenURpm, elevenMeterPct, elevenMeterFill);
+    applyUsageMeter(vision, visionUToday, null, visionURpm, visionMeterPct, visionMeterFill);
   } catch (e) {
     console.error("get_usage failed", e);
   }
@@ -455,6 +607,22 @@ async function loadMics() {
     micSel.value = settings.micDevice;
   } catch (e) {
     console.error("list_input_devices failed", e);
+  }
+}
+
+// ---- System-audio (loopback) output-device list, for call recording ----
+async function loadLoopbackDevices() {
+  try {
+    const devices = await invoke<string[]>("list_output_devices");
+    for (const d of devices) {
+      const opt = document.createElement("option");
+      opt.value = d;
+      opt.textContent = d;
+      loopbackSel.appendChild(opt);
+    }
+    loopbackSel.value = settings.loopbackDevice;
+  } catch (e) {
+    console.error("list_output_devices failed", e);
   }
 }
 
@@ -489,6 +657,7 @@ engineSel.addEventListener("change", () =>
 );
 groqModelSel.addEventListener("change", () => save({ groqModel: groqModelSel.value }));
 micSel.addEventListener("change", () => save({ micDevice: micSel.value }));
+loopbackSel.addEventListener("change", () => save({ loopbackDevice: loopbackSel.value }));
 langInput.addEventListener("change", () => save({ language: langInput.value.trim() || "en" }));
 modelSel.addEventListener("change", async () => {
   await save({ model: modelSel.value });
@@ -505,7 +674,7 @@ autostartChk.addEventListener("change", async () => {
 interface HotkeyBinding {
   input: HTMLInputElement;
   editBtn: HTMLButtonElement;
-  command: "set_hotkey" | "set_secondary_hotkey" | "set_speak_hotkey" | "set_wheel_hotkey";
+  command: "set_hotkey" | "set_secondary_hotkey" | "set_speak_hotkey" | "set_wheel_hotkey" | "set_web_hotkey";
   get: () => string;
   set: (v: string) => void;
 }
@@ -586,6 +755,13 @@ bindHotkey({
   get: () => settings.wheelHotkey,
   set: (v) => (settings.wheelHotkey = v),
 });
+bindHotkey({
+  input: hotkeyWebInput,
+  editBtn: hotkeyWebEdit,
+  command: "set_web_hotkey",
+  get: () => settings.webHotkey,
+  set: (v) => (settings.webHotkey = v),
+});
 
 language2Input.addEventListener("change", () =>
   save({ secondaryLanguage: language2Input.value.trim() || "bn" }),
@@ -617,10 +793,12 @@ async function boot() {
 
   await loadSettings();
   await loadMics();
+  await loadLoopbackDevices();
   await refreshModelState();
   await refreshKey();
   await refreshSpeakKey();
   await refreshElevenlabsKey();
+  await refreshVisionKey();
   await refreshUsage();
   applyStatus("idle");
   invoke("ui_ready").catch(() => {});
@@ -631,5 +809,16 @@ async function boot() {
     if (usageTimer) clearInterval(usageTimer);
   });
 }
+
+// Guide section links open in the system's real default browser, not
+// VoiceWriter's own in-app Web browser — these point at actual account
+// sign-up/API-key pages, which is a different purpose than the Web wedge.
+document.addEventListener("click", (ev) => {
+  const link = (ev.target as HTMLElement).closest<HTMLElement>(".ext-link");
+  if (!link) return;
+  ev.preventDefault();
+  const url = link.dataset.url;
+  if (url) openUrl(url).catch(() => {});
+});
 
 boot().catch((e) => console.error("boot failed", e));

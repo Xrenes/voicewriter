@@ -1,0 +1,453 @@
+:root {
+  --bg: #000000;
+  --panel: #141414;
+  --panel-2: #1c1c1c;
+  --border: #2a2a2a;
+  --text: #ffffff;
+  --dim: #9a9a9a;
+  --hover: #202020;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  background: var(--bg);
+  color: var(--text);
+  font: 13px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  color-scheme: dark;
+}
+
+html {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 8px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #444;
+}
+
+body {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  overflow: hidden;
+}
+
+/* Invisible strips along each edge/corner — decorations:false removes the
+   OS resize border entirely, so these call startResizeDragging themselves
+   to make the window still resizable by dragging its edges. */
+.resize-edge {
+  position: fixed;
+  z-index: 20;
+}
+.resize-edge.n, .resize-edge.s { left: 10px; right: 10px; height: 6px; cursor: ns-resize; }
+.resize-edge.e, .resize-edge.w { top: 10px; bottom: 10px; width: 6px; cursor: ew-resize; }
+.resize-edge.n { top: 0; }
+.resize-edge.s { bottom: 0; }
+.resize-edge.w { left: 0; }
+.resize-edge.e { right: 0; }
+.resize-edge.ne, .resize-edge.nw, .resize-edge.se, .resize-edge.sw {
+  width: 12px;
+  height: 12px;
+}
+.resize-edge.ne { top: 0; right: 0; cursor: nesw-resize; }
+.resize-edge.nw { top: 0; left: 0; cursor: nwse-resize; }
+.resize-edge.se { bottom: 0; right: 0; cursor: nwse-resize; }
+.resize-edge.sw { bottom: 0; left: 0; cursor: nesw-resize; }
+
+/* A thin strip at the very top is the only drag handle — there's no visible
+   window title/close button, per the "no close/refresh button" request.
+   Holds a back-arrow (sidebar toggle) and a pencil (new chat), both of which
+   Tauri automatically excludes from the drag region as interactive children. */
+.drag-strip {
+  flex-shrink: 0;
+  height: 26px;
+  display: flex;
+  align-items: center;
+  padding: 0 6px;
+}
+.drag-strip-spacer {
+  flex: 1;
+}
+
+.bar-btn {
+  width: 22px;
+  height: 18px;
+  border: none;
+  background: transparent;
+  color: var(--dim);
+  display: grid;
+  place-items: center;
+  border-radius: 5px;
+  cursor: pointer;
+}
+.bar-btn svg {
+  width: 13px;
+  height: 13px;
+}
+.bar-btn:hover {
+  background: var(--panel);
+  color: var(--text);
+}
+.bar-btn.active {
+  background: var(--panel-2);
+  color: var(--text);
+}
+
+.model-select {
+  flex-shrink: 1;
+  min-width: 0;
+  max-width: 200px;
+  margin-left: 6px;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--dim);
+  font: inherit;
+  font-size: 10.5px;
+  padding: 2px 5px;
+  height: 18px;
+}
+.model-select:hover:not(:disabled) {
+  border-color: #fff;
+  color: var(--text);
+}
+.model-select:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.layout {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+}
+
+/* ---------- Sidebar ---------- */
+/* Hidden by default (per "should not always show" — the toggle button in
+   the drag strip reveals it) rather than a persistent panel. */
+.sidebar[hidden] {
+  display: none;
+}
+
+.sidebar {
+  width: 148px;
+  flex-shrink: 0;
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  padding: 6px;
+  gap: 6px;
+}
+
+.session-list {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.session-item {
+  position: relative;
+  padding: 7px 9px;
+  border-radius: 7px;
+  font-size: 12px;
+  color: var(--dim);
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.session-item:hover {
+  background: var(--hover);
+  color: var(--text);
+}
+.session-item.active {
+  background: var(--panel-2);
+  color: var(--text);
+}
+.session-item .del {
+  display: none;
+  position: absolute;
+  right: 4px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 18px;
+  height: 18px;
+  border-radius: 5px;
+  border: none;
+  background: transparent;
+  color: var(--dim);
+  place-items: center;
+}
+.session-item:hover .del {
+  display: grid;
+}
+.session-item .del:hover {
+  background: #3a3a3a;
+  color: #fff;
+}
+.session-item .del svg {
+  width: 10px;
+  height: 10px;
+}
+
+.session-empty {
+  color: var(--dim);
+  font-size: 11px;
+  padding: 8px 9px;
+}
+
+/* ---------- Main panel ---------- */
+.main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.thread {
+  flex: 1;
+  overflow-y: auto;
+  padding: 18px 16px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-height: 0;
+}
+
+.empty {
+  color: var(--dim);
+  text-align: center;
+  margin-top: 40px;
+  padding: 0 20px;
+}
+
+.msg-row {
+  display: flex;
+  max-width: 100%;
+}
+
+/* User turn: a rounded pill, right-aligned — no assistant-style bubble. */
+.msg-row.user {
+  justify-content: flex-end;
+}
+.pill-bubble {
+  max-width: 78%;
+  padding: 9px 14px;
+  border-radius: 999px;
+  background: #ffffff;
+  color: #000000;
+  font-size: 13px;
+  line-height: 1.45;
+  word-wrap: break-word;
+}
+.pill-bubble img {
+  display: block;
+  max-width: 100%;
+  max-height: 180px;
+  border-radius: 14px;
+  margin-bottom: 6px;
+  object-fit: contain;
+  background: #000;
+}
+
+/* Assistant turn: no bubble at all — a small spark icon beside plain,
+   left-aligned formatted text, matching a "reasoning/answer" look rather
+   than a chat-bubble look. */
+.msg-row.assistant {
+  align-items: flex-start;
+  gap: 8px;
+}
+.spark {
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+  margin-top: 3px;
+  color: var(--text);
+}
+.assistant-body {
+  flex: 1;
+  min-width: 0;
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--text);
+}
+.assistant-body p {
+  margin: 0 0 8px;
+}
+.assistant-body p:last-child {
+  margin-bottom: 0;
+}
+.assistant-body ol,
+.assistant-body ul {
+  margin: 0 0 8px;
+  padding-left: 20px;
+}
+.assistant-body li {
+  margin-bottom: 4px;
+}
+.assistant-body strong {
+  font-weight: 700;
+}
+.assistant-body.error-text {
+  color: #d4a3a3;
+}
+
+.gallery {
+  flex-shrink: 0;
+  border-top: 1px solid var(--border);
+  background: var(--panel);
+  max-height: 220px;
+  display: flex;
+  flex-direction: column;
+}
+
+.gallery-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  color: var(--dim);
+  font-size: 11.5px;
+}
+
+.gallery-grid {
+  overflow-y: auto;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(64px, 1fr));
+  gap: 6px;
+  padding: 0 12px 10px;
+}
+
+.gallery-grid img {
+  width: 100%;
+  aspect-ratio: 1;
+  object-fit: cover;
+  border-radius: 6px;
+  cursor: pointer;
+  border: 1.5px solid transparent;
+  background: #000;
+}
+
+.gallery-grid img:hover {
+  border-color: #fff;
+}
+
+.gallery-empty {
+  color: var(--dim);
+  padding: 8px 12px;
+  font-size: 11.5px;
+}
+
+.composer-wrap {
+  flex-shrink: 0;
+  padding: 8px 12px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.pending-thumb {
+  width: 32px;
+  height: 32px;
+  object-fit: cover;
+  border-radius: 8px;
+  flex-shrink: 0;
+  align-self: flex-start;
+  margin-left: 6px;
+  cursor: pointer;
+}
+
+/* Floating pill-shaped composer bar, like the reference's rounded input
+   with icon buttons built into the same capsule. */
+.composer {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 5px 6px 5px 14px;
+}
+
+#textInput {
+  flex: 1;
+  min-width: 0;
+  background: transparent;
+  border: none;
+  color: var(--text);
+  padding: 6px 4px;
+  font: inherit;
+}
+
+#textInput:focus {
+  outline: none;
+}
+
+button {
+  font: inherit;
+  cursor: pointer;
+}
+
+.ghost {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: 7px;
+  padding: 5px 10px;
+}
+.ghost:hover {
+  border-color: #fff;
+}
+
+.pill-icon-btn {
+  flex-shrink: 0;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: none;
+  background: transparent;
+  color: var(--dim);
+  display: grid;
+  place-items: center;
+}
+.pill-icon-btn svg {
+  width: 16px;
+  height: 16px;
+}
+.pill-icon-btn:hover {
+  background: var(--hover);
+  color: var(--text);
+}
+.pill-icon-btn.primary {
+  background: #ffffff;
+  color: #000000;
+}
+.pill-icon-btn.primary:hover {
+  background: #e6e6e6;
+}
+.pill-icon-btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+

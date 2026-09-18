@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Web</title>
+    <link rel="stylesheet" href="/src/web-toolbar.css" />
+  </head>
+  <body>
+    <div class="bar" data-tauri-drag-region>
+      <button class="bar-btn" id="backBtn" title="Back" disabled>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+      <button class="bar-btn" id="forwardBtn" title="Forward" disabled>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5l7 7-7 7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+      <div class="address-wrap">
+        <svg class="address-icon" id="addressIcon" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 10.5V8a5 5 0 0 1 10 0v2.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><rect x="5" y="10.5" width="14" height="9.5" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/></svg>
+        <input id="addressInput" class="address" type="text" placeholder="Enter a URL…" autocomplete="off" spellcheck="false" />
+      </div>
+      <button class="bar-btn" id="reloadBtn" title="Reload">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4v6h6M20 20v-6h-6" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/><path d="M5.5 15a8 8 0 0 0 13.9 2M18.5 9a8 8 0 0 0-13.9-2" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
+      </button>
+      <button class="bar-btn" id="shareBtn" title="Copy URL">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15V4M12 4l-3.5 3.5M12 4l3.5 3.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M5 13v4.5A2.5 2.5 0 0 0 7.5 20h9a2.5 2.5 0 0 0 2.5-2.5V13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+      <button class="bar-btn close-btn" id="closeBtn" title="Close">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      </button>
+    </div>
+    <!-- Only top-half edges/corners live here — the toolbar is a thin strip
+         at the top of the window, and it's the only trusted (our own HTML)
+         surface that can run resize-drag JS, since the content webview
+         below shows untrusted external pages we can't inject into. Bottom
+         resize is a known gap; side+top covers the common case. -->
+    <div class="resize-edge n" data-dir="North"></div>
+    <div class="resize-edge w" data-dir="West"></div>
+    <div class="resize-edge e" data-dir="East"></div>
+    <div class="resize-edge nw" data-dir="NorthWest"></div>
+    <div class="resize-edge ne" data-dir="NorthEast"></div>
+
+    <script type="module" src="/src/web-toolbar.ts"></script>
+  </body>
+</html>

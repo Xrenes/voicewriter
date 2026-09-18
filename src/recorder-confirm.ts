@@ -15,7 +15,11 @@ interface ConfirmReadyPayload {
 }
 
 let currentBlobUrl: string | null = null;
+let loaded = false;
 
+// The preview is mic + system audio already mixed together into one track
+// (see recording_audio_data in lib.rs) — matches what the final saved
+// recording will sound like, not two separate players.
 async function loadAudioPreview() {
   hint.textContent = "Loading preview…";
   try {
@@ -30,11 +34,34 @@ async function loadAudioPreview() {
   }
 }
 
-listen<ConfirmReadyPayload>("recorder-confirm-ready", (e) => {
-  filenameInput.value = e.payload.defaultName;
-  folderInput.value = e.payload.defaultFolder;
+function applyDefaults(payload: ConfirmReadyPayload) {
+  filenameInput.value = payload.defaultName;
+  folderInput.value = payload.defaultFolder;
   confirmBtn.disabled = false;
+  loaded = true;
   loadAudioPreview();
+}
+
+// Pull-based load on page open: this is the real source of truth. A plain
+// emit-and-hope from the backend right after dev_reload() (below/in lib.rs)
+// has a real race — dev_reload() destroys this page's JS context, and the
+// backend's emit can arrive before this fresh page's listen() call below
+// re-registers, silently dropping the payload. That exact bug produced a
+// genuine ~30s recording with an empty (0:00) preview forever, since
+// loadAudioPreview() never ran. Calling a request-response command directly
+// has no such race.
+invoke<ConfirmReadyPayload>("recorder_confirm_defaults")
+  .then(applyDefaults)
+  .catch((e) => {
+    hint.textContent = "Failed to load recording: " + String(e);
+  });
+
+// Still listen for the already-open (not reloaded) case, and as a backup —
+// but only apply it once, so a redundant late-arriving event after the pull
+// above doesn't reset an in-progress filename edit.
+listen<ConfirmReadyPayload>("recorder-confirm-ready", (e) => {
+  if (loaded) return;
+  applyDefaults(e.payload);
 }).catch(() => {});
 
 chooseFolderBtn.addEventListener("click", async () => {

@@ -1,6 +1,6 @@
 [package]
 name = "voicewriter"
-version = "0.4.0"
+version = "0.5.0"
 description = "Voice writing assistant"
 authors = ["ifti237@gmail.com"]
 edition = "2021"
@@ -14,7 +14,7 @@ crate-type = ["staticlib", "cdylib", "rlib"]
 tauri-build = { version = "2", features = [] }
 
 [dependencies]
-tauri = { version = "2", features = ["tray-icon", "image-png"] }
+tauri = { version = "2", features = ["tray-icon", "image-png", "unstable"] }
 tauri-plugin-store = "2"
 tauri-plugin-global-shortcut = "2"
 tauri-plugin-single-instance = "2"
@@ -60,20 +60,42 @@ reqwest = { version = "0.12", default-features = false, features = [
 # Minimal WAV writer for the Groq upload
 hound = "3"
 
+# PNG encoding for screenshots/webcam captures (Find wedge) and base64 for
+# sending images to Groq's vision model (AI chat wedge).
+image = { version = "0.25", default-features = false, features = ["png"] }
+base64 = "0.22"
+
 # Groq API key storage in the OS keychain (Windows Credential Manager / Secret Service)
 keyring = { version = "3", features = ["windows-native", "sync-secret-service"] }
 
 # Timestamps for usage counters
 time = { version = "0.3", features = ["formatting"] }
 
+# Opens URLs in the user's system default browser (Settings guide's
+# sign-up/API-key links) — deliberately NOT the in-app Web browser, since
+# those links are meant to go to the real account-management pages.
+tauri-plugin-opener = "2.5.5"
+
 # Raw Windows input injection (SendInput) — more compatible with Chromium/Electron
-# fields than enigo for Ctrl+V and Unicode typing.
+# fields than enigo for Ctrl+V and Unicode typing. Also used to force
+# WS_EX_TOOLWINDOW directly on the Web browser window: Tauri's
+# set_skip_taskbar() doesn't reliably stick on a window created via the
+# `unstable` WindowBuilder API with child webviews added via add_child (see
+# web_browser.rs) — a known class of GWL_EXSTYLE-clobbering bug upstream
+# (tauri-apps/tauri#10422), so we set the style bit ourselves as a fallback.
 [target.'cfg(windows)'.dependencies]
 windows = { version = "0.58", features = [
     "Win32_UI_Input_KeyboardAndMouse",
     "Win32_Foundation",
     "Win32_UI_WindowsAndMessaging",
+    "Win32_Graphics_Gdi",
+    "Win32_System_LibraryLoader",
 ] }
+raw-window-handle = "0.6"
+
+# Webcam capture for the "Find" wedge's Camera option (Media Foundation
+# backend on Windows).
+nokhwa = { version = "0.10.11", features = ["input-msmf"] }
 
 [dev-dependencies]
 arboard = "3"

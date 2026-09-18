@@ -25,10 +25,16 @@ body {
   justify-content: center;
   cursor: pointer;
   padding: 0;
+  /* 70% transparent overall so it sits less obtrusively on top of whatever
+     the user is dictating into — brightens on hover so it's still easy to
+     find before clicking/dragging. */
+  opacity: 0.3;
+  transition: opacity 0.15s ease;
 }
 
 .widget:hover {
   background: rgba(0, 0, 0, 0.7);
+  opacity: 0.85;
 }
 
 .mark {
@@ -41,4 +47,9 @@ body {
 @keyframes blink-red {
   0%, 100% { color: #ffffff; }
   50% { color: #f87171; }
+}
+
+@keyframes flash-amber {
+  0%, 100% { color: #ffffff; }
+  50% { color: #fbbf24; }
 }

@@ -23,6 +23,11 @@ pub enum Purpose {
     /// ElevenLabs API key, for natural-voice speech in languages Groq's
     /// Orpheus TTS doesn't cover (Bangla, Spanish, Italian, ...).
     ElevenLabs,
+    /// The wheel's "AI" chat wedge. A separate Groq key slot (not shared
+    /// with Dictation) so it can be entered/tested/tracked on its own — the
+    /// same underlying Groq account's key can still be pasted into both if
+    /// the user wants, but they're stored and rate-limited independently.
+    Vision,
 }
 
 impl Purpose {
@@ -33,6 +38,7 @@ impl Purpose {
             Purpose::Dictation => "groq_api_key",
             Purpose::Speak => "groq_api_key_speak",
             Purpose::ElevenLabs => "elevenlabs_api_key",
+            Purpose::Vision => "groq_api_key_vision",
         }
     }
 }

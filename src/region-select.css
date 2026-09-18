@@ -1,0 +1,43 @@
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  background: transparent;
+  overflow: hidden;
+  cursor: crosshair;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+#overlay {
+  position: relative;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0, 0, 0, 0.28);
+}
+
+#selection {
+  position: absolute;
+  border: 1.5px solid #b23859;
+  background: rgba(178, 56, 89, 0.18);
+  display: none;
+}
+
+#hint {
+  position: absolute;
+  top: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  margin: 0;
+  color: #ededed;
+  font: 13px system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  background: rgba(0, 0, 0, 0.55);
+  padding: 6px 14px;
+  border-radius: 8px;
+}
