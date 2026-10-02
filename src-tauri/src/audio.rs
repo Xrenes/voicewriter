@@ -100,10 +100,32 @@ impl Recorder {
 }
 
 struct Active {
-    stream: cpal::Stream,
+    stream: Capture,
     buffer: std::sync::Arc<Mutex<Vec<f32>>>,
     channels: u16,
     sample_rate: u32,
+}
+
+/// What's producing samples into `Active::buffer`. Dropping it stops capture.
+enum Capture {
+    Cpal(#[allow(dead_code)] cpal::Stream),
+    /// Linux system audio: a `parec` subprocess recording the default sink's
+    /// monitor source, plus the thread copying its stdout into the buffer.
+    #[cfg(target_os = "linux")]
+    Process(std::process::Child, Option<std::thread::JoinHandle<()>>),
+}
+
+impl Drop for Capture {
+    fn drop(&mut self) {
+        #[cfg(target_os = "linux")]
+        if let Capture::Process(child, reader) = self {
+            let _ = child.kill();
+            let _ = child.wait();
+            if let Some(r) = reader.take() {
+                let _ = r.join();
+            }
+        }
+    }
 }
 
 fn audio_thread(rx: Receiver<Cmd>, source: Source) {
@@ -200,7 +222,7 @@ fn build_active_from_config(
     stream.play().context("start input stream")?;
 
     Ok(Active {
-        stream,
+        stream: Capture::Cpal(stream),
         buffer,
         channels,
         sample_rate,
@@ -230,6 +252,70 @@ fn open_mic_stream(device_name: &str) -> Result<Active> {
 /// device's data flow is render, not capture — see the module doc comment.
 /// The device is queried via `default_output_config()` (NOT
 /// `default_input_config()`, which fails on a render device).
+/// Linux system audio. There's no WASAPI-style "open the output device as an
+/// input" on ALSA; instead PulseAudio and PipeWire (via pipewire-pulse) both
+/// expose every output sink's audio as a `<sink>.monitor` source, which
+/// `parec` records directly — already resampled to 16 kHz mono f32 by the
+/// sound server, so `finish()` has nothing left to convert.
+#[cfg(target_os = "linux")]
+fn open_loopback_stream(device_name: &str) -> Result<Active> {
+    use std::io::Read;
+    use std::process::{Command, Stdio};
+
+    let sink = if device_name.is_empty() {
+        crate::linux::default_sink().ok_or_else(|| {
+            anyhow!("couldn't find the default audio output (is PulseAudio/PipeWire running, and pulseaudio-utils installed?)")
+        })?
+    } else {
+        device_name.to_string()
+    };
+    let source = format!("{sink}.monitor");
+    let mut child = Command::new("parec")
+        .args(["-d", &source, "--format=float32le", "--rate=16000", "--channels=1", "--latency-msec=50"])
+        .stdout(Stdio::piped())
+        .stderr(Stdio::null())
+        .spawn()
+        .context("start parec for system audio (install pulseaudio-utils)")?;
+
+    let buffer = std::sync::Arc::new(Mutex::new(Vec::<f32>::with_capacity(TARGET_SR as usize * 8)));
+    let cap_limit = TARGET_SR as usize * MAX_SECONDS;
+    let mut stdout = child.stdout.take().ok_or_else(|| anyhow!("no parec stdout"))?;
+    let buf_reader = buffer.clone();
+    let reader = std::thread::Builder::new()
+        .name("audio-capture-parec".into())
+        .spawn(move || {
+            let mut chunk = [0u8; 4096];
+            let mut carry: Vec<u8> = Vec::new();
+            loop {
+                let n = match stdout.read(&mut chunk) {
+                    Ok(0) | Err(_) => break,
+                    Ok(n) => n,
+                };
+                carry.extend_from_slice(&chunk[..n]);
+                let whole = carry.len() / 4 * 4;
+                let samples = carry[..whole]
+                    .chunks_exact(4)
+                    .map(|b| f32::from_le_bytes([b[0], b[1], b[2], b[3]]));
+                push(&buf_reader, samples, cap_limit);
+                carry.drain(..whole);
+            }
+        })?;
+
+    // parec exits immediately if the monitor source doesn't exist.
+    std::thread::sleep(std::time::Duration::from_millis(150));
+    if let Ok(Some(status)) = child.try_wait() {
+        return Err(anyhow!("parec couldn't record '{source}' ({status})"));
+    }
+
+    Ok(Active {
+        stream: Capture::Process(child, Some(reader)),
+        buffer,
+        channels: 1,
+        sample_rate: TARGET_SR,
+    })
+}
+
+#[cfg(not(target_os = "linux"))]
 fn open_loopback_stream(device_name: &str) -> Result<Active> {
     let host = cpal::default_host();
     let device = if device_name.is_empty() {
@@ -337,7 +423,14 @@ pub fn list_input_devices() -> Vec<String> {
 
 /// Names of available output (playback) devices, for picking which one to
 /// loopback-capture — useful when the user has more than one (e.g. speakers
-/// plus a virtual cable).
+/// plus a virtual cable). On Linux these are PulseAudio/PipeWire sink names
+/// (what `open_loopback_stream` records the `.monitor` of), not ALSA devices.
+#[cfg(target_os = "linux")]
+pub fn list_output_devices() -> Vec<String> {
+    crate::linux::list_sinks()
+}
+
+#[cfg(not(target_os = "linux"))]
 pub fn list_output_devices() -> Vec<String> {
     let host = cpal::default_host();
     let mut names = Vec::new();

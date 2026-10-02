@@ -1,6 +1,6 @@
 [package]
 name = "voicewriter"
-version = "0.5.0"
+version = "0.5.1"
 description = "Voice writing assistant"
 authors = ["ifti237@gmail.com"]
 edition = "2021"
@@ -96,6 +96,14 @@ raw-window-handle = "0.6"
 # Webcam capture for the "Find" wedge's Camera option (Media Foundation
 # backend on Windows).
 nokhwa = { version = "0.10.11", features = ["input-msmf"] }
+
+# Linux: X11 queries (cursor position, active window, held modifiers, root
+# screenshot), the PRIMARY selection (selected text without sending Ctrl+C,
+# which would kill a process in a terminal), and V4L2 webcam capture.
+[target.'cfg(target_os = "linux")'.dependencies]
+x11rb = "0.13"
+arboard = "3"
+nokhwa = { version = "0.10.11", features = ["input-v4l"] }
 
 [dev-dependencies]
 arboard = "3"
