@@ -318,8 +318,8 @@
     <div class="get-card">
       <div class="get-main">
         <p class="eyebrow">Download</p>
-        <h2>VoiceWriter for Windows</h2>
-        <p class="get-lead">Either installer works. The local model is fetched later from inside the app if you want offline mode.</p>
+        <h2>VoiceWriter for Windows &amp; Linux</h2>
+        <p class="get-lead">Pick your platform below. The local model is fetched later from inside the app if you want offline mode.</p>
 
         <a href="https://github.com/Xrenes/voicewriter/releases/latest/download/VoiceWriter_0.5.2_x64-setup.exe"
            class="btn btn-accent btn-lg get-btn" id="dlExe">
@@ -348,7 +348,7 @@
       <aside class="get-side">
         <p><strong>First launch:</strong> Windows may show “Windows protected your PC” — the app isn't signed yet. Click <strong>More info › Run anyway</strong>.</p>
         <p><strong>Hotkeys:</strong> <span class="k">Alt</span><span class="k">C</span> dictate English · <span class="k">Alt</span><span class="k">X</span> dictate Bangla · <span class="k">Shift</span><span class="k">Alt</span><span class="k">C</span> refine wheel · <span class="k">Ctrl</span><span class="k">Alt</span><span class="k">C</span> speak selection aloud · <span class="k">Alt</span><span class="k">W</span> mini browser. All rebindable in settings.</p>
-        <p><strong>Offline?</strong> Dictation, yes — with a local model, nothing leaves your PC. Refine/translate/speech features need an internet connection. <strong>Mac / Linux?</strong> Not yet, Windows only.</p>
+        <p><strong>Offline?</strong> Dictation, yes — with a local model, nothing leaves your PC. Refine/translate/speech features need an internet connection. <strong>Mac?</strong> Not yet.</p>
       </aside>
     </div>
 
@@ -358,6 +358,22 @@
         <li><span class="n">1</span><p><strong>Groq</strong> (required — dictation, refine, translate, English speech): create a free key at <a href="https://console.groq.com/keys" target="_blank" rel="noopener">console.groq.com/keys</a> and paste it into the Dictation key field.</p></li>
         <li><span class="n">2</span><p><strong>ElevenLabs</strong> (optional — natural Bangla speech): sign up free at <a href="https://elevenlabs.io/sign-up" target="_blank" rel="noopener">elevenlabs.io/sign-up</a>, generate a key at <a href="https://elevenlabs.io/app/settings/api-keys" target="_blank" rel="noopener">elevenlabs.io/app/settings/api-keys</a> with <span class="mono">text_to_speech</span> + <span class="mono">voices_read</span> permissions, and paste it into the ElevenLabs key field.</p></li>
         <li><span class="n">3</span><p>No credit card needed for either. Full walkthrough and troubleshooting: <a href="#keys">API keys</a> section below.</p></li>
+      </ol>
+    </div>
+
+    <div class="setup-steps" id="linux">
+      <p class="setup-steps-head"><strong>Installing on Linux</strong> — Ubuntu 22.04 or newer, Debian 12+, Linux Mint 21+, Fedora and other recent distros (64-bit). Ubuntu 20.04 and older aren't supported.</p>
+      <ol class="flow flow-compact">
+        <li><span class="n">1</span><p><strong>Ubuntu / Debian / Mint:</strong> download the <span class="mono">.deb</span>, then in a terminal: <span class="mono">sudo apt install ./VoiceWriter_0.5.2_amd64.deb</span></p></li>
+        <li><span class="n">2</span><p><strong>Fedora / openSUSE:</strong> download the <span class="mono">.rpm</span>, then: <span class="mono">sudo dnf install ./VoiceWriter-0.5.2-1.x86_64.rpm</span></p></li>
+        <li><span class="n">3</span><p><strong>Any distro, no install:</strong> download the AppImage, make it executable with <span class="mono">chmod +x VoiceWriter_0.5.2_amd64.AppImage</span>, then run <span class="mono">./VoiceWriter_0.5.2_amd64.AppImage</span></p></li>
+        <li><span class="n">4</span><p><strong>Start it:</strong> search “VoiceWriter” in your app launcher, or run <span class="mono">voicewriter &amp;</span> in a terminal. It runs in the background with an icon in the top bar — click it and choose <strong>Open settings</strong> to add your API keys. On plain GNOME (Fedora, Debian), install the “AppIndicator and KStatusNotifierItem Support” extension to see the icon.</p></li>
+        <li><span class="n">5</span><p><strong>Hotkeys on X11</strong> work exactly like on Windows. <strong>On Wayland</strong> (the default on recent Ubuntu — check with <span class="mono">echo $XDG_SESSION_TYPE</span>), apps can't register global hotkeys, so add your own in Settings → Keyboard → Custom Shortcuts using the commands below. For typing text into Wayland apps, also install <span class="mono">wtype</span> or <span class="mono">ydotool</span>.</p></li>
+      </ol>
+      <p class="setup-steps-head"><strong>Terminal commands</strong> (Linux &amp; Windows) — each one controls the running copy, or starts VoiceWriter if it isn't running:</p>
+      <ol class="flow flow-compact">
+        <li><span class="n">›</span><p><span class="mono">voicewriter --settings</span> open Settings · <span class="mono">--wheel</span> refine wheel · <span class="mono">--dictate</span> start dictation, run again to stop and insert · <span class="mono">--speak</span> read selection aloud · <span class="mono">--web</span> mini browser · <span class="mono">--record</span> start/stop call recording</p></li>
+        <li><span class="n">›</span><p><strong>Hide tray icon</strong> (Settings → General) runs VoiceWriter with nothing on screen. Use <span class="mono">voicewriter --settings</span> or launch it again to get back to Settings.</p></li>
       </ol>
     </div>
   </section>
