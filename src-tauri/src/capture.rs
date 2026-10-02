@@ -2,10 +2,10 @@
 //! on-disk gallery that stores every capture so the "AI" chat wedge can
 //! attach any of them later, not just the most recent one.
 //!
-//! Full-screen capture uses raw Win32 GDI (`BitBlt` from the desktop DC)
-//! rather than a crate — Tauri's window-screenshot APIs only capture a
-//! single app window, not the whole virtual screen, and pulling in a whole
-//! screen-capture crate for one `BitBlt` call isn't worth the dependency.
+//! Full-screen capture uses raw Win32 GDI (`BitBlt` from the desktop DC) on
+//! Windows, and an X11 root-window grab or the desktop's screenshot tool on
+//! Linux (see `linux::capture_screen`) — Tauri's window-screenshot APIs only
+//! capture a single app window, not the whole screen.
 
 use anyhow::{anyhow, Context, Result};
 use std::path::PathBuf;
@@ -128,17 +128,26 @@ pub fn timestamped_name(prefix: &str) -> String {
     )
 }
 
-/// Capture the full screen and save it as a PNG in the gallery. Returns the
-/// saved file's path.
 #[cfg(windows)]
-pub fn capture_screenshot(app: &AppHandle<Wry>) -> Result<PathBuf> {
-    let (w, h, rgb) = win::capture_screen()?;
-    save_rgb_png(app, "screenshot", w, h, &rgb)
+fn capture_screen() -> Result<(u32, u32, Vec<u8>)> {
+    win::capture_screen()
 }
 
-#[cfg(not(windows))]
-pub fn capture_screenshot(_app: &AppHandle<Wry>) -> Result<PathBuf> {
-    Err(anyhow!("screen capture is only supported on Windows"))
+#[cfg(target_os = "linux")]
+fn capture_screen() -> Result<(u32, u32, Vec<u8>)> {
+    crate::linux::capture_screen()
+}
+
+#[cfg(not(any(windows, target_os = "linux")))]
+fn capture_screen() -> Result<(u32, u32, Vec<u8>)> {
+    Err(anyhow!("screen capture isn't supported on this platform"))
+}
+
+/// Capture the full screen and save it as a PNG in the gallery. Returns the
+/// saved file's path.
+pub fn capture_screenshot(app: &AppHandle<Wry>) -> Result<PathBuf> {
+    let (w, h, rgb) = capture_screen()?;
+    save_rgb_png(app, "screenshot", w, h, &rgb)
 }
 
 /// Encode raw RGB8 bytes as a PNG and save it into the gallery.
@@ -156,7 +165,6 @@ pub fn save_rgb_png(app: &AppHandle<Wry>, prefix: &str, w: u32, h: u32, rgb: &[u
 /// PNG. Used by the "Select area" capture mode: the frontend draws a
 /// transparent full-screen overlay for the user to drag a rectangle over,
 /// then reports back the rectangle's bounds for this to crop.
-#[cfg(windows)]
 pub fn capture_screenshot_region(
     app: &AppHandle<Wry>,
     x: u32,
@@ -164,7 +172,7 @@ pub fn capture_screenshot_region(
     w: u32,
     h: u32,
 ) -> Result<PathBuf> {
-    let (full_w, full_h, rgb) = win::capture_screen()?;
+    let (full_w, full_h, rgb) = capture_screen()?;
     if w == 0 || h == 0 {
         return Err(anyhow!("selected area is empty"));
     }
@@ -178,17 +186,6 @@ pub fn capture_screenshot_region(
     let path = dir.join(format!("{}.png", timestamped_name("selection")));
     cropped.save(&path).context("save cropped capture PNG")?;
     Ok(path)
-}
-
-#[cfg(not(windows))]
-pub fn capture_screenshot_region(
-    _app: &AppHandle<Wry>,
-    _x: u32,
-    _y: u32,
-    _w: u32,
-    _h: u32,
-) -> Result<PathBuf> {
-    Err(anyhow!("screen capture is only supported on Windows"))
 }
 
 /// Snap one still frame from the default webcam and save it as a PNG.

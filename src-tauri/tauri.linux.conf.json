@@ -1,0 +1,25 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "bundle": {
+    "targets": ["deb", "appimage", "rpm"],
+    "resources": {
+      "vendor/espeak-ng/espeak-ng.exe": null,
+      "vendor/espeak-ng/libespeak-ng.dll": null,
+      "vendor/espeak-ng/espeak-ng-data": null
+    },
+    "linux": {
+      "deb": {
+        "depends": [
+          "libxdo3",
+          "espeak-ng",
+          "pulseaudio-utils",
+          "libv4l-0",
+          "libayatana-appindicator3-1 | libappindicator3-1"
+        ]
+      },
+      "rpm": {
+        "depends": ["libxdo", "espeak-ng", "pulseaudio-utils", "libv4l", "libayatana-appindicator-gtk3"]
+      }
+    }
+  }
+}

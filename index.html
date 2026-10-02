@@ -23,6 +23,21 @@
       <details class="section">
         <summary>Hotkeys</summary>
         <div class="section-body">
+          <div class="card" id="linuxHotkeyNote" hidden>
+            <p class="hint">
+              <strong id="linuxSessionLabel">Linux</strong> —
+              <span id="linuxSessionText"></span>
+            </p>
+            <p class="hint dim" id="linuxCliList" hidden>
+              In your desktop's Settings → Keyboard → Custom Shortcuts, add any of:
+              <span class="mono">voicewriter --dictate</span> (press once to start, again to stop and insert),
+              <span class="mono">voicewriter --wheel</span>,
+              <span class="mono">voicewriter --speak</span>,
+              <span class="mono">voicewriter --web</span>,
+              <span class="mono">voicewriter --record</span>.
+              For text insertion into native Wayland apps, install <span class="mono">wtype</span> or <span class="mono">ydotool</span>.
+            </p>
+          </div>
           <div class="card">
             <div class="row">
               <label>Hotkey</label>
@@ -448,7 +463,7 @@
       </details>
 
       <footer class="foot">
-        <span class="build">v0.5.0</span>
+        <span class="build">v0.5.1</span>
       </footer>
     </main>
 

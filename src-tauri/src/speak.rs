@@ -119,6 +119,15 @@ impl Speaker {
 /// clobbering the user's clipboard. Returns the selected text, or an error if
 /// nothing appeared to be selected.
 pub fn capture_selection(app: &tauri::AppHandle) -> Result<String> {
+    // Linux exposes highlighted text directly as the PRIMARY selection, so no
+    // Ctrl+C is needed — which matters, since in a terminal Ctrl+C interrupts
+    // the running program instead of copying.
+    #[cfg(target_os = "linux")]
+    if let Some(selected) = crate::linux::primary_selection() {
+        eprintln!("speak: read {} chars from PRIMARY selection", selected.trim().len());
+        return Ok(selected);
+    }
+
     let t0 = std::time::Instant::now();
     let previous = app.clipboard().read_text().ok();
 

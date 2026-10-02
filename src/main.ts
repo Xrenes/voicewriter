@@ -810,6 +810,34 @@ async function boot() {
   });
 }
 
+// Linux: explain how hotkeys work for the current display server. X11
+// supports app-registered global hotkeys like Windows does; Wayland doesn't,
+// so the app's command-line actions are bound as desktop shortcuts instead.
+async function showPlatformNotes() {
+  try {
+    const info = await invoke<{ os: string; session: string }>("platform_info");
+    if (info.os !== "linux") return;
+    const note = document.getElementById("linuxHotkeyNote") as HTMLElement;
+    const label = document.getElementById("linuxSessionLabel") as HTMLElement;
+    const text = document.getElementById("linuxSessionText") as HTMLElement;
+    const cli = document.getElementById("linuxCliList") as HTMLElement;
+    note.hidden = false;
+    cli.hidden = false;
+    if (info.session === "wayland") {
+      label.textContent = "Linux · Wayland";
+      text.textContent =
+        "Wayland doesn't let apps register global hotkeys, so the keys below only work while an X11 app is focused. Bind VoiceWriter's commands as desktop shortcuts instead:";
+    } else {
+      label.textContent = "Linux · X11";
+      text.textContent =
+        "The hotkeys below work everywhere in an X11 session. You can also bind VoiceWriter's commands as desktop shortcuts:";
+    }
+  } catch {
+    // not fatal — the note just stays hidden
+  }
+}
+showPlatformNotes();
+
 // Guide section links open in the system's real default browser, not
 // VoiceWriter's own in-app Web browser — these point at actual account
 // sign-up/API-key pages, which is a different purpose than the Web wedge.

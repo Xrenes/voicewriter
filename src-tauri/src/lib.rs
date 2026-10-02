@@ -18,6 +18,8 @@ mod groq;
 #[cfg(windows)]
 mod hotkey_guard;
 mod keychain;
+#[cfg(target_os = "linux")]
+mod linux;
 mod model;
 mod record;
 mod refine;
@@ -414,6 +416,70 @@ fn on_shortcut(app: &AppHandle<Wry>, shortcut: &Shortcut, event: ShortcutState) 
                 stop_and_transcribe(app);
             }
         }
+    }
+}
+
+/// Session id for dictation started from the command line rather than a
+/// registered hotkey (see `run_cli_action`) — distinct from any real
+/// shortcut id so the two can't release each other's session.
+const CLI_DICTATION_ID: u32 = 0xFFFF_FF00;
+
+/// Command-line actions, delivered to the running instance by the
+/// single-instance plugin (or handled at startup on first launch). This is
+/// how Wayland users trigger VoiceWriter: Wayland doesn't let an app grab
+/// global hotkeys, so you bind a shortcut in your desktop's own keyboard
+/// settings to e.g. `voicewriter --wheel` instead. Hold-to-talk can't be
+/// expressed that way (a desktop shortcut has no "released" event), so
+/// `--dictate` toggles: run once to start, again to stop and insert.
+/// Returns true if an action flag was found.
+fn run_cli_action(app: &AppHandle<Wry>, args: &[String]) -> bool {
+    let Some(flag) = args.iter().skip(1).find(|a| a.starts_with("--")) else {
+        return false;
+    };
+    match flag.as_str() {
+        "--dictate" | "--dictate-secondary" => {
+            let state: State<AppState> = app.state();
+            if state.recorder.is_recording() {
+                if state.session.lock().release(CLI_DICTATION_ID) {
+                    stop_and_transcribe(app);
+                }
+            } else if state.session.lock().press(CLI_DICTATION_ID) {
+                *state.target.lock() = typer::Target::capture();
+                let secondary = flag == "--dictate-secondary";
+                state.active_lang.store(secondary as u8, Ordering::SeqCst);
+                start_recording(app);
+            }
+        }
+        "--wheel" => on_wheel_open(app),
+        "--speak" => on_speak_toggle(app),
+        "--web" => on_web_toggle(app),
+        "--record" => {
+            let _ = wheel_record_toggle(app.clone());
+        }
+        "--settings" => show_settings(app),
+        other => {
+            eprintln!("unknown command-line action {other}");
+            return false;
+        }
+    }
+    true
+}
+
+#[derive(serde::Serialize)]
+struct PlatformInfo {
+    os: &'static str,
+    /// "x11" | "wayland" on Linux, empty elsewhere.
+    session: &'static str,
+}
+
+#[tauri::command]
+fn platform_info() -> PlatformInfo {
+    PlatformInfo {
+        os: std::env::consts::OS,
+        #[cfg(target_os = "linux")]
+        session: linux::session_kind(),
+        #[cfg(not(target_os = "linux"))]
+        session: "",
     }
 }
 
@@ -1181,7 +1247,12 @@ fn virtual_screen_rect() -> (i32, i32, i32, i32) {
     }
 }
 
-#[cfg(not(windows))]
+#[cfg(target_os = "linux")]
+fn virtual_screen_rect() -> (i32, i32, i32, i32) {
+    linux::screen_rect().unwrap_or((0, 0, 1920, 1080))
+}
+
+#[cfg(not(any(windows, target_os = "linux")))]
 fn virtual_screen_rect() -> (i32, i32, i32, i32) {
     (0, 0, 1920, 1080)
 }
@@ -2002,8 +2073,10 @@ fn web_close(app: AppHandle<Wry>) {
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
-        .plugin(tauri_plugin_single_instance::init(|app, _argv, _cwd| {
-            show_settings(app);
+        .plugin(tauri_plugin_single_instance::init(|app, argv, _cwd| {
+            if !run_cli_action(app, &argv) {
+                show_settings(app);
+            }
         }))
         .plugin(tauri_plugin_store::Builder::default().build())
         .plugin(tauri_plugin_clipboard_manager::init())
@@ -2100,6 +2173,7 @@ pub fn run() {
             web_current_url,
             web_copy_url,
             web_close,
+            platform_info,
         ])
         .setup(|app| {
             let handle = app.handle().clone();
@@ -2168,6 +2242,21 @@ pub fn run() {
             } else {
                 mgr.disable()
             };
+
+            // First launch with an action flag (e.g. a Wayland desktop
+            // shortcut bound to `voicewriter --wheel` while the app wasn't
+            // running yet): run it once the event loop is up.
+            let args: Vec<String> = std::env::args().collect();
+            if args.iter().skip(1).any(|a| a.starts_with("--")) {
+                let h = handle.clone();
+                tauri::async_runtime::spawn(async move {
+                    std::thread::sleep(std::time::Duration::from_millis(400));
+                    let h2 = h.clone();
+                    let _ = h.run_on_main_thread(move || {
+                        run_cli_action(&h2, &args);
+                    });
+                });
+            }
 
             Ok(())
         })

@@ -29,7 +29,9 @@ impl Target {
             let _ = GetGUIThreadInfo(0, &mut info);
             Self { window: window.0 as usize, focus: info.hwndFocus.0 as usize }
         }
-        #[cfg(not(windows))]
+        #[cfg(target_os = "linux")]
+        return Self { window: crate::linux::active_window(), focus: 0 };
+        #[cfg(not(any(windows, target_os = "linux")))]
         Self::default()
     }
 
@@ -37,6 +39,15 @@ impl Target {
         #[cfg(windows)]
         if self.window == 0 || self != Self::capture() {
             anyhow::bail!("The focused window or control changed during dictation");
+        }
+        // Linux can only see the active top-level window, and only on X11 —
+        // check it when known, skip the check when it isn't (Wayland).
+        #[cfg(target_os = "linux")]
+        if self.window != 0 {
+            let now = Self::capture();
+            if now.window != 0 && now.window != self.window {
+                anyhow::bail!("The focused window changed during dictation");
+            }
         }
         Ok(())
     }
@@ -195,7 +206,12 @@ pub fn insert(app: &AppHandle, text: &str, mode: InsertMode, target: Target) -> 
             anyhow::bail!("{e}. Your transcript is on the clipboard; paste it with Ctrl+V");
         }
         #[cfg(windows)]
-        if let Err(e) = win::wait_for_modifiers() {
+        let released = win::wait_for_modifiers();
+        #[cfg(target_os = "linux")]
+        let released = crate::linux::wait_for_modifiers();
+        #[cfg(not(any(windows, target_os = "linux")))]
+        let released: Result<()> = Ok(());
+        if let Err(e) = released {
             app.clipboard().write_text(text.to_string()).context("write clipboard")?;
             anyhow::bail!("{e}. Your transcript is on the clipboard; paste it with Ctrl+V");
         }
@@ -334,7 +350,12 @@ fn do_ctrl_v() -> Result<()> {
     win::ctrl_v()
 }
 
-#[cfg(not(windows))]
+#[cfg(target_os = "linux")]
+fn do_ctrl_v() -> Result<()> {
+    crate::linux::ctrl_chord('v')
+}
+
+#[cfg(not(any(windows, target_os = "linux")))]
 fn do_ctrl_v() -> Result<()> {
     use enigo::{Direction, Enigo, Key, Keyboard, Settings};
     let mut e = Enigo::new(&Settings::default()).context("init enigo")?;
@@ -358,7 +379,13 @@ pub fn send_copy() -> Result<()> {
     win::ctrl_c()
 }
 
-#[cfg(not(windows))]
+#[cfg(target_os = "linux")]
+pub fn send_copy() -> Result<()> {
+    crate::linux::wait_for_modifiers()?;
+    crate::linux::ctrl_chord('c')
+}
+
+#[cfg(not(any(windows, target_os = "linux")))]
 pub fn send_copy() -> Result<()> {
     use enigo::{Direction, Enigo, Key, Keyboard, Settings};
     let mut e = Enigo::new(&Settings::default()).context("init enigo")?;
@@ -380,12 +407,27 @@ pub fn cursor_pos() -> (i32, i32) {
     win::cursor_pos()
 }
 
-#[cfg(not(windows))]
+/// Wayland won't reveal the global pointer; fall back to a spot near the top
+/// middle of a typical screen rather than the far top-left corner.
+#[cfg(target_os = "linux")]
+pub fn cursor_pos() -> (i32, i32) {
+    crate::linux::cursor_pos().unwrap_or_else(|| {
+        let (_, _, w, h) = crate::linux::screen_rect().unwrap_or((0, 0, 1920, 1080));
+        (w / 2, h / 3)
+    })
+}
+
+#[cfg(not(any(windows, target_os = "linux")))]
 pub fn cursor_pos() -> (i32, i32) {
     (0, 0)
 }
 
-#[cfg(not(windows))]
+#[cfg(target_os = "linux")]
+fn type_text(text: &str) -> Result<()> {
+    crate::linux::type_text(text)
+}
+
+#[cfg(not(any(windows, target_os = "linux")))]
 fn type_text(text: &str) -> Result<()> {
     use enigo::{Enigo, Keyboard, Settings};
     let mut e = Enigo::new(&Settings::default()).context("init enigo")?;

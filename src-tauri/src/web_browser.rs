@@ -100,22 +100,21 @@ fn layout_children(app: &AppHandle<Wry>) {
     let _ = content.set_size(Size::Logical(LogicalSize::new(logical_width, content_height)));
 }
 
-/// Open (or focus, if already open) the Web browser window, navigating to
-/// `url` (empty = the last-used URL, or DEFAULT_URL on first-ever open).
+/// Open the Web browser window. If it already exists (hidden), it's just
+/// shown again exactly as it was — same page, scroll position, and form
+/// state — never re-navigated. `url` (the last page the user was on, saved
+/// by `close`, or DEFAULT_URL on first-ever open) only applies when the
+/// window is first created.
 pub fn open(app: &AppHandle<Wry>, url: Option<&str>) -> Result<()> {
-    let target = url.map(normalize_url).unwrap_or_else(|| DEFAULT_URL.to_string());
-    let parsed = target.parse().map_err(|_| anyhow!("invalid URL: {target}"))?;
-
     if let Some(window) = app.get_window(WINDOW_LABEL) {
-        // Already open — just navigate the existing content webview and
-        // bring the window to the front.
-        if let Some(content) = app.get_webview(CONTENT_LABEL) {
-            content.navigate(parsed)?;
-        }
         let _ = window.show();
         let _ = window.set_focus();
+        force_skip_taskbar(&window);
         return Ok(());
     }
+
+    let target = url.map(normalize_url).unwrap_or_else(|| DEFAULT_URL.to_string());
+    let parsed = target.parse().map_err(|_| anyhow!("invalid URL: {target}"))?;
 
     // Fully custom chrome: no native titlebar at all — the toolbar webview
     // draws its own close button and everything else. Resizing uses custom
@@ -146,10 +145,15 @@ pub fn open(app: &AppHandle<Wry>, url: Option<&str>) -> Result<()> {
     )?;
 
     let app2 = app.clone();
-    window.on_window_event(move |event| {
-        if let WindowEvent::Resized(_) = event {
-            layout_children(&app2);
+    window.on_window_event(move |event| match event {
+        WindowEvent::Resized(_) => layout_children(&app2),
+        // An OS-level close (e.g. Alt+F4) would destroy the window and its
+        // page. Hide it instead, so Alt+W brings back the same page.
+        WindowEvent::CloseRequested { api, .. } => {
+            api.prevent_close();
+            close(&app2);
         }
+        _ => {}
     });
 
     layout_children(app);
@@ -160,7 +164,16 @@ pub fn open(app: &AppHandle<Wry>, url: Option<&str>) -> Result<()> {
     Ok(())
 }
 
+/// Hide (never destroy) the window, and remember the current page so the
+/// browser reopens there even after VoiceWriter itself restarts.
 pub fn close(app: &AppHandle<Wry>) {
+    if let Some(url) = current_url(app).filter(|u| u.starts_with("http")) {
+        let mut cfg = crate::settings::load(app);
+        if cfg.web_default_url != url {
+            cfg.web_default_url = url;
+            let _ = crate::settings::save(app, &cfg);
+        }
+    }
     if let Some(w) = app.get_window(WINDOW_LABEL) {
         let _ = w.hide();
     }
