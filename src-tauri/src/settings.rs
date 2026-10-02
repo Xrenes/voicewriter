@@ -47,6 +47,9 @@ pub struct Settings {
     /// filler removal) before typing. Falls back to local rules when unavailable.
     pub polish: bool,
     pub autostart: bool,
+    /// Run with no tray icon at all. Settings is then reachable only via
+    /// `voicewriter --settings` (or launching the app again).
+    pub hide_tray: bool,
     /// ElevenLabs voice id used to speak wheel translations aloud in
     /// languages Groq's Orpheus TTS doesn't cover. Empty = fall back to the
     /// offline (robotic) eSpeak NG engine instead.
@@ -87,6 +90,7 @@ impl Default for Settings {
             model: "base.en".to_string(),
             polish: true,
             autostart: false,
+            hide_tray: false,
             elevenlabs_voice_id: String::new(),
             capture_permission_granted: false,
             vision_model: String::new(),
