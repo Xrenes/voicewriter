@@ -1743,6 +1743,17 @@ async fn download_model(app: AppHandle<Wry>, model: String) -> Result<(), String
 }
 
 #[tauri::command]
+fn set_tray_visible(app: AppHandle<Wry>, visible: bool) -> Result<(), String> {
+    let mut cfg = settings::load(&app);
+    cfg.hide_tray = !visible;
+    settings::save(&app, &cfg).map_err(|e| e.to_string())?;
+    if let Some(tray) = app.tray_by_id("main") {
+        tray.set_visible(visible).map_err(|e| e.to_string())?;
+    }
+    Ok(())
+}
+
+#[tauri::command]
 fn set_autostart(app: AppHandle<Wry>, enabled: bool) -> Result<(), String> {
     let mgr = app.autolaunch();
     let r = if enabled { mgr.enable() } else { mgr.disable() };
@@ -2103,6 +2114,7 @@ pub fn run() {
             model_state,
             download_model,
             set_autostart,
+            set_tray_visible,
             groq_key_status,
             set_groq_key,
             clear_groq_key,
@@ -2242,6 +2254,12 @@ pub fn run() {
             } else {
                 mgr.disable()
             };
+
+            if cfg.hide_tray {
+                if let Some(tray) = handle.tray_by_id("main") {
+                    let _ = tray.set_visible(false);
+                }
+            }
 
             // First launch with an action flag (e.g. a Wayland desktop
             // shortcut bound to `voicewriter --wheel` while the app wasn't

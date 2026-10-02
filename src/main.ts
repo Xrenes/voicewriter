@@ -19,6 +19,7 @@ interface Settings {
   model: string;
   polish: boolean;
   autostart: boolean;
+  hideTray: boolean;
   elevenlabsVoiceId: string;
   visionModel: string;
 }
@@ -141,6 +142,7 @@ const speakProgressBar = $<HTMLDivElement>("speakProgressBar");
 const insertionSel = $<HTMLSelectElement>("insertion");
 const polishChk = $<HTMLInputElement>("polish");
 const autostartChk = $<HTMLInputElement>("autostart");
+const hideTrayChk = $<HTMLInputElement>("hideTray");
 
 let settings: Settings;
 let capturingHotkey = false;
@@ -215,6 +217,7 @@ async function loadSettings() {
   insertionSel.value = settings.insertion;
   polishChk.checked = settings.polish;
   autostartChk.checked = settings.autostart;
+  hideTrayChk.checked = settings.hideTray;
   elevenlabsVoiceIdInput.value = settings.elevenlabsVoiceId;
 }
 
@@ -665,6 +668,13 @@ modelSel.addEventListener("change", async () => {
 });
 insertionSel.addEventListener("change", () => save({ insertion: insertionSel.value as Settings["insertion"] }));
 polishChk.addEventListener("change", () => save({ polish: polishChk.checked }));
+// Saved by the backend command itself (not save()), so the frontend's cached
+// settings object can't later overwrite it with a stale value.
+hideTrayChk.addEventListener("change", async () => {
+  await invoke("set_tray_visible", { visible: !hideTrayChk.checked });
+  settings.hideTray = hideTrayChk.checked;
+});
+
 autostartChk.addEventListener("change", async () => {
   await save({ autostart: autostartChk.checked });
   await invoke("set_autostart", { enabled: autostartChk.checked });
