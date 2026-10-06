@@ -1,8 +1,13 @@
-//! Local whisper.cpp model management: known model catalogue, on-disk state,
-//! and first-run download with progress events for the settings window.
+//! Voice model management: the known catalogue of downloadable local
+//! speech-to-text (whisper.cpp) and text-to-speech (Kokoro) models, their
+//! on-disk state, and first-run download with progress events for the
+//! Settings → Voice Models UI.
 //!
 //! Models live in the OS app-data dir (see `tauri.conf.json` -> `identifier`),
-//! under a `models/` subfolder, named `<id>.bin` (ggml/gguf binary format).
+//! under a `models/` subfolder. STT models are a single `<id>.bin` ggml file;
+//! the TTS model is two files (the ONNX weights, and a separate voices pack)
+//! since Kokoro's voice embeddings are distributed independently of the
+//! model itself — see `kokoro.rs`.
 
 use anyhow::{anyhow, Context, Result};
 use serde::Serialize;
@@ -13,20 +18,87 @@ use tauri::{AppHandle, Emitter, Manager, Wry};
 
 const DOWNLOAD_TIMEOUT: Duration = Duration::from_secs(600);
 
-/// One entry in the known-model table: ggml filename on the upstream
-/// huggingface mirror, and an approximate on-disk size for display before
-/// the real size is known from the HTTP response.
-struct Known {
-    id: &'static str,
-    file: &'static str,
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub enum Kind {
+    Stt,
+    Tts,
+}
+
+/// One file a model entry needs on disk (a TTS entry needs two: the ONNX
+/// weights and the voices pack; an STT entry needs just one).
+struct KnownFile {
+    /// Suffix distinguishing this file within its model id, e.g. "model" or
+    /// "voices" — used only to build the on-disk filename.
+    part: &'static str,
+    url: &'static str,
+    file_name: &'static str,
     approx_bytes: u64,
 }
 
+struct Known {
+    id: &'static str,
+    kind: Kind,
+    label: &'static str,
+    files: &'static [KnownFile],
+}
+
 const MODELS: &[Known] = &[
-    Known { id: "tiny.en", file: "ggml-tiny.en.bin", approx_bytes: 75_000_000 },
-    Known { id: "base.en", file: "ggml-base.en.bin", approx_bytes: 148_000_000 },
-    Known { id: "small.en", file: "ggml-small.en.bin", approx_bytes: 488_000_000 },
-    Known { id: "medium", file: "ggml-medium.bin", approx_bytes: 1_530_000_000 },
+    Known {
+        id: "whisper-tiny",
+        kind: Kind::Stt,
+        label: "Whisper Tiny",
+        files: &[KnownFile {
+            part: "model",
+            url: "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-tiny.bin",
+            file_name: "whisper-tiny.bin",
+            approx_bytes: 75_000_000,
+        }],
+    },
+    Known {
+        id: "whisper-base",
+        kind: Kind::Stt,
+        label: "Whisper Base",
+        files: &[KnownFile {
+            part: "model",
+            url: "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base.bin",
+            file_name: "whisper-base.bin",
+            approx_bytes: 148_000_000,
+        }],
+    },
+    Known {
+        id: "whisper-small",
+        kind: Kind::Stt,
+        label: "Whisper Small",
+        files: &[KnownFile {
+            part: "model",
+            url: "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-small.bin",
+            file_name: "whisper-small.bin",
+            approx_bytes: 488_000_000,
+        }],
+    },
+    Known {
+        id: "kokoro-82m",
+        kind: Kind::Tts,
+        label: "Kokoro 82M",
+        files: &[
+            // fp16: the "quality-safe" middle ground — near-identical output
+            // to fp32 (326 MB) at half the size, vs. visibly lower quality
+            // from the int8/q8 variants. See kokoro.rs for inference.
+            KnownFile {
+                part: "model",
+                url: "https://huggingface.co/onnx-community/Kokoro-82M-v1.0-ONNX/resolve/main/onnx/model_fp16.onnx",
+                file_name: "kokoro-82m-fp16.onnx",
+                approx_bytes: 163_000_000,
+            },
+            KnownFile {
+                part: "voices",
+                url: "https://github.com/thewh1teagle/kokoro-onnx/releases/download/model-files-v1.0/voices-v1.0.bin",
+                file_name: "kokoro-voices-v1.0.bin",
+                approx_bytes: 28_000_000,
+            },
+        ],
+    },
 ];
 
 fn lookup(model: &str) -> Result<&'static Known> {
@@ -46,18 +118,42 @@ fn models_dir(app: &AppHandle<Wry>) -> Result<PathBuf> {
     Ok(dir)
 }
 
-/// Where the model file for `model` lives on disk (whether or not it exists yet).
-pub fn model_path(app: &AppHandle<Wry>, model: &str) -> Result<PathBuf> {
+/// Where a specific file of `model` lives on disk (whether or not it exists
+/// yet). `part` must match one of that model's `KnownFile::part` values.
+fn file_path(app: &AppHandle<Wry>, model: &str, part: &str) -> Result<PathBuf> {
     let known = lookup(model)?;
-    Ok(models_dir(app)?.join(known.file))
+    let file = known
+        .files
+        .iter()
+        .find(|f| f.part == part)
+        .ok_or_else(|| anyhow!("model '{model}' has no '{part}' file"))?;
+    Ok(models_dir(app)?.join(file.file_name))
+}
+
+/// Where the whisper.cpp ggml file for an STT `model` id lives. Used by the
+/// transcription engine, which only ever deals with the single STT file.
+pub fn model_path(app: &AppHandle<Wry>, model: &str) -> Result<PathBuf> {
+    file_path(app, model, "model")
+}
+
+/// Paths to Kokoro's ONNX weights and voices pack, in that order. Used by
+/// `kokoro.rs`.
+pub fn kokoro_paths(app: &AppHandle<Wry>) -> Result<(PathBuf, PathBuf)> {
+    Ok((
+        file_path(app, "kokoro-82m", "model")?,
+        file_path(app, "kokoro-82m", "voices")?,
+    ))
 }
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct ModelState {
+pub struct ModelInfo {
+    pub id: &'static str,
+    pub kind: Kind,
+    pub label: &'static str,
     pub present: bool,
-    pub path: String,
     pub size_label: String,
+    pub bytes_on_disk: u64,
 }
 
 fn human_size(bytes: u64) -> String {
@@ -71,23 +167,64 @@ fn human_size(bytes: u64) -> String {
     }
 }
 
-/// Current on-disk state of `model`, for the settings UI.
-pub fn state(app: &AppHandle<Wry>, model: &str) -> Result<ModelState> {
+fn file_bytes_on_disk(app: &AppHandle<Wry>, model: &str, f: &KnownFile) -> u64 {
+    file_path(app, model, f.part)
+        .ok()
+        .and_then(|p| std::fs::metadata(p).ok())
+        .map(|m| m.len())
+        .unwrap_or(0)
+}
+
+/// Current on-disk state of every known model, for the Settings → Voice
+/// Models list. A model is "present" only once ALL of its files exist.
+pub fn list(app: &AppHandle<Wry>) -> Vec<ModelInfo> {
+    MODELS
+        .iter()
+        .map(|known| {
+            let bytes_on_disk: u64 = known.files.iter().map(|f| file_bytes_on_disk(app, known.id, f)).sum();
+            let present = known.files.iter().all(|f| {
+                file_path(app, known.id, f.part)
+                    .map(|p| p.is_file())
+                    .unwrap_or(false)
+            });
+            let approx_total: u64 = known.files.iter().map(|f| f.approx_bytes).sum();
+            ModelInfo {
+                id: known.id,
+                kind: known.kind,
+                label: known.label,
+                present,
+                size_label: human_size(if present { bytes_on_disk } else { approx_total }),
+                bytes_on_disk,
+            }
+        })
+        .collect()
+}
+
+/// Total bytes used on disk across every downloaded model, for the Settings
+/// "storage used" line.
+pub fn total_bytes_on_disk(app: &AppHandle<Wry>) -> u64 {
+    list(app).iter().map(|m| m.bytes_on_disk).sum()
+}
+
+pub fn total_size_label(app: &AppHandle<Wry>) -> String {
+    human_size(total_bytes_on_disk(app))
+}
+
+/// Delete every file belonging to `model`, freeing its disk space.
+pub fn delete(app: &AppHandle<Wry>, model: &str) -> Result<()> {
     let known = lookup(model)?;
-    let path = model_path(app, model)?;
-    let (present, bytes) = match std::fs::metadata(&path) {
-        Ok(meta) => (true, meta.len()),
-        Err(_) => (false, known.approx_bytes),
-    };
-    Ok(ModelState {
-        present,
-        path: path.to_string_lossy().into_owned(),
-        size_label: human_size(bytes),
-    })
+    for f in known.files {
+        let path = file_path(app, model, f.part)?;
+        if path.is_file() {
+            std::fs::remove_file(&path).with_context(|| format!("delete {}", path.display()))?;
+        }
+    }
+    Ok(())
 }
 
 #[derive(Debug, Clone, Serialize)]
 struct DownloadProgress {
+    model: String,
     received: u64,
     total: u64,
     done: bool,
@@ -95,44 +232,65 @@ struct DownloadProgress {
     error: Option<String>,
 }
 
-fn emit_progress(app: &AppHandle<Wry>, received: u64, total: u64, done: bool, error: Option<String>) {
+fn emit_progress(app: &AppHandle<Wry>, model: &str, received: u64, total: u64, done: bool, error: Option<String>) {
     let _ = app.emit(
         "model-progress",
-        DownloadProgress { received, total, done, error },
+        DownloadProgress { model: model.to_string(), received, total, done, error },
     );
 }
 
-/// Download `model`'s ggml file to the models dir, reporting progress via the
-/// `model-progress` event. Runs on a blocking thread (see `lib.rs`).
+/// Download every file belonging to `model`, reporting combined progress via
+/// the `model-progress` event. Runs on a blocking thread (see `lib.rs`).
 pub fn download(app: &AppHandle<Wry>, model: &str) -> Result<()> {
     let known = match lookup(model) {
         Ok(k) => k,
         Err(e) => {
-            emit_progress(app, 0, 0, true, Some(e.to_string()));
-            return Err(e);
-        }
-    };
-    let dest = match model_path(app, model) {
-        Ok(p) => p,
-        Err(e) => {
-            emit_progress(app, 0, 0, true, Some(e.to_string()));
+            emit_progress(app, model, 0, 0, true, Some(e.to_string()));
             return Err(e);
         }
     };
 
-    let url = format!(
-        "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/{}",
-        known.file
-    );
+    let total_approx: u64 = known.files.iter().map(|f| f.approx_bytes).sum();
+    let mut received_before_current: u64 = 0;
 
-    let result = run_download(app, &url, &dest, known.approx_bytes);
-    if let Err(e) = &result {
-        emit_progress(app, 0, 0, true, Some(e.to_string()));
+    for f in known.files {
+        let dest = match file_path(app, model, f.part) {
+            Ok(p) => p,
+            Err(e) => {
+                emit_progress(app, model, 0, 0, true, Some(e.to_string()));
+                return Err(e);
+            }
+        };
+        if dest.is_file() {
+            received_before_current += std::fs::metadata(&dest).map(|m| m.len()).unwrap_or(f.approx_bytes);
+            continue;
+        }
+        let result = run_download(app, model, f.url, &dest, received_before_current, total_approx);
+        match result {
+            Ok(actual) => received_before_current += actual,
+            Err(e) => {
+                emit_progress(app, model, 0, 0, true, Some(e.to_string()));
+                return Err(e);
+            }
+        }
     }
-    result
+
+    emit_progress(app, model, total_approx, total_approx, true, None);
+    Ok(())
 }
 
-fn run_download(app: &AppHandle<Wry>, url: &str, dest: &Path, approx_bytes: u64) -> Result<()> {
+/// Downloads one file, emitting combined progress against the model's total
+/// approximate size (`base_received` bytes already accounted for by
+/// previously-downloaded files of the same model). Returns the number of
+/// bytes actually received for this file.
+fn run_download(
+    app: &AppHandle<Wry>,
+    model: &str,
+    url: &str,
+    dest: &Path,
+    base_received: u64,
+    total_approx: u64,
+) -> Result<u64> {
     let client = reqwest::blocking::Client::builder()
         .timeout(DOWNLOAD_TIMEOUT)
         .build()
@@ -144,8 +302,6 @@ fn run_download(app: &AppHandle<Wry>, url: &str, dest: &Path, approx_bytes: u64)
         .context("request model download")?
         .error_for_status()
         .context("model download returned an error status")?;
-
-    let total = resp.content_length().unwrap_or(approx_bytes);
 
     let tmp_path = dest.with_extension("part");
     let mut file = std::fs::File::create(&tmp_path).context("create temp model file")?;
@@ -159,12 +315,18 @@ fn run_download(app: &AppHandle<Wry>, url: &str, dest: &Path, approx_bytes: u64)
         }
         file.write_all(&buf[..n]).context("write model bytes")?;
         received += n as u64;
-        emit_progress(app, received, total.max(received), false, None);
+        emit_progress(
+            app,
+            model,
+            base_received + received,
+            total_approx.max(base_received + received),
+            false,
+            None,
+        );
     }
     file.flush().context("flush model file")?;
     drop(file);
 
     std::fs::rename(&tmp_path, dest).context("finalize downloaded model")?;
-    emit_progress(app, received, received, true, None);
-    Ok(())
+    Ok(received)
 }

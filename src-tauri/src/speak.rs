@@ -1,6 +1,6 @@
 //! "Speak selected text": capture the current selection via a simulated
-//! Ctrl+C, send it to Groq TTS, and play the result back. A second press of
-//! the same hotkey stops playback (toggle, not hold-to-talk).
+//! Ctrl+C, synthesize it locally with Kokoro, and play the result back. A
+//! second press of the same hotkey stops playback (toggle, not hold-to-talk).
 
 use anyhow::{anyhow, Context, Result};
 use parking_lot::Mutex;
@@ -63,7 +63,7 @@ impl Speaker {
     /// can wait for *this* clip to finish (and poll its progress) without
     /// mixing it up with a later one.
     fn play(&self, wav_bytes: Vec<u8>) -> Result<u64> {
-        eprintln!("speak: got {} bytes of audio from Groq", wav_bytes.len());
+        eprintln!("speak: got {} bytes of synthesized audio", wav_bytes.len());
         let (stream, handle): (OutputStream, OutputStreamHandle) =
             rodio::OutputStream::try_default().context("open audio output device")?;
         let sink = Sink::try_new(&handle).context("create audio sink")?;
@@ -158,24 +158,21 @@ pub fn capture_selection(app: &tauri::AppHandle) -> Result<String> {
     Ok(copied)
 }
 
-/// Synthesize `text` and play it aloud: Groq's neural voice for Latin-script
-/// (English) text, or the bundled offline eSpeak NG engine for other scripts
-/// (e.g. Bangla) that Groq's Orpheus voice doesn't cover. Blocks until
-/// playback finishes naturally or is stopped via `Speaker::stop`.
+/// Synthesize `text` locally with Kokoro and play it aloud. Blocks until
+/// playback finishes naturally or is stopped via `Speaker::stop`. Kokoro is
+/// English/Latin-script only — non-Latin text (e.g. Bangla) is rejected with
+/// a clear error rather than silently producing garbled audio, per the
+/// product decision to drop the eSpeak NG fallback for this feature.
 pub fn speak(app: &tauri::AppHandle, speaker: &Arc<Speaker>, text: &str) -> Result<()> {
     let t0 = std::time::Instant::now();
-    let audio = if crate::espeak::needs_espeak(text) {
-        // Offline, no API key, no quota — not tracked in usage.
-        eprintln!("speak: non-Latin script detected, using eSpeak NG for {} chars", text.trim().len());
-        crate::espeak::speak(app, text)?
-    } else {
-        let key = crate::keychain::get(crate::keychain::Purpose::Speak)
-            .ok_or_else(|| anyhow!("Speak-aloud Groq API key required — set it in Settings"))?;
-        eprintln!("speak: requesting Groq TTS for {} chars", text.trim().len());
-        let audio = crate::groq::speak(text, &key)?;
-        crate::usage::record_ok(app, crate::usage::Purpose::SpeakAloud, 0.0, 0.0);
-        audio
-    };
+    if crate::kokoro::needs_unsupported_language(text) {
+        return Err(anyhow!(
+            "Kokoro only supports English/Latin-script text — this selection isn't in a supported language"
+        ));
+    }
+    let cfg = crate::settings::load(app);
+    eprintln!("speak: synthesizing {} chars with Kokoro", text.trim().len());
+    let audio = crate::kokoro::speak(app, text, &cfg.tts_voice, cfg.tts_speed)?;
     eprintln!("speak: synthesis responded after {:?}", t0.elapsed());
     play_and_wait(app, speaker, audio)
 }

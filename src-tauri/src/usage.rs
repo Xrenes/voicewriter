@@ -1,10 +1,11 @@
-//! Local usage counters, tracked separately per API key/purpose since each
-//! has its own quota and unit: Groq dictation (requests + audio-seconds per
-//! day), Groq speak-aloud/Orpheus TTS (requests per day — a much lower cap
-//! than dictation), and ElevenLabs (characters per month). None of these
-//! providers expose a usage API, so these are local, best-effort estimates
-//! that may drift if a provider changes its published limits — not account
-//! billing.
+//! Local usage counters, tracked separately per purpose since each has its
+//! own quota and unit: Groq dictation (requests + audio-seconds per day) and
+//! the Groq "AI" vision wedge (requests per day). Neither provider exposes a
+//! usage API, so these are local, best-effort estimates that may drift if
+//! Groq changes its published limits — not account billing.
+//!
+//! "Speak selected text" (`Purpose::SpeakAloud`) is tracked too, but purely
+//! for error history — Kokoro TTS is local and free, so it has no quota/cap.
 
 use once_cell::sync::Lazy;
 use parking_lot::Mutex;
@@ -21,34 +22,31 @@ const KEY: &str = "usage";
 pub enum Purpose {
     /// Mic dictation transcription via Groq Whisper.
     Dictation,
-    /// "Speak selected text aloud" via Groq's Orpheus TTS.
+    /// "Speak selected text aloud" via Kokoro (local, no quota — tracked for
+    /// error history only).
     SpeakAloud,
-    /// The refine wheel's Bangla speech via ElevenLabs.
-    ElevenLabs,
     /// The "AI" chat wedge's screenshot/photo Q&A via Groq's vision model.
     Vision,
 }
 
-/// Free-tier limits per provider/purpose, from each vendor's own docs
-/// (verified 2026-09; may drift — see module doc comment). `Requests` and
-/// `AudioSecs` reset daily; `Characters` resets monthly (calendar month).
+/// Free-tier limits per provider/purpose, from Groq's own docs (verified
+/// 2026-09; may drift — see module doc comment). Resets daily.
 #[derive(Debug, Clone, Copy)]
 enum Cap {
     /// (requests/day, audio-seconds/day) — Groq Whisper dictation.
     RequestsAndAudioPerDay(f64, f64),
-    /// requests/day — Groq Orpheus TTS (console.groq.com/docs/rate-limits:
-    /// RPD: 100, far lower than Whisper's 2,000).
+    /// requests/day — Groq's vision model.
     RequestsPerDay(f64),
-    /// characters/month — ElevenLabs free tier (~10,000 credits ≈ characters).
-    CharactersPerMonth(f64),
+    /// No quota (a local/offline engine) — usage is still counted, but
+    /// there's nothing to show a percentage-of-cap against.
+    Unlimited,
 }
 
 impl Purpose {
     fn cap(self) -> Cap {
         match self {
             Purpose::Dictation => Cap::RequestsAndAudioPerDay(2_000.0, 28_800.0),
-            Purpose::SpeakAloud => Cap::RequestsPerDay(100.0),
-            Purpose::ElevenLabs => Cap::CharactersPerMonth(10_000.0),
+            Purpose::SpeakAloud => Cap::Unlimited,
             // Vision model is qwen/qwen3.6-27b (see vision.rs — the prior
             // Llama 4 Scout/Maverick vision models were deprecated by Groq).
             // Exact free-tier RPD for this model wasn't confirmed from Groq's
@@ -63,7 +61,6 @@ impl Purpose {
         match self {
             Purpose::Dictation => "dictation",
             Purpose::SpeakAloud => "speakAloud",
-            Purpose::ElevenLabs => "elevenLabs",
             Purpose::Vision => "vision",
         }
     }
@@ -114,11 +111,6 @@ fn today_str() -> String {
     format!("{:04}-{:02}-{:02}", dt.year(), dt.month() as u8, dt.day())
 }
 
-fn this_month_str() -> String {
-    let dt = time::OffsetDateTime::now_utc();
-    format!("{:04}-{:02}", dt.year(), dt.month() as u8)
-}
-
 fn now_str() -> String {
     let dt = time::OffsetDateTime::now_utc();
     format!(
@@ -131,11 +123,8 @@ fn now_str() -> String {
     )
 }
 
-fn current_period(purpose: Purpose) -> String {
-    match purpose.cap() {
-        Cap::CharactersPerMonth(_) => this_month_str(),
-        _ => today_str(),
-    }
+fn current_period(_purpose: Purpose) -> String {
+    today_str()
 }
 
 fn roll_over(purpose: Purpose, u: &mut PurposeUsage) {
@@ -155,7 +144,7 @@ pub fn load(app: &AppHandle<Wry>) {
     if let Ok(store) = app.store(STORE_FILE) {
         if let Some(v) = store.get(KEY) {
             if let Ok(map) = serde_json::from_value::<std::collections::HashMap<String, PurposeUsage>>(v) {
-                for purpose in [Purpose::Dictation, Purpose::SpeakAloud, Purpose::ElevenLabs, Purpose::Vision] {
+                for purpose in [Purpose::Dictation, Purpose::SpeakAloud, Purpose::Vision] {
                     if let Some(mut u) = map.get(purpose.storage_key()).cloned() {
                         roll_over(purpose, &mut u);
                         rt.by_purpose.insert(purpose.storage_key(), u);
@@ -242,9 +231,7 @@ pub fn snapshot(purpose: Purpose) -> UsageSnapshot {
         Cap::RequestsPerDay(cap) => {
             ("requests today".to_string(), u.period_requests as f64, cap)
         }
-        Cap::CharactersPerMonth(cap) => {
-            ("characters this month".to_string(), u.period_characters, cap)
-        }
+        Cap::Unlimited => ("requests today".to_string(), u.period_requests as f64, 0.0),
     };
 
     let pct = if period_cap > 0.0 {
@@ -285,18 +272,7 @@ mod tests {
     }
 
     #[test]
-    fn speak_aloud_cap_is_much_lower_than_dictation() {
-        let Cap::RequestsPerDay(cap) = Purpose::SpeakAloud.cap() else {
-            panic!("wrong cap variant");
-        };
-        assert_eq!(cap, 100.0);
-    }
-
-    #[test]
-    fn elevenlabs_tracks_characters_not_requests() {
-        let Cap::CharactersPerMonth(cap) = Purpose::ElevenLabs.cap() else {
-            panic!("wrong cap variant");
-        };
-        assert_eq!(cap, 10_000.0);
+    fn speak_aloud_has_no_quota_cap() {
+        assert!(matches!(Purpose::SpeakAloud.cap(), Cap::Unlimited));
     }
 }

@@ -308,6 +308,40 @@ button.ghost:hover {
   background: var(--rec);
 }
 
+/* --- Voice Models (Settings) --- */
+.voice-model-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.voice-model-row {
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius);
+  padding: 8px 10px;
+}
+.voice-model-row .row {
+  gap: 10px;
+}
+.voice-model-name {
+  color: var(--text);
+  font-weight: 600;
+}
+.voice-model-size {
+  color: var(--muted);
+  font-size: 11.5px;
+  margin-left: 6px;
+}
+.voice-model-row.active {
+  border-color: var(--accent);
+}
+.voice-model-progress {
+  margin-top: 6px;
+}
+input[type="range"] {
+  flex: 1;
+  accent-color: var(--accent);
+}
+
 .check {
   display: flex;
   align-items: center;

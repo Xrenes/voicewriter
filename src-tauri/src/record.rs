@@ -48,7 +48,7 @@ pub fn save_wav(samples: &[f32], path: &Path) -> Result<()> {
     if samples.is_empty() {
         return Err(anyhow!("no audio recorded"));
     }
-    let wav = crate::groq::encode_wav_16k_mono(samples)?;
+    let wav = crate::wav::encode_wav_16k_mono(samples)?;
     std::fs::write(path, wav).context("write recording audio file")?;
     Ok(())
 }
@@ -119,11 +119,11 @@ pub fn transcribe_call_and_save(
 
     // Mix the raw waveforms (not the already-read WAV container bytes) into
     // one combined audio file at the final destination.
-    let mic_samples = crate::groq::decode_wav_16k_mono(&mic_wav)?;
+    let mic_samples = crate::wav::decode_wav_16k_mono(&mic_wav)?;
     let mixed = match loopback_wav_path {
         Some(p) => {
             let wav = std::fs::read(p).context("read system-audio file")?;
-            let loopback_samples = crate::groq::decode_wav_16k_mono(&wav)?;
+            let loopback_samples = crate::wav::decode_wav_16k_mono(&wav)?;
             mix_samples(&mic_samples, &loopback_samples)
         }
         None => mic_samples,

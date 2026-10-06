@@ -41,7 +41,7 @@ pub struct Settings {
     pub loopback_device: String,
     /// Language code, e.g. "en". "auto" lets the engine detect.
     pub language: String,
-    /// Local whisper.cpp model id, e.g. "base.en", "small.en", "medium".
+    /// Local whisper.cpp model id: "whisper-tiny" | "whisper-base" | "whisper-small".
     pub model: String,
     /// Run the transcript through a Groq LLM cleanup pass (grammar, punctuation,
     /// filler removal) before typing. Falls back to local rules when unavailable.
@@ -50,10 +50,12 @@ pub struct Settings {
     /// Run with no tray icon at all. Settings is then reachable only via
     /// `voicewriter --settings` (or launching the app again).
     pub hide_tray: bool,
-    /// ElevenLabs voice id used to speak wheel translations aloud in
-    /// languages Groq's Orpheus TTS doesn't cover. Empty = fall back to the
-    /// offline (robotic) eSpeak NG engine instead.
-    pub elevenlabs_voice_id: String,
+    /// Kokoro voice id (e.g. "af_heart") used by "speak selected text" and
+    /// the wheel's spoken translations. Empty = a sane built-in default (see
+    /// `kokoro.rs::DEFAULT_VOICE`).
+    pub tts_voice: String,
+    /// Kokoro speech rate multiplier. 1.0 = normal.
+    pub tts_speed: f32,
     /// One-time consent for the "Find"/"AI" wedges' camera and screen
     /// capture, asked via a custom in-app dialog (see `ai_chat.rs`) rather
     /// than relying on Windows' own per-API prompts. Reset this to `false`
@@ -87,11 +89,12 @@ impl Default for Settings {
             mic_device: String::new(),
             loopback_device: String::new(),
             language: "en".to_string(),
-            model: "base.en".to_string(),
+            model: "whisper-base".to_string(),
             polish: true,
             autostart: false,
             hide_tray: false,
-            elevenlabs_voice_id: String::new(),
+            tts_voice: String::new(),
+            tts_speed: 1.0,
             capture_permission_granted: false,
             vision_model: String::new(),
             web_default_url: String::new(),

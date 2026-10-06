@@ -7,7 +7,7 @@ use std::path::Path;
 use tauri::{AppHandle, Wry};
 
 use crate::settings::Settings;
-use crate::{format, groq, keychain, model, transcribe, usage};
+use crate::{format, groq, keychain, model, transcribe, usage, wav};
 
 /// How a raw transcript should be cleaned up before typing. Pure decision
 /// logic, split out so it can be exhaustively tested.
@@ -183,7 +183,7 @@ fn finish(app: &AppHandle<Wry>, cfg: &Settings, raw: String, engine: &'static st
 }
 
 fn try_groq(key: &str, cfg: &Settings, samples: &[f32]) -> Result<String> {
-    let wav = groq::encode_wav_16k_mono(samples)?;
+    let wav = wav::encode_wav_16k_mono(samples)?;
     groq::transcribe(wav, key, &cfg.groq_model, &cfg.language)
 }
 
@@ -193,9 +193,25 @@ fn try_local(
     cfg: &Settings,
     samples: &[f32],
 ) -> Result<String> {
-    let path: std::path::PathBuf = model::model_path(app, &cfg.model)?;
+    // Prefer the selected model; if it isn't downloaded, use any Whisper model
+    // that is, so dictation works without an exact settings match.
+    let mut path: std::path::PathBuf = model::model_path(app, &cfg.model)?;
+    if !path.exists() {
+        for alt in ["whisper-base", "whisper-small", "whisper-tiny"] {
+            let p = model::model_path(app, alt)?;
+            if p.exists() {
+                eprintln!("local: {} not downloaded, using {alt}", cfg.model);
+                path = p;
+                break;
+            }
+        }
+    }
     let p: &Path = &path;
-    engine_lock.lock().transcribe(p, samples, &cfg.language)
+    let res = engine_lock.lock().transcribe(p, samples, &cfg.language);
+    if let Err(e) = &res {
+        eprintln!("local transcription failed: {e}");
+    }
+    res
 }
 
 // ===========================================================================
