@@ -64,7 +64,7 @@
       <a href="#get" class="btn btn-accent btn-lg">Download for Windows</a>
       <a href="#wheel" class="btn btn-ghost btn-lg">See the refine wheel</a>
     </div>
-    <p class="hero-meta">Free · Windows 10 / 11, 64-bit · <span class="mono">v0.5.2</span></p>
+    <p class="hero-meta">Free · Windows 10 / 11, 64-bit · <span class="mono">v5.5.0</span></p>
 
     <!-- Signature animated centerpiece: waveform → typed line -->
     <div class="stage" aria-hidden="true">
@@ -171,26 +171,27 @@
   <!-- TRANSLATE + SPEECH -->
   <section id="speech" class="slab wrap">
     <div class="slab-head">
-      <h2>Translations that can talk back.</h2>
-      <p>English and Bangla translations are spoken aloud automatically after they appear — using the TTS engine best suited to each language.</p>
+      <p class="eyebrow">New in 5.5</p>
+      <h2>Offline voice models, on your PC.</h2>
+      <p>Speech and (optionally) dictation now run locally. Nothing is bundled with the installer — download only the models you want from <strong>Settings → Voice Models</strong>, and they work fully offline after that.</p>
     </div>
 
     <div class="cards">
       <article class="card">
-        <h3>Natural Bangla speech</h3>
-        <p>Bangla translations are voiced through ElevenLabs' multilingual model — natural-sounding, not robotic. Works on ElevenLabs' free tier, no credit card required.</p>
+        <h3>Kokoro 82M speech</h3>
+        <p>Speak-selection and English translations are voiced by Kokoro 82M, a small, natural-sounding open model that runs on your CPU. Pick from several voices and set the speed. One download, about 190&nbsp;MB.</p>
       </article>
       <article class="card">
-        <h3>English speech via Groq</h3>
-        <p>English translations and the standalone "speak selected text" hotkey use Groq's Orpheus text-to-speech model — fast and free within Groq's published quota.</p>
+        <h3>Offline dictation with Whisper</h3>
+        <p>Choose Whisper Tiny (~75&nbsp;MB), Base (~142&nbsp;MB) or Small (~466&nbsp;MB) and set the Transcription Engine to <strong>Local only</strong> — your voice never leaves your PC. Or keep Groq for speed with local as a fallback.</p>
       </article>
       <article class="card">
-        <h3>Spanish &amp; Italian, text-only</h3>
-        <p>These translations appear instantly in the preview panel and copy to your clipboard, same as Refine — no speech, no extra API calls.</p>
+        <h3>Manage everything in one place</h3>
+        <p>Voice Models shows each model's size, download progress, installed status and total storage used. Delete any model in one click to free the space.</p>
       </article>
       <article class="card">
-        <h3>Offline speech, too</h3>
-        <p>The standalone speak-aloud hotkey falls back to eSpeak&nbsp;NG — a free, open-source, fully offline voice — for scripts and languages Groq doesn't cover.</p>
+        <h3>Bangla, Spanish &amp; Italian, text-only</h3>
+        <p>These translations appear instantly in the preview panel and copy to your clipboard. Kokoro speaks English, so only English translations are read aloud.</p>
       </article>
     </div>
   </section>
@@ -281,26 +282,17 @@
   <section id="keys" class="slab wrap">
     <div class="slab-head">
       <h2>Getting your API keys</h2>
-      <p>VoiceWriter runs on your own free API keys — nothing is billed through the app, and both providers below have a free tier with no credit card required. Settings also has its own built-in step-by-step guide, with the same links, for every feature.</p>
+      <p>Online features run on your own free Groq API key — nothing is billed through the app, and Groq has a free tier with no credit card required. Speech and local dictation need no key at all. Settings also has its own built-in step-by-step guide.</p>
     </div>
 
     <div class="cards keys-cards">
       <article class="card key-card">
-        <h3>Groq — dictation, refine, translate, speech, AI chat, call recording</h3>
-        <p>Used for Whisper transcription, the refine/translate wheel actions, Orpheus text-to-speech, the AI chat wedge, and call-recording transcription. Dictation, speak-aloud, and AI chat each have their own key slot in Settings — you can reuse one key everywhere, or use separate Groq accounts.</p>
+        <h3>Groq — fast dictation, refine, translate, AI chat, call recording</h3>
+        <p>Used for cloud Whisper transcription, the refine/translate wheel actions, the AI chat wedge, and call-recording transcription. Dictation and AI chat each have their own key slot in Settings — reuse one key, or use separate Groq accounts.</p>
         <ol class="flow flow-compact">
           <li><span class="n">1</span><p>Create a free account at <a href="https://console.groq.com" target="_blank" rel="noopener">console.groq.com</a>.</p></li>
           <li><span class="n">2</span><p>Open <a href="https://console.groq.com/keys" target="_blank" rel="noopener">console.groq.com/keys</a> and click <strong>Create API Key</strong>.</p></li>
           <li><span class="n">3</span><p>Copy the key (starts with <span class="mono">gsk_</span>) and paste it into the matching key field in VoiceWriter's Settings.</p></li>
-        </ol>
-      </article>
-      <article class="card key-card">
-        <h3>ElevenLabs — natural Bangla speech</h3>
-        <p>Used only for voicing Bangla translations in the wheel. Optional if you don't need spoken Bangla.</p>
-        <ol class="flow flow-compact">
-          <li><span class="n">1</span><p>Sign up free at <a href="https://elevenlabs.io/sign-up" target="_blank" rel="noopener">elevenlabs.io/sign-up</a> — no credit card required.</p></li>
-          <li><span class="n">2</span><p>Open <a href="https://elevenlabs.io/app/settings/api-keys" target="_blank" rel="noopener">elevenlabs.io/app/settings/api-keys</a> and generate a key.</p></li>
-          <li><span class="n">3</span><p>Make sure the key has <span class="mono">text_to_speech</span> and <span class="mono">voices_read</span> permissions enabled, then paste it into VoiceWriter's tray settings.</p></li>
         </ol>
       </article>
     </div>
@@ -308,7 +300,7 @@
     <div class="cards">
       <article class="card">
         <h3>Per-key usage meters</h3>
-        <p>Settings shows a live usage bar for each key — Groq dictation, Groq speech, and ElevenLabs — tracked separately against each provider's real published free-tier limits, so you always know how much headroom is left.</p>
+        <p>Settings shows a live usage bar for Groq dictation and AI chat, tracked against Groq's published free-tier limits, so you always know how much headroom is left.</p>
       </article>
     </div>
   </section>
@@ -321,22 +313,22 @@
         <h2>VoiceWriter for Windows &amp; Linux</h2>
         <p class="get-lead">Pick your platform below. The local model is fetched later from inside the app if you want offline mode.</p>
 
-        <a href="https://github.com/Xrenes/voicewriter/releases/latest/download/VoiceWriter_0.5.2_x64-setup.exe"
+        <a href="https://github.com/Xrenes/voicewriter/releases/latest/download/VoiceWriter_5.5.0_x64-setup.exe"
            class="btn btn-accent btn-lg get-btn" id="dlExe">
           Installer · .exe<span class="sz mono" id="exeSize"></span>
         </a>
-        <a href="https://github.com/Xrenes/voicewriter/releases/latest/download/VoiceWriter_0.5.2_x64_en-US.msi"
+        <a href="https://github.com/Xrenes/voicewriter/releases/latest/download/VoiceWriter_5.5.0_x64_en-US.msi"
            class="btn btn-lg get-btn get-btn-alt" id="dlMsi">
           MSI · for managed installs<span class="sz mono" id="msiSize"></span>
         </a>
 
         <p class="get-links">
           <strong>Linux</strong> (Ubuntu 22.04+, Debian 12+, Mint 21+):
-          <a href="https://github.com/Xrenes/voicewriter/releases/latest/download/VoiceWriter_0.5.2_amd64.deb">.deb</a>
+          <a href="https://github.com/Xrenes/voicewriter/releases/latest/download/VoiceWriter_5.5.0_amd64.deb">.deb</a>
           ·
-          <a href="https://github.com/Xrenes/voicewriter/releases/latest/download/VoiceWriter_0.5.2_amd64.AppImage">AppImage</a>
+          <a href="https://github.com/Xrenes/voicewriter/releases/latest/download/VoiceWriter_5.5.0_amd64.AppImage">AppImage</a>
           ·
-          <a href="https://github.com/Xrenes/voicewriter/releases/latest/download/VoiceWriter-0.5.2-1.x86_64.rpm">.rpm</a>
+          <a href="https://github.com/Xrenes/voicewriter/releases/latest/download/VoiceWriter-5.5.0-1.x86_64.rpm">.rpm</a>
         </p>
         <p class="get-links">
           <a href="https://github.com/Xrenes/voicewriter/releases" id="relLink">All releases</a>
@@ -348,25 +340,25 @@
       <aside class="get-side">
         <p><strong>First launch:</strong> Windows may show “Windows protected your PC” — the app isn't signed yet. Click <strong>More info › Run anyway</strong>.</p>
         <p><strong>Hotkeys:</strong> <span class="k">Alt</span><span class="k">C</span> dictate English · <span class="k">Alt</span><span class="k">X</span> dictate Bangla · <span class="k">Shift</span><span class="k">Alt</span><span class="k">C</span> refine wheel · <span class="k">Ctrl</span><span class="k">Alt</span><span class="k">C</span> speak selection aloud · <span class="k">Alt</span><span class="k">W</span> mini browser. All rebindable in settings.</p>
-        <p><strong>Offline?</strong> Dictation, yes — with a local model, nothing leaves your PC. Refine/translate/speech features need an internet connection. <strong>Mac?</strong> Not yet.</p>
+        <p><strong>Offline?</strong> Yes for dictation and speech — download Whisper and Kokoro in Settings → Voice Models and nothing leaves your PC. Refine, translate and AI chat need an internet connection. <strong>Mac?</strong> Not yet.</p>
       </aside>
     </div>
 
     <div class="setup-steps">
       <p class="setup-steps-head"><strong>Set up your API keys</strong> — open the tray (▲ near the clock), click the VoiceWriter icon to open Settings, then:</p>
       <ol class="flow flow-compact">
-        <li><span class="n">1</span><p><strong>Groq</strong> (required — dictation, refine, translate, English speech): create a free key at <a href="https://console.groq.com/keys" target="_blank" rel="noopener">console.groq.com/keys</a> and paste it into the Dictation key field.</p></li>
-        <li><span class="n">2</span><p><strong>ElevenLabs</strong> (optional — natural Bangla speech): sign up free at <a href="https://elevenlabs.io/sign-up" target="_blank" rel="noopener">elevenlabs.io/sign-up</a>, generate a key at <a href="https://elevenlabs.io/app/settings/api-keys" target="_blank" rel="noopener">elevenlabs.io/app/settings/api-keys</a> with <span class="mono">text_to_speech</span> + <span class="mono">voices_read</span> permissions, and paste it into the ElevenLabs key field.</p></li>
-        <li><span class="n">3</span><p>No credit card needed for either. Full walkthrough and troubleshooting: <a href="#keys">API keys</a> section below.</p></li>
+        <li><span class="n">1</span><p><strong>Groq</strong> (for cloud dictation, refine, translate, AI chat): create a free key at <a href="https://console.groq.com/keys" target="_blank" rel="noopener">console.groq.com/keys</a> and paste it into the Dictation key field. No credit card needed.</p></li>
+        <li><span class="n">2</span><p><strong>Voice Models</strong> (offline speech and dictation): open Settings → Voice Models, download <strong>Kokoro 82M</strong> for speak-aloud and a <strong>Whisper</strong> model for offline dictation, then pick the engine under Transcription Engine.</p></li>
+        <li><span class="n">3</span><p>Full walkthrough: <a href="#keys">API keys</a> section below.</p></li>
       </ol>
     </div>
 
     <div class="setup-steps" id="linux">
       <p class="setup-steps-head"><strong>Installing on Linux</strong> — Ubuntu 22.04 or newer, Debian 12+, Linux Mint 21+, Fedora and other recent distros (64-bit). Ubuntu 20.04 and older aren't supported.</p>
       <ol class="flow flow-compact">
-        <li><span class="n">1</span><p><strong>Ubuntu / Debian / Mint:</strong> download the <span class="mono">.deb</span>, then in a terminal: <span class="mono">sudo apt install ./VoiceWriter_0.5.2_amd64.deb</span></p></li>
-        <li><span class="n">2</span><p><strong>Fedora / openSUSE:</strong> download the <span class="mono">.rpm</span>, then: <span class="mono">sudo dnf install ./VoiceWriter-0.5.2-1.x86_64.rpm</span></p></li>
-        <li><span class="n">3</span><p><strong>Any distro, no install:</strong> download the AppImage, make it executable with <span class="mono">chmod +x VoiceWriter_0.5.2_amd64.AppImage</span>, then run <span class="mono">./VoiceWriter_0.5.2_amd64.AppImage</span></p></li>
+        <li><span class="n">1</span><p><strong>Ubuntu / Debian / Mint:</strong> download the <span class="mono">.deb</span>, then in a terminal: <span class="mono">sudo apt install ./VoiceWriter_5.5.0_amd64.deb</span></p></li>
+        <li><span class="n">2</span><p><strong>Fedora / openSUSE:</strong> download the <span class="mono">.rpm</span>, then: <span class="mono">sudo dnf install ./VoiceWriter-5.5.0-1.x86_64.rpm</span></p></li>
+        <li><span class="n">3</span><p><strong>Any distro, no install:</strong> download the AppImage, make it executable with <span class="mono">chmod +x VoiceWriter_5.5.0_amd64.AppImage</span>, then run <span class="mono">./VoiceWriter_5.5.0_amd64.AppImage</span></p></li>
         <li><span class="n">4</span><p><strong>Start it:</strong> search “VoiceWriter” in your app launcher, or run <span class="mono">voicewriter &amp;</span> in a terminal. It runs in the background with an icon in the top bar — click it and choose <strong>Open settings</strong> to add your API keys. On plain GNOME (Fedora, Debian), install the “AppIndicator and KStatusNotifierItem Support” extension to see the icon.</p></li>
         <li><span class="n">5</span><p><strong>Hotkeys on X11</strong> work exactly like on Windows. <strong>On Wayland</strong> (the default on recent Ubuntu — check with <span class="mono">echo $XDG_SESSION_TYPE</span>), apps can't register global hotkeys, so add your own in Settings → Keyboard → Custom Shortcuts using the commands below. For typing text into Wayland apps, also install <span class="mono">wtype</span> or <span class="mono">ydotool</span>.</p></li>
       </ol>
@@ -387,27 +379,16 @@
 
     <div class="cards">
       <article class="card">
-        <h3>Speak-aloud test fails: “requires terms acceptance”</h3>
-        <p>
-          If testing your Speak-aloud key in Settings returns an error like
-          <span class="mono">Groq speech 400: The model 'canopylabs/orpheus-v1-english' requires terms acceptance</span>,
-          this is a one-time approval Groq requires on their side — it isn't a VoiceWriter bug and no app setting fixes it.
-        </p>
-        <ol class="flow flow-compact">
-          <li><span class="n">1</span><p>Sign in at <a href="https://console.groq.com" target="_blank" rel="noopener">console.groq.com</a> using the same account that owns the API key you pasted into VoiceWriter.</p></li>
-          <li><span class="n">2</span><p>Open the model's Playground page directly: <a href="https://console.groq.com/playground?model=canopylabs%2Forpheus-v1-english" target="_blank" rel="noopener">console.groq.com/playground?model=canopylabs%2Forpheus-v1-english</a></p></li>
-          <li><span class="n">3</span><p>Accept the terms prompt shown for that model. This approval is org-wide, not per-key.</p></li>
-          <li><span class="n">4</span><p>If you don't see an accept option, your account is likely a Member rather than an Owner/Admin of that Groq organization. Ask your org's Owner/Admin to open the same link and accept — one acceptance covers everyone using keys under that org.</p></li>
-          <li><span class="n">5</span><p>Back in VoiceWriter, open Settings and click <strong>Test</strong> next to the Speak-aloud key again to confirm it now works.</p></li>
-        </ol>
+        <h3>Offline dictation isn't transcribing</h3>
+        <p>Open Settings → Transcription Engine and set it to <strong>Local only</strong>, then make sure the Whisper model you picked shows as installed in Settings → Voice Models. If the chosen model isn't downloaded, VoiceWriter uses any other Whisper model you have.</p>
       </article>
       <article class="card">
-        <h3>ElevenLabs key fails with 402 “Free users cannot use library voices”</h3>
-        <p>Your selected voice is a paid Voice Library ("professional") voice. Pick one of ElevenLabs' default "premade" voices instead — those work on the free tier. VoiceWriter's settings include a "list available voices" debug button that shows which of your voices are free-tier eligible.</p>
+        <h3>Speak-aloud says nothing</h3>
+        <p>Download <strong>Kokoro 82M</strong> in Settings → Voice Models, then press <strong>Preview</strong> to test the voice. Kokoro speaks English only — Bangla text is not read aloud.</p>
       </article>
       <article class="card">
-        <h3>ElevenLabs key fails with 401 “missing the permission voices_read”</h3>
-        <p>Regenerate your key at <a href="https://elevenlabs.io/app/settings/api-keys" target="_blank" rel="noopener">elevenlabs.io/app/settings/api-keys</a> and make sure both <span class="mono">text_to_speech</span> and <span class="mono">voices_read</span> permissions are enabled before saving it in VoiceWriter.</p>
+        <h3>Upgrading from 0.5.x</h3>
+        <p>ElevenLabs and Groq speech were removed. Your Groq key still works for dictation and AI chat; speech now comes from the free offline Kokoro model.</p>
       </article>
     </div>
   </section>
@@ -416,7 +397,7 @@
 <footer class="site-footer">
   <div class="wrap footer-inner">
     <span class="footer-brand"><img src="assets/icon.png" alt="" width="22" height="22" /> VoiceWriter</span>
-    <span class="footer-note"><span class="mono">v0.5.2</span> · not affiliated with Groq, ElevenLabs, or OpenAI</span>
+    <span class="footer-note"><span class="mono">v5.5.0</span> · not affiliated with Groq or OpenAI</span>
     <a href="https://github.com/Xrenes/voicewriter">GitHub</a>
   </div>
 </footer>
