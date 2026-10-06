@@ -219,6 +219,29 @@ fn load_voices(path: &std::path::Path) -> Result<HashMap<String, VoiceTable>> {
 /// text" calls don't reload the ~163 MB model file each time. Lazily
 /// initialized on first use (not at app startup), since most users may never
 /// touch TTS in a given session.
+/// Linux loads ONNX Runtime at run time from the copy bundled with the app:
+/// `ort`'s prebuilt static library needs glibc 2.38, newer than the oldest
+/// Ubuntu we support. Microsoft's official build runs on much older systems.
+#[cfg(target_os = "linux")]
+fn init_runtime(app: &AppHandle<Wry>) -> Result<()> {
+    use std::sync::OnceLock;
+    use tauri::Manager;
+    static INIT: OnceLock<std::result::Result<(), String>> = OnceLock::new();
+    INIT.get_or_init(|| {
+        let lib = app
+            .path()
+            .resource_dir()
+            .map_err(|e| e.to_string())?
+            .join("libonnxruntime.so");
+        let _ = ort::init_from(&lib)
+            .map_err(|e| format!("load ONNX Runtime {}: {e}", lib.display()))?
+            .commit();
+        Ok(())
+    })
+    .clone()
+    .map_err(|e| anyhow!(e))
+}
+
 pub struct Kokoro {
     session: Mutex<Session>,
     voices: HashMap<String, VoiceTable>,
@@ -232,6 +255,8 @@ impl Kokoro {
                 "Kokoro voice model not downloaded — add it in Settings → Voice Models"
             ));
         }
+        #[cfg(target_os = "linux")]
+        init_runtime(app)?;
         let session = Session::builder()
             .context("create ONNX session builder")?
             .commit_from_file(&model_path)

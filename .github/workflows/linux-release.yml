@@ -46,6 +46,12 @@ jobs:
       - name: Install npm dependencies
         run: npm ci
 
+      - name: Fetch ONNX Runtime (glibc 2.28+, bundled with the app)
+        run: |
+          curl -sSL https://github.com/microsoft/onnxruntime/releases/download/v1.22.0/onnxruntime-linux-x64-1.22.0.tgz | tar xz
+          mkdir -p src-tauri/onnxruntime-linux
+          cp onnxruntime-linux-x64-1.22.0/lib/libonnxruntime.so.1.22.0 src-tauri/onnxruntime-linux/libonnxruntime.so
+
       - name: Run tests
         working-directory: src-tauri
         run: cargo test

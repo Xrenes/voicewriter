@@ -48,7 +48,7 @@ whisper-rs = { version = "0.16", default-features = false }
 # Local text-to-speech (Kokoro-82M, ONNX Runtime inference). `ort` ships
 # prebuilt ONNX Runtime binaries for Windows/Linux/macOS — no source compile,
 # unlike the whisper-rs/libclang situation above.
-ort = { version = "2.0.0-rc.13", default-features = false, features = ["ndarray", "download-binaries", "tls-rustls", "std"] }
+ort = { version = "2.0.0-rc.13", default-features = false, features = ["ndarray", "std"] }
 # `ort`'s `ndarray` feature requires 0.17; `ndarray-npy` 0.9 (below) depends
 # on 0.16 internally and returns that version's array type from `by_name` —
 # the two are aliased separately (see kokoro.rs's `use ndarray016`) and
@@ -104,6 +104,8 @@ windows = { version = "0.58", features = [
     "Win32_System_LibraryLoader",
 ] }
 raw-window-handle = "0.6"
+# Windows links ONNX Runtime statically from ort's prebuilt binaries.
+ort = { version = "2.0.0-rc.13", default-features = false, features = ["download-binaries", "tls-rustls"] }
 
 # Webcam capture for the "Find" wedge's Camera option (Media Foundation
 # backend on Windows).
@@ -116,6 +118,8 @@ nokhwa = { version = "0.10.11", features = ["input-msmf"] }
 x11rb = "0.13"
 arboard = "3"
 nokhwa = { version = "0.10.11", features = ["input-v4l"] }
+# Linux loads the bundled libonnxruntime.so at run time (see kokoro::init_runtime).
+ort = { version = "2.0.0-rc.13", default-features = false, features = ["load-dynamic"] }
 
 [dev-dependencies]
 arboard = "3"
