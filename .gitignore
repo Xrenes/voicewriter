@@ -17,3 +17,4 @@ Thumbs.db
 
 # Claude Code local session/tooling state
 .claude/
+src-tauri/onnxruntime-linux/
