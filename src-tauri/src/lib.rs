@@ -9,12 +9,12 @@ mod ai_chat;
 mod audio;
 mod capture;
 mod dictation;
-mod elevenlabs;
 mod engine;
 mod espeak;
 mod events;
 mod format;
 mod groq;
+mod kokoro;
 #[cfg(windows)]
 mod hotkey_guard;
 mod keychain;
@@ -29,6 +29,7 @@ mod transcribe;
 mod typer;
 mod usage;
 mod vision;
+mod wav;
 mod web_browser;
 
 use std::path::PathBuf;
@@ -1024,7 +1025,7 @@ fn recording_audio_data(app: AppHandle<Wry>) -> Result<Vec<u8>, String> {
         e.to_string()
     })?;
     eprintln!("recording_audio_data: mic_wav bytes = {}", mic_wav.len());
-    let mic_samples = groq::decode_wav_16k_mono(&mic_wav).map_err(|e| {
+    let mic_samples = wav::decode_wav_16k_mono(&mic_wav).map_err(|e| {
         eprintln!("recording_audio_data: failed to decode mic wav: {e}");
         e.to_string()
     })?;
@@ -1032,13 +1033,13 @@ fn recording_audio_data(app: AppHandle<Wry>) -> Result<Vec<u8>, String> {
     let mixed = match loopback_path {
         Some(p) => {
             let wav = std::fs::read(&p).map_err(|e| e.to_string())?;
-            let loopback_samples = groq::decode_wav_16k_mono(&wav).map_err(|e| e.to_string())?;
+            let loopback_samples = wav::decode_wav_16k_mono(&wav).map_err(|e| e.to_string())?;
             eprintln!("recording_audio_data: loopback_samples = {}", loopback_samples.len());
             record::mix_samples(&mic_samples, &loopback_samples)
         }
         None => mic_samples,
     };
-    let out = groq::encode_wav_16k_mono(&mixed).map_err(|e| {
+    let out = wav::encode_wav_16k_mono(&mixed).map_err(|e| {
         eprintln!("recording_audio_data: failed to encode mixed wav: {e}");
         e.to_string()
     })?;
@@ -1146,45 +1147,24 @@ async fn confirm_recording(app: AppHandle<Wry>, name: String, folder: String) ->
     .map_err(|e| e.to_string())
 }
 
-/// Speak a just-translated result aloud in the background: Groq's neural
-/// voice for English, ElevenLabs' natural voice for Bangla. Only called for
-/// these two languages — see `Action::spoken_language`; Spanish/Italian are
-/// text-only in the wheel (eSpeak NG is reserved for the standalone "speak
-/// selected text" hotkey, not used here). Runs fire-and-forget — playback
-/// failures surface as a status error but never block or fail the wheel's
-/// own preview/copy result.
+/// Speak a just-translated result aloud in the background, via Kokoro
+/// (local, offline). Only ever called for English — see
+/// `Action::spoken_language`; Bangla/Spanish/Italian stay text-only in the
+/// wheel since Kokoro is English/Latin-script only. Runs fire-and-forget —
+/// playback failures surface as a status error but never block or fail the
+/// wheel's own preview/copy result.
 fn speak_translation(app: AppHandle<Wry>, text: String, lang: refine::Language) {
     std::thread::spawn(move || {
         eprintln!("wheel speak: lang={lang:?} chars={}", text.trim().len());
-
-        let is_elevenlabs = lang == refine::Language::Bangla;
-
-        let audio = if is_elevenlabs {
-            eprintln!("wheel speak: using ElevenLabs for Bangla");
-            let cfg = settings::load(&app);
-            keychain::get(keychain::Purpose::ElevenLabs)
-                .ok_or_else(|| anyhow::anyhow!("ElevenLabs API key required for Bangla speech — set it in Settings"))
-                .and_then(|key| {
-                    elevenlabs::speak(&text, &key, &cfg.elevenlabs_voice_id, lang.needs_elevenlabs_v3())
-                })
-        } else {
-            keychain::get(keychain::Purpose::Speak)
-                .ok_or_else(|| anyhow::anyhow!("Speak-aloud Groq API key required — set it in Settings"))
-                .and_then(|key| groq::speak(&text, &key))
-        };
-        let audio = match audio {
+        let cfg = settings::load(&app);
+        let audio = match kokoro::speak(&app, &text, &cfg.tts_voice, cfg.tts_speed) {
             Ok(a) => {
-                if is_elevenlabs {
-                    usage::record_ok(&app, usage::Purpose::ElevenLabs, 0.0, text.trim().chars().count() as f64);
-                } else {
-                    usage::record_ok(&app, usage::Purpose::SpeakAloud, 0.0, 0.0);
-                }
+                usage::record_ok(&app, usage::Purpose::SpeakAloud, 0.0, 0.0);
                 a
             }
             Err(e) => {
                 eprintln!("wheel speak: synthesis failed: {e}");
-                let purpose = if is_elevenlabs { usage::Purpose::ElevenLabs } else { usage::Purpose::SpeakAloud };
-                usage::record_err(&app, purpose, &format!("wheel speak: {e}"));
+                usage::record_err(&app, usage::Purpose::SpeakAloud, &format!("wheel speak: {e}"));
                 events::emit(&app, Status::Error, Some(e.to_string()));
                 return;
             }
@@ -1195,8 +1175,7 @@ fn speak_translation(app: AppHandle<Wry>, text: String, lang: refine::Language) 
         drop(state);
         if let Err(e) = speak::play_and_wait(&app, &speaker, audio) {
             eprintln!("wheel speak: playback failed: {e}");
-            let purpose = if is_elevenlabs { usage::Purpose::ElevenLabs } else { usage::Purpose::SpeakAloud };
-            usage::record_err(&app, purpose, &format!("wheel speak playback: {e}"));
+            usage::record_err(&app, usage::Purpose::SpeakAloud, &format!("wheel speak playback: {e}"));
             events::emit(&app, Status::Error, Some(e.to_string()));
             return;
         }
@@ -1620,7 +1599,7 @@ async fn chat_mic_stop(app: AppHandle<Wry>) -> Result<String, String> {
     let cfg = settings::load(&app);
 
     tauri::async_runtime::spawn_blocking(move || -> anyhow::Result<String> {
-        let wav = groq::encode_wav_16k_mono(&samples)?;
+        let wav = wav::encode_wav_16k_mono(&samples)?;
         groq::transcribe(wav, &key, &cfg.groq_model, "en")
     })
     .await
@@ -1729,17 +1708,57 @@ fn list_output_devices() -> Vec<String> {
     audio::list_output_devices()
 }
 
+/// Settings → Voice Models: the full catalogue (STT + TTS) with on-disk
+/// state, for the model list UI.
 #[tauri::command]
-fn model_state(app: AppHandle<Wry>, model: String) -> Result<model::ModelState, String> {
-    model::state(&app, &model).map_err(|e| e.to_string())
+fn list_voice_models(app: AppHandle<Wry>) -> Vec<model::ModelInfo> {
+    model::list(&app)
 }
 
 #[tauri::command]
-async fn download_model(app: AppHandle<Wry>, model: String) -> Result<(), String> {
-    tauri::async_runtime::spawn_blocking(move || model::download(&app, &model))
+fn voice_models_total_size(app: AppHandle<Wry>) -> String {
+    model::total_size_label(&app)
+}
+
+#[tauri::command]
+async fn download_voice_model(app: AppHandle<Wry>, model: String) -> Result<(), String> {
+    tauri::async_runtime::spawn_blocking(move || crate::model::download(&app, &model))
         .await
         .map_err(|e| e.to_string())?
         .map_err(|e| e.to_string())
+}
+
+/// Delete a downloaded model's files. If it's the Kokoro model, also drops
+/// the in-memory loaded engine so a stale session isn't reused.
+#[tauri::command]
+fn delete_voice_model(app: AppHandle<Wry>, model: String) -> Result<(), String> {
+    model::delete(&app, &model).map_err(|e| e.to_string())?;
+    if model == "kokoro-82m" {
+        kokoro::unload();
+    }
+    Ok(())
+}
+
+/// The Settings → Voice Models TTS voice picker.
+#[tauri::command]
+fn list_tts_voices() -> Vec<(&'static str, &'static str)> {
+    kokoro::VOICES.to_vec()
+}
+
+/// Synthesize and play a short sample with `voice`, so Settings can offer a
+/// "preview" button without requiring a text selection first.
+#[tauri::command]
+async fn test_tts_voice(app: AppHandle<Wry>, voice: String) -> Result<(), String> {
+    let state: State<AppState> = app.state();
+    let speaker = state.speaker.clone();
+    drop(state);
+    tauri::async_runtime::spawn_blocking(move || {
+        let audio = kokoro::speak(&app, "This is what this voice sounds like.", &voice, 1.0)
+            .map_err(|e| e.to_string())?;
+        speak::play_and_wait(&app, &speaker, audio).map_err(|e| e.to_string())
+    })
+    .await
+    .map_err(|e| e.to_string())?
 }
 
 #[tauri::command]
@@ -1780,41 +1799,6 @@ fn clear_groq_key() -> Result<(), String> {
 }
 
 #[tauri::command]
-fn speak_key_status() -> keychain::KeyStatus {
-    keychain::status(keychain::Purpose::Speak)
-}
-
-#[tauri::command]
-fn set_speak_key(key: String) -> Result<(), String> {
-    let k = key.trim();
-    if !keychain::looks_valid(k) {
-        return Err("that does not look like a Groq key (expected gsk_…)".into());
-    }
-    keychain::set(keychain::Purpose::Speak, k).map_err(|e| e.to_string())
-}
-
-#[tauri::command]
-fn clear_speak_key() -> Result<(), String> {
-    keychain::clear(keychain::Purpose::Speak).map_err(|e| e.to_string())
-}
-
-/// Verify the speak-aloud key works by synthesizing a short test phrase.
-#[tauri::command]
-async fn test_speak_key() -> Result<String, String> {
-    tauri::async_runtime::spawn_blocking(|| {
-        let Some(key) = keychain::get(keychain::Purpose::Speak) else {
-            return Err("no key stored".to_string());
-        };
-        match groq::speak("This is a test.", &key) {
-            Ok(_) => Ok("Key OK — speech synthesis works".to_string()),
-            Err(e) => Err(format!("speech synthesis failed: {e}")),
-        }
-    })
-    .await
-    .map_err(|e| e.to_string())?
-}
-
-#[tauri::command]
 fn vision_key_status() -> keychain::KeyStatus {
     keychain::status(keychain::Purpose::Vision)
 }
@@ -1851,46 +1835,6 @@ async fn test_vision_key() -> Result<String, String> {
     .map_err(|e| e.to_string())?
 }
 
-#[tauri::command]
-fn elevenlabs_key_status() -> keychain::KeyStatus {
-    keychain::status(keychain::Purpose::ElevenLabs)
-}
-
-#[tauri::command]
-fn set_elevenlabs_key(key: String) -> Result<(), String> {
-    let k = key.trim();
-    if !keychain::looks_valid_elevenlabs(k) {
-        return Err("that key looks too short to be valid".into());
-    }
-    keychain::set(keychain::Purpose::ElevenLabs, k).map_err(|e| e.to_string())
-}
-
-#[tauri::command]
-fn clear_elevenlabs_key() -> Result<(), String> {
-    keychain::clear(keychain::Purpose::ElevenLabs).map_err(|e| e.to_string())
-}
-
-/// Verify the stored ElevenLabs key + voice id work by synthesizing a short
-/// Bangla test phrase (the only language currently routed to ElevenLabs).
-#[tauri::command]
-async fn test_elevenlabs_key(app: AppHandle<Wry>) -> Result<String, String> {
-    tauri::async_runtime::spawn_blocking(move || {
-        let Some(key) = keychain::get(keychain::Purpose::ElevenLabs) else {
-            return Err("no key stored".to_string());
-        };
-        let cfg = settings::load(&app);
-        if cfg.elevenlabs_voice_id.trim().is_empty() {
-            return Err("no voice id set".to_string());
-        }
-        match elevenlabs::speak("এটি একটি পরীক্ষা।", &key, &cfg.elevenlabs_voice_id, true) {
-            Ok(_) => Ok("Key OK — Bangla speech synthesis works".to_string()),
-            Err(e) => Err(format!("speech synthesis failed: {e}")),
-        }
-    })
-    .await
-    .map_err(|e| e.to_string())?
-}
-
 /// Lists every model the AI-chat Groq key can actually see (ground truth for
 /// picking a working model ID — see the doc comment on groq::list_models
 /// for why this exists: hardcoded model IDs in this codebase have gone
@@ -1918,33 +1862,6 @@ async fn debug_list_groq_models() -> Result<String, String> {
     .map_err(|e| e.to_string())?
 }
 
-/// Print this account's ElevenLabs voices (name, id, category) to the dev
-/// console. Useful for finding a voice usable via the API on the free tier —
-/// `category: "premade"` voices work, but shared Voice Library voices
-/// (`category: "professional"`) return 402 for free accounts (see
-/// `elevenlabs::speak`'s error handling).
-#[tauri::command]
-async fn debug_list_elevenlabs_voices() -> Result<String, String> {
-    tauri::async_runtime::spawn_blocking(|| {
-        let Some(key) = keychain::get(keychain::Purpose::ElevenLabs) else {
-            return Err("no key stored".to_string());
-        };
-        match elevenlabs::list_voices(&key) {
-            Ok(voices) => {
-                eprintln!("=== ElevenLabs voices for this account ===");
-                for (name, id, category) in &voices {
-                    eprintln!("  {name}  |  id={id}  |  category={category}");
-                }
-                eprintln!("=== {} voices total ===", voices.len());
-                Ok(format!("Listed {} voices — check the dev console", voices.len()))
-            }
-            Err(e) => Err(e.to_string()),
-        }
-    })
-    .await
-    .map_err(|e| e.to_string())?
-}
-
 /// Verify the stored key works for BOTH transcription and the polish model.
 #[tauri::command]
 async fn test_groq_key(app: AppHandle<Wry>) -> Result<String, String> {
@@ -1955,7 +1872,7 @@ async fn test_groq_key(app: AppHandle<Wry>) -> Result<String, String> {
         };
         // 1) transcription
         let silence = vec![0.0f32; (audio::TARGET_SR as usize) / 3];
-        let wav = groq::encode_wav_16k_mono(&silence).map_err(|e| e.to_string())?;
+        let wav = wav::encode_wav_16k_mono(&silence).map_err(|e| e.to_string())?;
         if let Err(e) = groq::transcribe(wav, &key, "whisper-large-v3-turbo", "en") {
             return Err(format!("transcription failed: {e}"));
         }
@@ -1983,11 +1900,6 @@ fn get_usage_speak_aloud() -> usage::UsageSnapshot {
 }
 
 #[tauri::command]
-fn get_usage_elevenlabs() -> usage::UsageSnapshot {
-    usage::snapshot(usage::Purpose::ElevenLabs)
-}
-
-#[tauri::command]
 fn get_usage_vision() -> usage::UsageSnapshot {
     usage::snapshot(usage::Purpose::Vision)
 }
@@ -1996,7 +1908,6 @@ fn get_usage_vision() -> usage::UsageSnapshot {
 fn dismiss_error(app: AppHandle<Wry>, purpose: String) {
     let purpose = match purpose.as_str() {
         "speakAloud" => usage::Purpose::SpeakAloud,
-        "elevenLabs" => usage::Purpose::ElevenLabs,
         _ => usage::Purpose::Dictation,
     };
     usage::clear_err(&app, purpose);
@@ -2111,31 +2022,25 @@ pub fn run() {
             set_hotkey,
             list_input_devices,
             list_output_devices,
-            model_state,
-            download_model,
+            list_voice_models,
+            voice_models_total_size,
+            download_voice_model,
+            delete_voice_model,
+            list_tts_voices,
+            test_tts_voice,
             set_autostart,
             set_tray_visible,
             groq_key_status,
             set_groq_key,
             clear_groq_key,
             test_groq_key,
-            speak_key_status,
-            set_speak_key,
-            clear_speak_key,
-            test_speak_key,
-            elevenlabs_key_status,
-            set_elevenlabs_key,
-            clear_elevenlabs_key,
-            test_elevenlabs_key,
             vision_key_status,
             set_vision_key,
             clear_vision_key,
             test_vision_key,
-            debug_list_elevenlabs_voices,
             debug_list_groq_models,
             get_usage_dictation,
             get_usage_speak_aloud,
-            get_usage_elevenlabs,
             get_usage_vision,
             dismiss_error,
             set_secondary_hotkey,

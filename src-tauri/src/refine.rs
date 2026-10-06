@@ -39,12 +39,6 @@ impl Language {
         }
     }
 
-    /// True if ElevenLabs needs its Eleven v3 model for this language — its
-    /// default Multilingual v2 model covers Spanish/Italian/English but not
-    /// Bengali. Currently only Bangla is ever routed to ElevenLabs.
-    pub fn needs_elevenlabs_v3(self) -> bool {
-        matches!(self, Language::Bangla)
-    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -68,17 +62,16 @@ impl Action {
 
     /// The language the result should be spoken aloud in, if this action
     /// translates text (Refine keeps the original language, so there's no
-    /// single target language to speak it in).
-    /// Only Bangla (via ElevenLabs) and English (via Groq) get spoken aloud
-    /// automatically after translating. Spanish/Italian are text-only in the
-    /// wheel — eSpeak NG is reserved for the standalone "speak selected text"
-    /// hotkey, not used for the wheel's Translate menu at all.
+    /// single target language to speak it in). Only English gets spoken
+    /// aloud automatically after translating — Kokoro (the sole TTS engine)
+    /// is English/Latin-script only, so Bangla/Spanish/Italian translations
+    /// stay text-only in the wheel.
     pub fn spoken_language(self) -> Option<Language> {
         match self {
-            Action::Bangla => Some(Language::Bangla),
-            Action::Translate(lang @ (Language::Bangla | Language::English)) => Some(lang),
-            Action::Translate(Language::Spanish | Language::Italian) => None,
-            Action::Refine => None,
+            Action::Translate(Language::English) => Some(Language::English),
+            Action::Bangla
+            | Action::Translate(Language::Bangla | Language::Spanish | Language::Italian)
+            | Action::Refine => None,
         }
     }
 

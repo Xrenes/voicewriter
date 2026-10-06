@@ -20,7 +20,8 @@ interface Settings {
   polish: boolean;
   autostart: boolean;
   hideTray: boolean;
-  elevenlabsVoiceId: string;
+  ttsVoice: string;
+  ttsSpeed: number;
   visionModel: string;
 }
 
@@ -31,13 +32,17 @@ interface StatusEvent {
   detail?: string;
 }
 
-interface ModelState {
+interface ModelInfo {
+  id: string;
+  kind: "stt" | "tts";
+  label: string;
   present: boolean;
-  path: string;
   sizeLabel: string;
+  bytesOnDisk: number;
 }
 
 interface DownloadProgress {
+  model: string;
   received: number;
   total: number;
   done: boolean;
@@ -76,23 +81,6 @@ const hotkeyWheelInput = $<HTMLInputElement>("hotkeyWheel");
 const hotkeyWheelEdit = $<HTMLButtonElement>("hotkeyWheelEdit");
 const hotkeyWebInput = $<HTMLInputElement>("hotkeyWeb");
 const hotkeyWebEdit = $<HTMLButtonElement>("hotkeyWebEdit");
-const speakKeyStatusEl = $("speakKeyStatus");
-const speakKeyReplace = $<HTMLButtonElement>("speakKeyReplace");
-const speakKeyTest = $<HTMLButtonElement>("speakKeyTest");
-const speakKeyClear = $<HTMLButtonElement>("speakKeyClear");
-const speakKeyEditRow = $("speakKeyEditRow");
-const speakKeyInput = $<HTMLInputElement>("speakKeyInput");
-const speakKeySave = $<HTMLButtonElement>("speakKeySave");
-const speakKeyHint = $("speakKeyHint");
-const elevenlabsKeyStatusEl = $("elevenlabsKeyStatus");
-const elevenlabsKeyReplace = $<HTMLButtonElement>("elevenlabsKeyReplace");
-const elevenlabsKeyTest = $<HTMLButtonElement>("elevenlabsKeyTest");
-const elevenlabsKeyClear = $<HTMLButtonElement>("elevenlabsKeyClear");
-const elevenlabsKeyEditRow = $("elevenlabsKeyEditRow");
-const elevenlabsKeyInput = $<HTMLInputElement>("elevenlabsKeyInput");
-const elevenlabsKeySave = $<HTMLButtonElement>("elevenlabsKeySave");
-const elevenlabsKeyHint = $("elevenlabsKeyHint");
-const elevenlabsVoiceIdInput = $<HTMLInputElement>("elevenlabsVoiceId");
 const visionKeyStatusEl = $("visionKeyStatus");
 const visionKeyReplace = $<HTMLButtonElement>("visionKeyReplace");
 const visionKeyTest = $<HTMLButtonElement>("visionKeyTest");
@@ -113,14 +101,6 @@ const dictUToday = $("dictUToday");
 const dictURpm = $("dictURpm");
 const dictMeterPct = $("dictMeterPct");
 const dictMeterFill = $<HTMLDivElement>("dictMeterFill");
-const speakUToday = $("speakUToday");
-const speakURpm = $("speakURpm");
-const speakMeterPct = $("speakMeterPct");
-const speakMeterFill = $<HTMLDivElement>("speakMeterFill");
-const elevenUToday = $("elevenUToday");
-const elevenURpm = $("elevenURpm");
-const elevenMeterPct = $("elevenMeterPct");
-const elevenMeterFill = $<HTMLDivElement>("elevenMeterFill");
 const visionUToday = $("visionUToday");
 const visionURpm = $("visionURpm");
 const visionMeterPct = $("visionMeterPct");
@@ -131,10 +111,6 @@ const micSel = $<HTMLSelectElement>("micDevice");
 const loopbackSel = $<HTMLSelectElement>("loopbackDevice");
 const langInput = $<HTMLInputElement>("language");
 const modelSel = $<HTMLSelectElement>("model");
-const modelState = $("modelState");
-const modelDownload = $<HTMLButtonElement>("modelDownload");
-const progressWrap = $("progressWrap");
-const progressBar = $<HTMLDivElement>("progressBar");
 const speakStatusRow = $("speakStatusRow");
 const speakStatusText = $("speakStatusText");
 const speakProgressWrap = $("speakProgressWrap");
@@ -218,7 +194,8 @@ async function loadSettings() {
   polishChk.checked = settings.polish;
   autostartChk.checked = settings.autostart;
   hideTrayChk.checked = settings.hideTray;
-  elevenlabsVoiceIdInput.value = settings.elevenlabsVoiceId;
+  ttsSpeedInput.value = String(settings.ttsSpeed || 1.0);
+  ttsSpeedVal.textContent = Number(ttsSpeedInput.value).toFixed(1) + "×";
 }
 
 async function save(patch: Partial<Settings>) {
@@ -285,135 +262,11 @@ keyTest.addEventListener("click", async () => {
   }
 });
 
-// ---- Speak-aloud key (separate from the dictation key above) ----
-async function refreshSpeakKey() {
-  const st = await invoke<KeyStatus>("speak_key_status");
-  if (st.present) {
-    speakKeyStatusEl.textContent = st.masked;
-    speakKeyStatusEl.classList.add("ok");
-    speakKeyClear.hidden = false;
-    speakKeyTest.hidden = false;
-    speakKeyHint.textContent = "Speak-aloud uses this key. Remove it to disable the feature.";
-  } else {
-    speakKeyStatusEl.textContent = "No key — speak-aloud disabled";
-    speakKeyStatusEl.classList.remove("ok");
-    speakKeyClear.hidden = true;
-    speakKeyTest.hidden = true;
-    speakKeyHint.textContent =
-      "Separate Groq key used only for \"speak selected text aloud.\" Required for that feature.";
-  }
-}
-
-speakKeyReplace.addEventListener("click", () => {
-  speakKeyEditRow.hidden = !speakKeyEditRow.hidden;
-  if (!speakKeyEditRow.hidden) speakKeyInput.focus();
-});
-
-speakKeySave.addEventListener("click", async () => {
-  const v = speakKeyInput.value.trim();
-  if (!v) return;
-  speakKeySave.disabled = true;
-  try {
-    await invoke("set_speak_key", { key: v });
-    speakKeyInput.value = "";
-    speakKeyEditRow.hidden = true;
-    await refreshSpeakKey();
-  } catch (e) {
-    speakKeyHint.textContent = String(e);
-  } finally {
-    speakKeySave.disabled = false;
-  }
-});
-
-speakKeyClear.addEventListener("click", async () => {
-  await invoke("clear_speak_key");
-  await refreshSpeakKey();
-});
-
-speakKeyTest.addEventListener("click", async () => {
-  speakKeyTest.disabled = true;
-  speakKeyStatusEl.textContent = "Testing…";
-  try {
-    const r = await invoke<string>("test_speak_key");
-    speakKeyStatusEl.textContent = r;
-  } catch (e) {
-    speakKeyStatusEl.textContent = "Test failed: " + String(e);
-  } finally {
-    speakKeyTest.disabled = false;
-    setTimeout(refreshSpeakKey, 2500);
-  }
-});
-
-// ---- ElevenLabs key + voice id (natural-voice Bangla speech for the wheel) ----
-async function refreshElevenlabsKey() {
-  const st = await invoke<KeyStatus>("elevenlabs_key_status");
-  if (st.present) {
-    elevenlabsKeyStatusEl.textContent = st.masked;
-    elevenlabsKeyStatusEl.classList.add("ok");
-    elevenlabsKeyClear.hidden = false;
-    elevenlabsKeyTest.hidden = false;
-    elevenlabsKeyHint.textContent =
-      "Bangla speech from the refine wheel uses this key + the voice ID below.";
-  } else {
-    elevenlabsKeyStatusEl.textContent = "No key — Bangla speech disabled";
-    elevenlabsKeyStatusEl.classList.remove("ok");
-    elevenlabsKeyClear.hidden = true;
-    elevenlabsKeyTest.hidden = true;
-    elevenlabsKeyHint.textContent =
-      "Required for Bangla speech in the refine wheel's \"Translate\" wedge (natural voice). " +
-      "Free at elevenlabs.io (no card required). Spanish, Italian, and English speech " +
-      "don't need this — they use eSpeak NG / Groq instead.";
-  }
-}
-
-elevenlabsKeyReplace.addEventListener("click", () => {
-  elevenlabsKeyEditRow.hidden = !elevenlabsKeyEditRow.hidden;
-  if (!elevenlabsKeyEditRow.hidden) elevenlabsKeyInput.focus();
-});
-
-elevenlabsKeySave.addEventListener("click", async () => {
-  const v = elevenlabsKeyInput.value.trim();
-  if (!v) return;
-  elevenlabsKeySave.disabled = true;
-  try {
-    await invoke("set_elevenlabs_key", { key: v });
-    elevenlabsKeyInput.value = "";
-    elevenlabsKeyEditRow.hidden = true;
-    await refreshElevenlabsKey();
-  } catch (e) {
-    elevenlabsKeyHint.textContent = String(e);
-  } finally {
-    elevenlabsKeySave.disabled = false;
-  }
-});
-
-elevenlabsKeyClear.addEventListener("click", async () => {
-  await invoke("clear_elevenlabs_key");
-  await refreshElevenlabsKey();
-});
-
-elevenlabsKeyTest.addEventListener("click", async () => {
-  elevenlabsKeyTest.disabled = true;
-  elevenlabsKeyStatusEl.textContent = "Testing…";
-  try {
-    const r = await invoke<string>("test_elevenlabs_key");
-    elevenlabsKeyStatusEl.textContent = r;
-  } catch (e) {
-    elevenlabsKeyStatusEl.textContent = "Test failed: " + String(e);
-  } finally {
-    elevenlabsKeyTest.disabled = false;
-    setTimeout(refreshElevenlabsKey, 2500);
-  }
-});
-
-// ---- AI (Groq) key — separate slot from Dictation's key, for the wheel's "AI" chat wedge ----
-
-// Model dropdown, auto-populated from this Groq key's own actual model list
-// (ground truth for picking a working model ID — Groq deprecates/renames
-// vision models without much warning; see groq::list_models's doc comment
-// in lib.rs, and vision.rs's history: two hardcoded IDs both 404'd within a
-// week of each other). Loads once a key is saved; selecting an option
-// persists it as the model AI chat actually sends requests to.
+// Vision model picker: the list is fetched live from the account's own
+// available models (not hardcoded — Groq's vision model lineup has shifted
+// more than once, deprecating/renaming models within a week of each other).
+// Loads once a key is saved; selecting an option persists it as the model
+// AI chat actually sends requests to.
 const visionModelSelect = $<HTMLSelectElement>("visionModelSelect");
 const visionModelHint = $("visionModelHint");
 
@@ -520,28 +373,6 @@ visionKeyTest.addEventListener("click", async () => {
   }
 });
 
-elevenlabsVoiceIdInput.addEventListener("change", () =>
-  save({ elevenlabsVoiceId: elevenlabsVoiceIdInput.value.trim() }),
-);
-
-// Prints this account's ElevenLabs voices (name, id, category) to the dev
-// console — helps pick a voice id that actually works via the API on the
-// free tier (see debug_list_elevenlabs_voices's doc comment in lib.rs).
-const elevenlabsListVoicesBtn = $<HTMLButtonElement>("elevenlabsListVoices");
-const elevenlabsListHint = $("elevenlabsListHint");
-elevenlabsListVoicesBtn.addEventListener("click", async () => {
-  elevenlabsListVoicesBtn.disabled = true;
-  elevenlabsListHint.textContent = "Listing…";
-  try {
-    const r = await invoke<string>("debug_list_elevenlabs_voices");
-    elevenlabsListHint.textContent = r;
-  } catch (e) {
-    elevenlabsListHint.textContent = "Failed: " + String(e);
-  } finally {
-    elevenlabsListVoicesBtn.disabled = false;
-  }
-});
-
 const resetCapturePermissionBtn = $<HTMLButtonElement>("resetCapturePermission");
 resetCapturePermissionBtn.addEventListener("click", async () => {
   resetCapturePermissionBtn.disabled = true;
@@ -582,15 +413,11 @@ const dictULabel = $("dictULabel");
 
 async function refreshUsage() {
   try {
-    const [dict, speak, eleven, vision] = await Promise.all([
+    const [dict, vision] = await Promise.all([
       invoke<UsageSnapshot>("get_usage_dictation"),
-      invoke<UsageSnapshot>("get_usage_speak_aloud"),
-      invoke<UsageSnapshot>("get_usage_elevenlabs"),
       invoke<UsageSnapshot>("get_usage_vision"),
     ]);
     applyUsageMeter(dict, dictUToday, dictULabel, dictURpm, dictMeterPct, dictMeterFill);
-    applyUsageMeter(speak, speakUToday, null, speakURpm, speakMeterPct, speakMeterFill);
-    applyUsageMeter(eleven, elevenUToday, null, elevenURpm, elevenMeterPct, elevenMeterFill);
     applyUsageMeter(vision, visionUToday, null, visionURpm, visionMeterPct, visionMeterFill);
   } catch (e) {
     console.error("get_usage failed", e);
@@ -629,30 +456,165 @@ async function loadLoopbackDevices() {
   }
 }
 
-// ---- Local model ----
-async function refreshModelState() {
-  const st = await invoke<ModelState>("model_state", { model: modelSel.value });
-  if (st.present) {
-    modelState.textContent = `Installed (${st.sizeLabel})`;
-    modelDownload.hidden = true;
+// ---- Voice Models (STT + TTS) ----
+const voiceModelsTotalSizeEl = $("voiceModelsTotalSize");
+const sttModelListEl = $("sttModelList");
+const ttsModelListEl = $("ttsModelList");
+const ttsVoiceRow = $("ttsVoiceRow");
+const ttsVoiceSel = $<HTMLSelectElement>("ttsVoice");
+const ttsSpeedRow = $("ttsSpeedRow");
+const ttsSpeedInput = $<HTMLInputElement>("ttsSpeed");
+const ttsSpeedVal = $("ttsSpeedVal");
+const ttsPreviewRow = $("ttsPreviewRow");
+const ttsPreviewBtn = $<HTMLButtonElement>("ttsPreview");
+
+const modelDownloadButtons = new Map<string, HTMLButtonElement>();
+const modelProgressBars = new Map<string, HTMLDivElement>();
+
+function renderModelRow(m: ModelInfo): HTMLElement {
+  const row = document.createElement("div");
+  row.className = "voice-model-row" + (m.present ? " active" : "");
+
+  const top = document.createElement("div");
+  top.className = "row";
+  const name = document.createElement("span");
+  name.className = "voice-model-name";
+  name.textContent = m.label;
+  const size = document.createElement("span");
+  size.className = "voice-model-size";
+  size.textContent = m.sizeLabel;
+  name.appendChild(size);
+  top.appendChild(name);
+
+  const actions = document.createElement("div");
+  actions.className = "row key-actions";
+  if (m.present) {
+    const del = document.createElement("button");
+    del.className = "ghost danger";
+    del.textContent = "Delete";
+    del.addEventListener("click", async () => {
+      del.disabled = true;
+      try {
+        await invoke("delete_voice_model", { model: m.id });
+        await refreshVoiceModels();
+      } catch (e) {
+        console.error("delete_voice_model failed", e);
+      } finally {
+        del.disabled = false;
+      }
+    });
+    actions.appendChild(del);
   } else {
-    modelState.textContent = `Not downloaded (${st.sizeLabel})`;
-    modelDownload.hidden = false;
+    const dl = document.createElement("button");
+    dl.className = "primary";
+    dl.textContent = "Download";
+    dl.addEventListener("click", async () => {
+      dl.disabled = true;
+      const bar = modelProgressBars.get(m.id);
+      const wrap = bar?.parentElement;
+      if (wrap) wrap.hidden = false;
+      if (bar) bar.style.width = "0%";
+      try {
+        await invoke("download_voice_model", { model: m.id });
+        await refreshVoiceModels();
+      } catch (e) {
+        dl.disabled = false;
+        console.error("download_voice_model failed", e);
+      }
+    });
+    modelDownloadButtons.set(m.id, dl);
+    actions.appendChild(dl);
+  }
+  top.appendChild(actions);
+  row.appendChild(top);
+
+  const progressWrap = document.createElement("div");
+  progressWrap.className = "progress voice-model-progress";
+  progressWrap.hidden = true;
+  const progressBar = document.createElement("div");
+  progressBar.className = "progress-bar";
+  progressWrap.appendChild(progressBar);
+  modelProgressBars.set(m.id, progressBar);
+  row.appendChild(progressWrap);
+
+  return row;
+}
+
+async function refreshVoiceModels() {
+  try {
+    const models = await invoke<ModelInfo[]>("list_voice_models");
+    const stt = models.filter((m) => m.kind === "stt");
+    const tts = models.filter((m) => m.kind === "tts");
+
+    sttModelListEl.replaceChildren(...stt.map(renderModelRow));
+    ttsModelListEl.replaceChildren(...tts.map(renderModelRow));
+
+    const ttsReady = tts.some((m) => m.present);
+    ttsVoiceRow.hidden = !ttsReady;
+    ttsSpeedRow.hidden = !ttsReady;
+    ttsPreviewRow.hidden = !ttsReady;
+
+    const totalSize = await invoke<string>("voice_models_total_size");
+    voiceModelsTotalSizeEl.textContent = totalSize;
+  } catch (e) {
+    console.error("refreshVoiceModels failed", e);
   }
 }
 
-modelDownload.addEventListener("click", async () => {
-  modelDownload.disabled = true;
-  progressWrap.hidden = false;
-  progressBar.style.width = "0%";
+async function loadTtsVoices() {
   try {
-    await invoke("download_model", { model: modelSel.value });
+    const voices = await invoke<[string, string][]>("list_tts_voices");
+    const opts = voices.map(([id, label]) => {
+      const opt = document.createElement("option");
+      opt.value = id;
+      opt.textContent = label;
+      if (id === settings.ttsVoice) opt.selected = true;
+      return opt;
+    });
+    ttsVoiceSel.replaceChildren(...opts);
   } catch (e) {
-    modelState.textContent = "Download failed: " + String(e);
+    console.error("list_tts_voices failed", e);
+  }
+}
+
+ttsVoiceSel.addEventListener("change", () => save({ ttsVoice: ttsVoiceSel.value }));
+
+ttsSpeedInput.addEventListener("input", () => {
+  ttsSpeedVal.textContent = Number(ttsSpeedInput.value).toFixed(1) + "×";
+});
+ttsSpeedInput.addEventListener("change", () =>
+  save({ ttsSpeed: Number(ttsSpeedInput.value) }),
+);
+
+ttsPreviewBtn.addEventListener("click", async () => {
+  ttsPreviewBtn.disabled = true;
+  try {
+    await invoke("test_tts_voice", { voice: ttsVoiceSel.value || settings.ttsVoice });
+  } catch (e) {
+    console.error("test_tts_voice failed", e);
   } finally {
-    modelDownload.disabled = false;
+    ttsPreviewBtn.disabled = false;
   }
 });
+
+modelSel.addEventListener("change", () => save({ model: modelSel.value }));
+
+listen<DownloadProgress>("model-progress", (e) => {
+  const p = e.payload;
+  const bar = modelProgressBars.get(p.model);
+  const btn = modelDownloadButtons.get(p.model);
+  if (p.error) {
+    if (bar) bar.classList.add("error");
+    if (btn) btn.disabled = false;
+    console.error(`${p.model} download failed:`, p.error);
+    return;
+  }
+  const pct = p.total > 0 ? Math.round((p.received / p.total) * 100) : 0;
+  if (bar) bar.style.width = pct + "%";
+  if (p.done) {
+    refreshVoiceModels();
+  }
+}).catch(() => {});
 
 // ---- Field bindings ----
 engineSel.addEventListener("change", () =>
@@ -662,10 +624,6 @@ groqModelSel.addEventListener("change", () => save({ groqModel: groqModelSel.val
 micSel.addEventListener("change", () => save({ micDevice: micSel.value }));
 loopbackSel.addEventListener("change", () => save({ loopbackDevice: loopbackSel.value }));
 langInput.addEventListener("change", () => save({ language: langInput.value.trim() || "en" }));
-modelSel.addEventListener("change", async () => {
-  await save({ model: modelSel.value });
-  await refreshModelState();
-});
 insertionSel.addEventListener("change", () => save({ insertion: insertionSel.value as Settings["insertion"] }));
 polishChk.addEventListener("change", () => save({ polish: polishChk.checked }));
 // Saved by the backend command itself (not save()), so the frontend's cached
@@ -785,29 +743,13 @@ async function boot() {
   await listen<StatusEvent>("status", (e) =>
     applyStatus(e.payload.status, e.payload.detail),
   );
-  await listen<DownloadProgress>("model-progress", (e) => {
-    const p = e.payload;
-    if (p.error) {
-      modelState.textContent = "Download failed: " + p.error;
-      progressWrap.hidden = true;
-      return;
-    }
-    const pct = p.total > 0 ? Math.round((p.received / p.total) * 100) : 0;
-    progressBar.style.width = pct + "%";
-    modelState.textContent = `Downloading… ${pct}%`;
-    if (p.done) {
-      progressWrap.hidden = true;
-      refreshModelState();
-    }
-  });
 
   await loadSettings();
   await loadMics();
   await loadLoopbackDevices();
-  await refreshModelState();
+  await refreshVoiceModels();
+  await loadTtsVoices();
   await refreshKey();
-  await refreshSpeakKey();
-  await refreshElevenlabsKey();
   await refreshVisionKey();
   await refreshUsage();
   applyStatus("idle");
