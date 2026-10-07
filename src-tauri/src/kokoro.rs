@@ -467,7 +467,12 @@ fn split_for_length(text: &str, first_max: usize, max_chars: usize) -> Vec<Strin
     // A long first sentence with no comma would still delay the first audio;
     // cut it after a few words (a tiny prosody seam, much faster start).
     if out[0].len() > first_max + 15 {
-        if let Some(cut) = out[0][first_max..].find(' ').map(|i| i + first_max) {
+        // Byte offset, so step forward to a char boundary before slicing —
+        // accented or other multi-byte text would otherwise panic here.
+        let start = (first_max..=out[0].len())
+            .find(|&i| out[0].is_char_boundary(i))
+            .unwrap_or(out[0].len());
+        if let Some(cut) = out[0][start..].find(' ').map(|i| i + start) {
             let rest = out[0].split_off(cut);
             out.insert(1, rest);
         }
@@ -534,6 +539,13 @@ mod tests {
         assert!(parts[0].len() <= 50 && parts.len() == 2, "{parts:?}");
         assert!(parts.len() >= 2);
         assert_eq!(split_for_length("Hi.", 40, 200), vec!["Hi.".to_string()]);
+        // Multi-byte chars straddling the cut point must not panic.
+        for pad in 0..4 {
+            let t = format!("{}{}", "a".repeat(pad), "é".repeat(60));
+            assert_eq!(split_for_length(&t, 40, 200).concat(), t);
+            let t = format!("{}{} word word word word word", "a".repeat(pad), "naïve café ".repeat(5));
+            assert_eq!(split_for_length(&t, 40, 200).concat(), t);
+        }
     }
 
     #[test]
