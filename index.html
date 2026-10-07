@@ -132,7 +132,7 @@
               <button id="keySave" class="primary">Save</button>
             </div>
             <p class="hint" id="keyHint">
-              With a key, dictation uses Groq for best accuracy. Without one it uses the local model.
+              Dictation uses Groq, so a key is required.
             </p>
             <div class="usage-nums">
               <div><span id="dictUToday">0</span><em id="dictULabel">requests today</em></div>
@@ -203,14 +203,6 @@
         <div class="section-body">
           <div class="card">
             <div class="row">
-              <label for="engine">Engine</label>
-              <select id="engine">
-                <option value="auto">Auto — Groq, local fallback</option>
-                <option value="groq">Groq only</option>
-                <option value="local">Local only</option>
-              </select>
-            </div>
-            <div class="row">
               <label for="groqModel">Groq model</label>
               <select id="groqModel">
                 <option value="whisper-large-v3-turbo">large-v3-turbo — fast</option>
@@ -239,20 +231,6 @@
             </div>
           </div>
 
-          <div class="card">
-            <div class="row">
-              <label for="model">Local model</label>
-              <select id="model">
-                <option value="whisper-tiny">Whisper Tiny — fast (~75 MB)</option>
-                <option value="whisper-base">Whisper Base — balanced (~148 MB)</option>
-                <option value="whisper-small">Whisper Small — accurate (~488 MB)</option>
-              </select>
-            </div>
-            <p class="hint dim">
-              Download and manage this (and the text-to-speech voice) in the
-              <strong>Voice Models</strong> section below.
-            </p>
-          </div>
         </div>
       </details>
 
@@ -261,19 +239,13 @@
         <div class="section-body">
           <div class="card">
             <p class="hint">
-              Speech-to-text and text-to-speech both run fully offline once their model is
-              downloaded — no API key, no internet needed, no per-use cost. Nothing is downloaded
-              until you choose it here.
+              Text-to-speech runs fully offline once the Kokoro model is downloaded — no API
+              key, no internet needed, no per-use cost. Dictation uses Groq.
             </p>
             <div class="row">
               <label>Storage used</label>
               <span class="keyval" id="voiceModelsTotalSize">0 MB</span>
             </div>
-          </div>
-
-          <div class="card">
-            <div class="row"><label>Speech-to-text (Whisper)</label></div>
-            <div id="sttModelList" class="voice-model-list"></div>
           </div>
 
           <div class="card">
@@ -364,7 +336,7 @@
               <li>In this Settings window, open <strong>API Keys &amp; Usage</strong> above and paste it into <strong>Groq API key</strong>, then Save.</li>
               <li>Click a text field anywhere, hold <strong>Alt+C</strong>, speak, then release — the text is inserted automatically.</li>
             </ol>
-            <p class="hint dim">Without a key, dictation still works using the local model — just less accurate. See the Transcription Engine section to download it.</p>
+            <p class="hint dim">Dictation needs this key — it runs on Groq.</p>
           </div>
 
           <div class="card guide-card">
@@ -402,7 +374,7 @@
             <ol>
               <li>No API key required for recording itself.</li>
               <li>Open the wheel (Shift+Alt+C) and click <strong>Record</strong>, or use it from the wheel directly.</li>
-              <li>Speak, then stop — a transcript window opens using your Dictation Groq key if one is set (otherwise the local model).</li>
+              <li>Speak, then stop — a transcript window opens, transcribed with your Dictation Groq key.</li>
             </ol>
           </div>
 

@@ -10,13 +10,11 @@ interface Settings {
   speakHotkey: string;
   wheelHotkey: string;
   webHotkey: string;
-  engine: "auto" | "groq" | "local";
   groqModel: string;
   insertion: "type" | "paste" | "clipboard" | "both";
   micDevice: string;
   loopbackDevice: string;
   language: string;
-  model: string;
   polish: boolean;
   autostart: boolean;
   hideTray: boolean;
@@ -34,7 +32,7 @@ interface StatusEvent {
 
 interface ModelInfo {
   id: string;
-  kind: "stt" | "tts";
+  kind: "tts";
   label: string;
   present: boolean;
   sizeLabel: string;
@@ -105,12 +103,10 @@ const visionUToday = $("visionUToday");
 const visionURpm = $("visionURpm");
 const visionMeterPct = $("visionMeterPct");
 const visionMeterFill = $<HTMLDivElement>("visionMeterFill");
-const engineSel = $<HTMLSelectElement>("engine");
 const groqModelSel = $<HTMLSelectElement>("groqModel");
 const micSel = $<HTMLSelectElement>("micDevice");
 const loopbackSel = $<HTMLSelectElement>("loopbackDevice");
 const langInput = $<HTMLInputElement>("language");
-const modelSel = $<HTMLSelectElement>("model");
 const speakStatusRow = $("speakStatusRow");
 const speakStatusText = $("speakStatusText");
 const speakProgressWrap = $("speakProgressWrap");
@@ -186,10 +182,8 @@ async function loadSettings() {
   hotkeySpeakInput.value = settings.speakHotkey || "(disabled)";
   hotkeyWheelInput.value = settings.wheelHotkey || "(disabled)";
   hotkeyWebInput.value = settings.webHotkey || "(disabled)";
-  engineSel.value = settings.engine;
   groqModelSel.value = settings.groqModel;
   langInput.value = settings.language;
-  modelSel.value = settings.model;
   insertionSel.value = settings.insertion;
   polishChk.checked = settings.polish;
   autostartChk.checked = settings.autostart;
@@ -458,7 +452,6 @@ async function loadLoopbackDevices() {
 
 // ---- Voice Models (STT + TTS) ----
 const voiceModelsTotalSizeEl = $("voiceModelsTotalSize");
-const sttModelListEl = $("sttModelList");
 const ttsModelListEl = $("ttsModelList");
 const ttsVoiceRow = $("ttsVoiceRow");
 const ttsVoiceSel = $<HTMLSelectElement>("ttsVoice");
@@ -543,10 +536,8 @@ function renderModelRow(m: ModelInfo): HTMLElement {
 async function refreshVoiceModels() {
   try {
     const models = await invoke<ModelInfo[]>("list_voice_models");
-    const stt = models.filter((m) => m.kind === "stt");
     const tts = models.filter((m) => m.kind === "tts");
 
-    sttModelListEl.replaceChildren(...stt.map(renderModelRow));
     ttsModelListEl.replaceChildren(...tts.map(renderModelRow));
 
     const ttsReady = tts.some((m) => m.present);
@@ -597,7 +588,6 @@ ttsPreviewBtn.addEventListener("click", async () => {
   }
 });
 
-modelSel.addEventListener("change", () => save({ model: modelSel.value }));
 
 listen<DownloadProgress>("model-progress", (e) => {
   const p = e.payload;
@@ -617,9 +607,6 @@ listen<DownloadProgress>("model-progress", (e) => {
 }).catch(() => {});
 
 // ---- Field bindings ----
-engineSel.addEventListener("change", () =>
-  save({ engine: engineSel.value as Settings["engine"] }),
-);
 groqModelSel.addEventListener("change", () => save({ groqModel: groqModelSel.value }));
 micSel.addEventListener("change", () => save({ micDevice: micSel.value }));
 loopbackSel.addEventListener("change", () => save({ loopbackDevice: loopbackSel.value }));

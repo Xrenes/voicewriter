@@ -1,7 +1,7 @@
 //! VoiceWriter — headless voice dictation.
 //!
 //! Flow: hold the global hotkey -> record mic -> release -> transcribe
-//! (Groq, with local Whisper fallback) -> type into the focused field.
+//! (Groq) -> type into the focused field.
 //! No window ever appears on its own; the tray icon is the only entry point
 //! to the settings interface.
 
@@ -25,7 +25,6 @@ mod record;
 mod refine;
 mod settings;
 mod speak;
-mod transcribe;
 mod typer;
 mod usage;
 mod vision;
@@ -78,7 +77,6 @@ pub struct AppState {
     /// dictation stays mic-only. Kept as a fully separate track, never mixed
     /// with the mic, per an explicit product decision.
     loopback_recorder: audio::Recorder,
-    engine: Mutex<transcribe::Engine>,
     /// Owns the recording shortcut and stays busy through insertion.
     session: Mutex<dictation::Session>,
     target: Mutex<typer::Target>,
@@ -115,7 +113,6 @@ impl AppState {
         Self {
             recorder: audio::Recorder::spawn(audio::Source::Mic),
             loopback_recorder: audio::Recorder::spawn(audio::Source::Loopback),
-            engine: Mutex::new(transcribe::Engine::new()),
             session: Mutex::new(dictation::Session::default()),
             target: Mutex::new(typer::Target::default()),
             settings_open: AtomicBool::new(false),
@@ -535,7 +532,7 @@ fn stop_and_transcribe(app: &AppHandle<Wry>) {
                 cfg.secondary_language.clone()
             };
         }
-        let outcome = engine::run(&app, &state.engine, &cfg, &samples);
+        let outcome = engine::run(&app, &cfg, &samples);
         drop(state);
 
         match outcome {
@@ -1156,28 +1153,17 @@ async fn confirm_recording(app: AppHandle<Wry>, name: String, folder: String) ->
 fn speak_translation(app: AppHandle<Wry>, text: String, lang: refine::Language) {
     std::thread::spawn(move || {
         eprintln!("wheel speak: lang={lang:?} chars={}", text.trim().len());
-        let cfg = settings::load(&app);
-        let audio = match kokoro::speak(&app, &text, &cfg.tts_voice, cfg.tts_speed) {
-            Ok(a) => {
-                usage::record_ok(&app, usage::Purpose::SpeakAloud, 0.0, 0.0);
-                a
-            }
+        let state: State<AppState> = app.state();
+        let speaker = state.speaker.clone();
+        drop(state);
+        match speak::speak_streaming(&app, &speaker, &text) {
+            Ok(()) => usage::record_ok(&app, usage::Purpose::SpeakAloud, 0.0, 0.0),
             Err(e) => {
-                eprintln!("wheel speak: synthesis failed: {e}");
+                eprintln!("wheel speak: failed: {e}");
                 usage::record_err(&app, usage::Purpose::SpeakAloud, &format!("wheel speak: {e}"));
                 events::emit(&app, Status::Error, Some(e.to_string()));
                 return;
             }
-        };
-
-        let state: State<AppState> = app.state();
-        let speaker = state.speaker.clone();
-        drop(state);
-        if let Err(e) = speak::play_and_wait(&app, &speaker, audio) {
-            eprintln!("wheel speak: playback failed: {e}");
-            usage::record_err(&app, usage::Purpose::SpeakAloud, &format!("wheel speak playback: {e}"));
-            events::emit(&app, Status::Error, Some(e.to_string()));
-            return;
         }
         events::emit(&app, Status::Idle, None);
     });
@@ -1881,7 +1867,7 @@ async fn test_groq_key(app: AppHandle<Wry>) -> Result<String, String> {
             Ok(_) => Ok("Key OK — transcription + cleanup both work".to_string()),
             Err(e) => Ok(format!(
                 "Transcription OK, but cleanup unavailable: {e}. \
-                 Dictation still works with local formatting only."
+                 Dictation still works, without the AI cleanup pass."
             )),
         }
     })
@@ -2094,6 +2080,8 @@ pub fn run() {
         ])
         .setup(|app| {
             let handle = app.handle().clone();
+            keychain::migrate_legacy();
+            kokoro::preload(handle.clone());
 
             // Hard guarantee: the settings window is never visible at startup,
             // regardless of dev-mode webview behaviour or a stale window state.

@@ -14,6 +14,7 @@ crate-type = ["staticlib", "cdylib", "rlib"]
 tauri-build = { version = "2", features = [] }
 
 [dependencies]
+libloading = "0.8"
 tauri = { version = "2", features = ["tray-icon", "image-png", "unstable"] }
 tauri-plugin-store = "2"
 tauri-plugin-global-shortcut = "2"
@@ -38,16 +39,8 @@ rubato = "0.16"
 # oddly-sized/streamed WAV headers, same as before.
 rodio = { version = "0.19", default-features = false, features = ["symphonia-wav"] }
 
-# Local speech-to-text (whisper.cpp bindings). CPU-only (no cuda/metal/vulkan
-# features) — this is the offline fallback/opt-in engine, not the primary
-# path, so we don't need GPU acceleration bindings and the build complexity
-# they'd add. Needs libclang at build time (bindgen for the C++ FFI layer);
-# see README for the LLVM install step this requires on a fresh machine.
-whisper-rs = { version = "0.16", default-features = false }
-
 # Local text-to-speech (Kokoro-82M, ONNX Runtime inference). `ort` ships
-# prebuilt ONNX Runtime binaries for Windows/Linux/macOS — no source compile,
-# unlike the whisper-rs/libclang situation above.
+# prebuilt ONNX Runtime binaries for Windows/Linux/macOS — no source compile.
 ort = { version = "2.0.0-rc.13", default-features = false, features = ["ndarray", "std"] }
 # `ort`'s `ndarray` feature requires 0.17; `ndarray-npy` 0.9 (below) depends
 # on 0.16 internally and returns that version's array type from `by_name` —
@@ -129,10 +122,8 @@ global-hotkey = "0.8"
 opt-level = "s"
 strip = true
 
-# whisper.cpp and Kokoro are unusably slow unoptimised; optimise them even in
-# `tauri dev` so local dictation and speech run at near-release speed.
-[profile.dev.package.whisper-rs-sys]
-opt-level = 3
+# Kokoro's array math is unusably slow unoptimised; optimise it even in
+# `tauri dev` so local speech runs at near-release speed.
 [profile.dev.package.ndarray]
 opt-level = 3
 [profile.dev.package.rubato]

@@ -4,7 +4,7 @@
 
 use anyhow::{anyhow, Context, Result};
 use parking_lot::Mutex;
-use rodio::{Decoder, OutputStream, OutputStreamHandle, Sink, Source};
+use rodio::{buffer::SamplesBuffer, Decoder, OutputStream, OutputStreamHandle, Sink, Source};
 use std::io::Cursor;
 use std::sync::atomic::AtomicU64;
 use std::sync::Arc;
@@ -82,6 +82,36 @@ impl Speaker {
         let gen = self.generation.fetch_add(1, std::sync::atomic::Ordering::SeqCst) + 1;
         *guard = Some(Playback { stream, sink, gen, total });
         Ok(gen)
+    }
+
+    /// Start playing raw 24 kHz mono samples, replacing any current playback.
+    /// More audio can be queued onto the same playback with `append()`.
+    fn play_samples(&self, samples: Vec<f32>) -> Result<u64> {
+        let (stream, handle): (OutputStream, OutputStreamHandle) =
+            rodio::OutputStream::try_default().context("open audio output device")?;
+        let sink = Sink::try_new(&handle).context("create audio sink")?;
+        sink.append(SamplesBuffer::new(1, crate::kokoro::SAMPLE_RATE, samples));
+        sink.set_volume(1.0);
+
+        let mut guard = self.active.lock();
+        if let Some(old) = guard.take() {
+            old.sink.stop();
+        }
+        let gen = self.generation.fetch_add(1, std::sync::atomic::Ordering::SeqCst) + 1;
+        *guard = Some(Playback { stream, sink, gen, total: None });
+        Ok(gen)
+    }
+
+    /// Queue more samples after playback `gen`. Returns false if that
+    /// playback was stopped or replaced, so the caller can stop synthesizing.
+    fn append(&self, gen: u64, samples: Vec<f32>) -> bool {
+        match &*self.active.lock() {
+            Some(p) if p.gen == gen => {
+                p.sink.append(SamplesBuffer::new(1, crate::kokoro::SAMPLE_RATE, samples));
+                true
+            }
+            _ => false,
+        }
     }
 
     /// Block until playback started by `play()` (identified by `gen`) finishes
@@ -170,11 +200,32 @@ pub fn speak(app: &tauri::AppHandle, speaker: &Arc<Speaker>, text: &str) -> Resu
             "Kokoro only supports English/Latin-script text — this selection isn't in a supported language"
         ));
     }
-    let cfg = crate::settings::load(app);
     eprintln!("speak: synthesizing {} chars with Kokoro", text.trim().len());
-    let audio = crate::kokoro::speak(app, text, &cfg.tts_voice, cfg.tts_speed)?;
-    eprintln!("speak: synthesis responded after {:?}", t0.elapsed());
-    play_and_wait(app, speaker, audio)
+    speak_streaming(app, speaker, text)?;
+    eprintln!("speak: done after {:?}", t0.elapsed());
+    Ok(())
+}
+
+/// Synthesize `text` with Kokoro sentence by sentence and play each chunk as
+/// soon as it's ready, so speech starts after the first sentence. Blocks
+/// until playback finishes or is stopped via `Speaker::stop`.
+pub fn speak_streaming(app: &tauri::AppHandle, speaker: &Arc<Speaker>, text: &str) -> Result<()> {
+    let t0 = std::time::Instant::now();
+    let cfg = crate::settings::load(app);
+    let mut gen: Option<u64> = None;
+    crate::kokoro::speak_chunks(app, text, &cfg.tts_voice, cfg.tts_speed, |samples| match gen {
+        None => {
+            gen = Some(speaker.play_samples(samples)?);
+            eprintln!("speak: first audio after {:?}", t0.elapsed());
+            crate::events::emit(app, crate::events::Status::Speaking, Some("playing…".into()));
+            Ok(true)
+        }
+        Some(g) => Ok(speaker.append(g, samples)),
+    })?;
+    if let Some(g) = gen {
+        speaker.wait_until_done(g, |_| {});
+    }
+    Ok(())
 }
 
 /// Play already-synthesized `audio` and block until it finishes (or is

@@ -55,6 +55,26 @@ pub fn clear(purpose: Purpose) -> Result<()> {
     }
 }
 
+/// The old speak-aloud Groq key slot (removed when Kokoro became the only
+/// TTS). If the user only ever saved a key there, reuse it for dictation so
+/// upgrading doesn't leave dictation without a key. The old entry is kept.
+pub fn migrate_legacy() {
+    if get(Purpose::Dictation).is_some() {
+        return;
+    }
+    let legacy = Entry::new(SERVICE, "groq_api_key_speak")
+        .ok()
+        .and_then(|e| e.get_password().ok())
+        .map(|k| k.trim().to_string())
+        .filter(|k| looks_valid(k));
+    if let Some(key) = legacy {
+        match set(Purpose::Dictation, &key) {
+            Ok(()) => eprintln!("keychain: reused the old speak-aloud Groq key for dictation"),
+            Err(e) => eprintln!("keychain: couldn't migrate old Groq key: {e}"),
+        }
+    }
+}
+
 #[derive(Serialize)]
 pub struct KeyStatus {
     pub present: bool,

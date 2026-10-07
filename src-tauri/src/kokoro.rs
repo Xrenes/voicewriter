@@ -98,6 +98,9 @@ fn tokenize(phonemes: &str) -> Vec<i64> {
 /// Run eSpeak NG as a phonemizer (`--ipa`, no audio output) on one clause of
 /// text, reusing the same bundled binary + `--path`/cwd setup as `espeak.rs`.
 fn phonemize_clause(app: &AppHandle<Wry>, clause: &str, voice: &str) -> Result<String> {
+    if let Some(ipa) = crate::espeak::ipa(app, clause, voice) {
+        return Ok(normalize_phonemes(ipa.trim()));
+    }
     let located = crate::espeak::locate(app);
     let mut cmd = Command::new(&located.binary);
     if let Some(data_dir) = &located.data_dir {
@@ -242,6 +245,13 @@ fn init_runtime(app: &AppHandle<Wry>) -> Result<()> {
     .map_err(|e| anyhow!(e))
 }
 
+/// ONNX Runtime threads: physical-ish core count. Using every logical core
+/// (hyper-threads) slows Kokoro down through contention.
+fn default_threads() -> usize {
+    let logical = std::thread::available_parallelism().map_or(4, |n| n.get());
+    (logical / 2).clamp(1, 8)
+}
+
 pub struct Kokoro {
     session: Mutex<Session>,
     voices: HashMap<String, VoiceTable>,
@@ -257,9 +267,15 @@ impl Kokoro {
         }
         #[cfg(target_os = "linux")]
         init_runtime(app)?;
+        Self::load_from(&model_path, &voices_path, default_threads())
+    }
+
+    fn load_from(model_path: &std::path::Path, voices_path: &std::path::Path, threads: usize) -> Result<Self> {
         let session = Session::builder()
             .context("create ONNX session builder")?
-            .commit_from_file(&model_path)
+            .with_intra_threads(threads)
+            .map_err(|e| anyhow!("set ONNX threads: {e}"))?
+            .commit_from_file(model_path)
             .with_context(|| format!("load Kokoro model {}", model_path.display()))?;
         eprintln!(
             "kokoro: model inputs = {:?}",
@@ -269,7 +285,7 @@ impl Kokoro {
             "kokoro: model outputs = {:?}",
             session.outputs().iter().map(|o| o.name()).collect::<Vec<_>>()
         );
-        let voices = load_voices(&voices_path)?;
+        let voices = load_voices(voices_path)?;
         Ok(Self { session: Mutex::new(session), voices })
     }
 
@@ -329,6 +345,28 @@ fn engine(app: &AppHandle<Wry>) -> Result<std::sync::Arc<Kokoro>> {
     Ok(k)
 }
 
+/// Load the model in the background if it's downloaded, so the first
+/// speak-aloud doesn't pay the multi-second load. Silent on failure — the
+/// real error surfaces on the next speak.
+pub fn preload(app: AppHandle<Wry>) {
+    std::thread::spawn(move || {
+        let Ok((model, voices)) = crate::model::kokoro_paths(&app) else { return };
+        if !model.is_file() || !voices.is_file() {
+            return;
+        }
+        let t0 = std::time::Instant::now();
+        match engine(&app) {
+            Ok(k) => {
+                // A short warm-up run primes ONNX Runtime's kernels too.
+                let _ = phonemize(&app, "Ready.", DEFAULT_VOICE)
+                    .map(|ph| k.synthesize(&tokenize(&ph), DEFAULT_VOICE, 1.0));
+                eprintln!("kokoro: preloaded in {:?}", t0.elapsed());
+            }
+            Err(e) => eprintln!("kokoro: preload failed: {e}"),
+        }
+    });
+}
+
 /// Drop the loaded model from memory (e.g. after the user deletes it from
 /// Settings → Voice Models) so a stale session isn't reused.
 pub fn unload() {
@@ -343,6 +381,25 @@ pub fn unload() {
 /// `voice` empty = `DEFAULT_VOICE`. English/Latin-script text only — see
 /// `needs_unsupported_language` for the check callers should make first.
 pub fn speak(app: &AppHandle<Wry>, text: &str, voice: &str, speed: f32) -> Result<Vec<u8>> {
+    let mut samples = Vec::new();
+    speak_chunks(app, text, voice, speed, |chunk| {
+        samples.extend(chunk);
+        Ok(true)
+    })?;
+    crate::wav::encode_wav(&samples, SAMPLE_RATE)
+}
+
+/// Synthesize `text` sentence by sentence, handing each chunk's 24 kHz mono
+/// samples to `on_chunk` as soon as it's ready so playback can start after
+/// the first sentence instead of after the whole selection. `on_chunk`
+/// returns `Ok(false)` to stop early (e.g. playback was cancelled).
+pub fn speak_chunks(
+    app: &AppHandle<Wry>,
+    text: &str,
+    voice: &str,
+    speed: f32,
+    mut on_chunk: impl FnMut(Vec<f32>) -> Result<bool>,
+) -> Result<()> {
     let trimmed = text.trim();
     if trimmed.is_empty() {
         return Err(anyhow!("nothing to speak"));
@@ -350,55 +407,70 @@ pub fn speak(app: &AppHandle<Wry>, text: &str, voice: &str, speed: f32) -> Resul
     let voice = if voice.is_empty() { DEFAULT_VOICE } else { voice };
     let eng = engine(app)?;
 
-    let phonemes = phonemize(app, trimmed, voice)?;
-    if phonemes.trim().is_empty() {
-        return Err(anyhow!("couldn't phonemize this text"));
-    }
-    let tokens = tokenize(&phonemes);
-    if tokens.is_empty() {
-        return Err(anyhow!("couldn't phonemize this text"));
-    }
-
-    // Kokoro's model has a practical input-length ceiling; chunk long text
-    // on clause boundaries and concatenate the resulting audio so "speak
-    // selected text" works on more than a sentence or two.
-    const MAX_TOKENS: usize = 480;
-    let mut samples = Vec::new();
-    if tokens.len() <= MAX_TOKENS {
-        samples = eng.synthesize(&tokens, voice, speed)?;
-    } else {
-        for chunk_text in split_for_length(trimmed, 400) {
-            let ph = phonemize(app, &chunk_text, voice)?;
-            let toks = tokenize(&ph);
-            if toks.is_empty() {
-                continue;
-            }
-            samples.extend(eng.synthesize(&toks, voice, speed)?);
+    // Short chunks keep time-to-first-audio low; each also stays well under
+    // Kokoro's ~510-token input ceiling.
+    let mut produced = false;
+    for chunk_text in split_for_length(trimmed, 40, 200) {
+        let t0 = std::time::Instant::now();
+        let ph = phonemize(app, &chunk_text, voice)?;
+        let t_ph = t0.elapsed();
+        let toks = tokenize(&ph);
+        if toks.is_empty() {
+            continue;
+        }
+        let samples = eng.synthesize(&toks, voice, speed)?;
+        eprintln!(
+            "kokoro: chunk {} chars / {} tokens: phonemize {t_ph:?}, synth {:?}, audio {:.1}s",
+            chunk_text.len(),
+            toks.len(),
+            t0.elapsed() - t_ph,
+            samples.len() as f64 / SAMPLE_RATE as f64
+        );
+        if samples.is_empty() {
+            continue;
+        }
+        produced = true;
+        if !on_chunk(samples)? {
+            return Ok(());
         }
     }
-    if samples.is_empty() {
-        return Err(anyhow!("Kokoro produced no audio"));
+    if !produced {
+        return Err(anyhow!("couldn't phonemize this text"));
     }
-    crate::wav::encode_wav(&samples, SAMPLE_RATE)
+    Ok(())
 }
 
-/// Split long text into roughly `max_chars`-sized pieces on sentence
-/// boundaries, for chunked synthesis of text longer than Kokoro's practical
-/// single-pass input length.
-fn split_for_length(text: &str, max_chars: usize) -> Vec<String> {
+/// Split text into chunks for streamed synthesis: the first chunk is cut at
+/// the first clause boundary (comma, semicolon, sentence end) once it reaches
+/// `first_max` chars, so audio starts quickly; later chunks fill up to
+/// `max_chars` on sentence boundaries.
+fn split_for_length(text: &str, first_max: usize, max_chars: usize) -> Vec<String> {
     let mut out = Vec::new();
     let mut current = String::new();
-    for sentence in text.split_inclusive(['.', '!', '?']) {
-        if !current.is_empty() && current.len() + sentence.len() > max_chars {
+    for piece in text.split_inclusive(['.', '!', '?', ',', ';', ':']) {
+        let limit = if out.is_empty() { first_max } else { max_chars };
+        if !current.trim().is_empty()
+            && (current.len() >= limit
+                || current.len() + piece.len() > max_chars
+                || (out.is_empty() && current.trim().len() >= 10))
+        {
             out.push(std::mem::take(&mut current));
         }
-        current.push_str(sentence);
+        current.push_str(piece);
     }
     if !current.trim().is_empty() {
         out.push(current);
     }
     if out.is_empty() {
         out.push(text.to_string());
+    }
+    // A long first sentence with no comma would still delay the first audio;
+    // cut it after a few words (a tiny prosody seam, much faster start).
+    if out[0].len() > first_max + 15 {
+        if let Some(cut) = out[0][first_max..].find(' ').map(|i| i + first_max) {
+            let rest = out[0].split_off(cut);
+            out.insert(1, rest);
+        }
     }
     out
 }
@@ -414,6 +486,55 @@ pub fn needs_unsupported_language(s: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Times synthesis for each downloaded Kokoro model and thread count.
+    /// `cargo test --release bench_kokoro -- --ignored --nocapture`
+    #[test]
+    #[ignore = "needs downloaded Kokoro models"]
+    fn bench_kokoro() {
+        let dir = std::path::PathBuf::from(std::env::var("APPDATA").unwrap())
+            .join("com.voicewriter.app")
+            .join("models");
+        let voices = dir.join("kokoro-voices-v1.0.bin");
+        // "The quick brown fox jumps over the lazy dog, and then it runs far away."
+        let ph = "ðə kwˈɪk bɹˈaʊn fˈɑːks dʒˈʌmps ˌoʊvɚ ðə lˈeɪzi dˈɑːɡ, ænd ðˈɛn ɪt ɹˈʌnz fˈɑːɹ ɐwˈeɪ.";
+        let toks = tokenize(ph);
+        let logical = std::thread::available_parallelism().map_or(4, |n| n.get());
+        for file in ["kokoro-82m-fp16.onnx", "kokoro-82m-fp32.onnx", "kokoro-82m-q8.onnx"] {
+            let model = dir.join(file);
+            if !model.is_file() {
+                continue;
+            }
+            for threads in [logical / 2, logical] {
+                let t = std::time::Instant::now();
+                let k = Kokoro::load_from(&model, &voices, threads).unwrap();
+                let load = t.elapsed();
+                k.synthesize(&toks, DEFAULT_VOICE, 1.0).unwrap(); // warm-up
+                let t = std::time::Instant::now();
+                let n = k.synthesize(&toks, DEFAULT_VOICE, 1.0).unwrap().len();
+                let secs = n as f64 / SAMPLE_RATE as f64;
+                println!(
+                    "{file} threads={threads}: load {load:?}, {:?} for {secs:.1}s audio (x{:.2} real time)",
+                    t.elapsed(),
+                    secs / t.elapsed().as_secs_f64()
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn split_starts_with_a_short_clause() {
+        let t = "Hello there, this is a fairly long first sentence that keeps going. And a second one. And a third.";
+        let parts = split_for_length(t, 40, 200);
+        assert_eq!(parts.concat(), t);
+        assert!(parts[0].len() <= 50, "first chunk too long: {:?}", parts[0]);
+        let long = "This sentence has no commas at all and keeps going for quite a while longer.";
+        let parts = split_for_length(long, 40, 200);
+        assert_eq!(parts.concat(), long);
+        assert!(parts[0].len() <= 50 && parts.len() == 2, "{parts:?}");
+        assert!(parts.len() >= 2);
+        assert_eq!(split_for_length("Hi.", 40, 200), vec!["Hi.".to_string()]);
+    }
 
     #[test]
     fn vocab_maps_pad_punctuation_and_letters() {

@@ -111,8 +111,8 @@
         <p>Hold <span class="k">Alt</span><span class="k">C</span> for English (romanized Banglish passes through untouched). Hold <span class="k">Alt</span><span class="k">X</span> for Bangla — types বাংলা script.</p>
       </article>
       <article class="card">
-        <h3>Private option</h3>
-        <p>Download a local model once and it runs entirely on your CPU. Your audio never leaves the machine.</p>
+        <h3>Fast, accurate dictation</h3>
+        <p>Dictation runs on Groq's Whisper large-v3 — typically under a second for a sentence, with your own free Groq key.</p>
       </article>
       <article class="card">
         <h3>Invisible &amp; light</h3>
@@ -172,8 +172,8 @@
   <section id="speech" class="slab wrap">
     <div class="slab-head">
       <p class="eyebrow">New in 5.5</p>
-      <h2>Offline voice models, on your PC.</h2>
-      <p>Speech and (optionally) dictation now run locally. Nothing is bundled with the installer — download only the models you want from <strong>Settings → Voice Models</strong>, and they work fully offline after that.</p>
+      <h2>Offline speech, on your PC.</h2>
+      <p>Read-aloud now runs locally with Kokoro 82M. It isn't bundled with the installer — download it once from <strong>Settings → Voice Models</strong> and it works fully offline after that.</p>
     </div>
 
     <div class="cards">
@@ -182,8 +182,8 @@
         <p>Speak-selection and English translations are voiced by Kokoro 82M, a small, natural-sounding open model that runs on your CPU. Pick from several voices and set the speed. One download, about 190&nbsp;MB.</p>
       </article>
       <article class="card">
-        <h3>Offline dictation with Whisper</h3>
-        <p>Choose Whisper Tiny (~75&nbsp;MB), Base (~142&nbsp;MB) or Small (~466&nbsp;MB) and set the Transcription Engine to <strong>Local only</strong> — your voice never leaves your PC. Or keep Groq for speed with local as a fallback.</p>
+        <h3>Starts speaking fast</h3>
+        <p>Speech plays sentence by sentence as it's generated, so you hear the first words in about a second instead of waiting for the whole selection.</p>
       </article>
       <article class="card">
         <h3>Manage everything in one place</h3>
@@ -288,7 +288,7 @@
     <div class="cards keys-cards">
       <article class="card key-card">
         <h3>Groq — fast dictation, refine, translate, AI chat, call recording</h3>
-        <p>Used for cloud Whisper transcription, the refine/translate wheel actions, the AI chat wedge, and call-recording transcription. Dictation and AI chat each have their own key slot in Settings — reuse one key, or use separate Groq accounts.</p>
+        <p>Used for dictation (Whisper large-v3), the refine/translate wheel actions, the AI chat wedge, and call-recording transcription. Dictation and AI chat each have their own key slot in Settings — reuse one key, or use separate Groq accounts.</p>
         <ol class="flow flow-compact">
           <li><span class="n">1</span><p>Create a free account at <a href="https://console.groq.com" target="_blank" rel="noopener">console.groq.com</a>.</p></li>
           <li><span class="n">2</span><p>Open <a href="https://console.groq.com/keys" target="_blank" rel="noopener">console.groq.com/keys</a> and click <strong>Create API Key</strong>.</p></li>
@@ -311,7 +311,7 @@
       <div class="get-main">
         <p class="eyebrow">Download</p>
         <h2>VoiceWriter for Windows &amp; Linux</h2>
-        <p class="get-lead">Pick your platform below. The local model is fetched later from inside the app if you want offline mode.</p>
+        <p class="get-lead">Pick your platform below. The offline speech voice is downloaded later from inside the app.</p>
 
         <a href="https://github.com/Xrenes/voicewriter/releases/latest/download/VoiceWriter_5.5.0_x64-setup.exe"
            class="btn btn-accent btn-lg get-btn" id="dlExe">
@@ -340,7 +340,7 @@
       <aside class="get-side">
         <p><strong>First launch:</strong> Windows may show “Windows protected your PC” — the app isn't signed yet. Click <strong>More info › Run anyway</strong>.</p>
         <p><strong>Hotkeys:</strong> <span class="k">Alt</span><span class="k">C</span> dictate English · <span class="k">Alt</span><span class="k">X</span> dictate Bangla · <span class="k">Shift</span><span class="k">Alt</span><span class="k">C</span> refine wheel · <span class="k">Ctrl</span><span class="k">Alt</span><span class="k">C</span> speak selection aloud · <span class="k">Alt</span><span class="k">W</span> mini browser. All rebindable in settings.</p>
-        <p><strong>Offline?</strong> Yes for dictation and speech — download Whisper and Kokoro in Settings → Voice Models and nothing leaves your PC. Refine, translate and AI chat need an internet connection. <strong>Mac?</strong> Not yet.</p>
+        <p><strong>Offline?</strong> Speech, yes — download Kokoro in Settings → Voice Models. Dictation, refine, translate and AI chat use Groq and need an internet connection. <strong>Mac?</strong> Not yet.</p>
       </aside>
     </div>
 
@@ -348,7 +348,7 @@
       <p class="setup-steps-head"><strong>Set up your API keys</strong> — open the tray (▲ near the clock), click the VoiceWriter icon to open Settings, then:</p>
       <ol class="flow flow-compact">
         <li><span class="n">1</span><p><strong>Groq</strong> (for cloud dictation, refine, translate, AI chat): create a free key at <a href="https://console.groq.com/keys" target="_blank" rel="noopener">console.groq.com/keys</a> and paste it into the Dictation key field. No credit card needed.</p></li>
-        <li><span class="n">2</span><p><strong>Voice Models</strong> (offline speech and dictation): open Settings → Voice Models, download <strong>Kokoro 82M</strong> for speak-aloud and a <strong>Whisper</strong> model for offline dictation, then pick the engine under Transcription Engine.</p></li>
+        <li><span class="n">2</span><p><strong>Voice Models</strong> (offline speech): open Settings → Voice Models and download <strong>Kokoro 82M</strong> for speak-aloud.</p></li>
         <li><span class="n">3</span><p>Full walkthrough: <a href="#keys">API keys</a> section below.</p></li>
       </ol>
     </div>
@@ -379,8 +379,8 @@
 
     <div class="cards">
       <article class="card">
-        <h3>Offline dictation isn't transcribing</h3>
-        <p>Open Settings → Transcription Engine and set it to <strong>Local only</strong>, then make sure the Whisper model you picked shows as installed in Settings → Voice Models. If the chosen model isn't downloaded, VoiceWriter uses any other Whisper model you have.</p>
+        <h3>Dictation says “Groq API key required”</h3>
+        <p>Dictation runs on Groq. Create a free key at <a href="https://console.groq.com/keys" target="_blank" rel="noopener">console.groq.com/keys</a>, paste it into the Dictation key field in Settings → API Keys &amp; Usage, and press <strong>Test</strong>.</p>
       </article>
       <article class="card">
         <h3>Speak-aloud says nothing</h3>
@@ -388,7 +388,7 @@
       </article>
       <article class="card">
         <h3>Upgrading from 0.5.x</h3>
-        <p>ElevenLabs and Groq speech were removed. Your Groq key still works for dictation and AI chat; speech now comes from the free offline Kokoro model.</p>
+        <p>ElevenLabs and Groq speech were removed. Your Groq key still works for dictation and AI chat (a key saved in the old speak-aloud slot is reused automatically); speech now comes from the free offline Kokoro model.</p>
       </article>
     </div>
   </section>

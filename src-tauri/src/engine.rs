@@ -1,13 +1,11 @@
-//! Transcription dispatch: choose Groq or local Whisper per the user's `engine`
-//! setting, fall back from Groq to local when appropriate, run a cleanup pass on
-//! the result, and record usage.
+//! Transcription dispatch: send the clip to Groq, run a cleanup pass on the
+//! result, and record usage.
 
 use anyhow::Result;
-use std::path::Path;
 use tauri::{AppHandle, Wry};
 
 use crate::settings::Settings;
-use crate::{format, groq, keychain, model, transcribe, usage, wav};
+use crate::{format, groq, keychain, usage, wav};
 
 /// How a raw transcript should be cleaned up before typing. Pure decision
 /// logic, split out so it can be exhaustively tested.
@@ -98,54 +96,24 @@ pub fn polish_is_sane(input: &str, output: &str) -> bool {
     (outl as f32) >= (inl as f32) * 0.5
 }
 
-/// `samples` must be 16 kHz mono f32.
-pub fn run(
-    app: &AppHandle<Wry>,
-    engine_lock: &parking_lot::Mutex<transcribe::Engine>,
-    cfg: &Settings,
-    samples: &[f32],
-) -> Outcome {
+/// Transcribe via Groq (the only speech-to-text engine). `samples` must be
+/// 16 kHz mono f32.
+pub fn run(app: &AppHandle<Wry>, cfg: &Settings, samples: &[f32]) -> Outcome {
     let audio_secs = samples.len() as f64 / crate::audio::TARGET_SR as f64;
-    let want = cfg.engine.as_str(); // "auto" | "groq" | "local"
-
-    let raw: String;
-    let engine: &'static str;
-
-    // --- Transcribe (Groq first unless the user forced local) ---
-    if want != "local" {
-        if let Some(key) = keychain::get(keychain::Purpose::Dictation) {
-            match try_groq(&key, cfg, samples) {
-                Ok(text) => {
-                    usage::record_ok(app, usage::Purpose::Dictation, audio_secs, 0.0);
-                    return finish(app, cfg, text, "groq");
-                }
-                Err(e) => {
-                    let msg = e.to_string();
-                    usage::record_err(app, usage::Purpose::Dictation, &msg);
-                    if want == "groq" {
-                        return Outcome::Failed(format!("Groq failed: {msg}"));
-                    }
-                    eprintln!("groq failed, falling back to local: {msg}");
-                }
-            }
-        } else if want == "groq" {
-            return Outcome::Failed("Groq selected but no API key set".into());
-        }
-    }
-
-    // --- Local Whisper --- (not a metered API call, no usage tracked)
-    match try_local(app, engine_lock, cfg, samples) {
+    let Some(key) = keychain::get(keychain::Purpose::Dictation) else {
+        return Outcome::Failed("Groq API key required — add it in Settings".into());
+    };
+    match try_groq(&key, cfg, samples) {
         Ok(text) => {
-            raw = text;
-            engine = "local";
+            usage::record_ok(app, usage::Purpose::Dictation, audio_secs, 0.0);
+            finish(app, cfg, text, "groq")
         }
         Err(e) => {
             let msg = e.to_string();
-            return Outcome::Failed(msg);
+            usage::record_err(app, usage::Purpose::Dictation, &msg);
+            Outcome::Failed(format!("Groq failed: {msg}"))
         }
     }
-
-    finish(app, cfg, raw, engine)
 }
 
 /// Prepare the transcript and decide whether cleanup should precede insertion.
@@ -185,33 +153,6 @@ fn finish(app: &AppHandle<Wry>, cfg: &Settings, raw: String, engine: &'static st
 fn try_groq(key: &str, cfg: &Settings, samples: &[f32]) -> Result<String> {
     let wav = wav::encode_wav_16k_mono(samples)?;
     groq::transcribe(wav, key, &cfg.groq_model, &cfg.language)
-}
-
-fn try_local(
-    app: &AppHandle<Wry>,
-    engine_lock: &parking_lot::Mutex<transcribe::Engine>,
-    cfg: &Settings,
-    samples: &[f32],
-) -> Result<String> {
-    // Prefer the selected model; if it isn't downloaded, use any Whisper model
-    // that is, so dictation works without an exact settings match.
-    let mut path: std::path::PathBuf = model::model_path(app, &cfg.model)?;
-    if !path.exists() {
-        for alt in ["whisper-base", "whisper-small", "whisper-tiny"] {
-            let p = model::model_path(app, alt)?;
-            if p.exists() {
-                eprintln!("local: {} not downloaded, using {alt}", cfg.model);
-                path = p;
-                break;
-            }
-        }
-    }
-    let p: &Path = &path;
-    let res = engine_lock.lock().transcribe(p, samples, &cfg.language);
-    if let Err(e) = &res {
-        eprintln!("local transcription failed: {e}");
-    }
-    res
 }
 
 // ===========================================================================
@@ -359,5 +300,34 @@ mod scenarios {
         let (r, out) = offline_result("en", "i pushed the fix to git yesterday");
         assert!(!r.is_code, "mentioning git in prose is not a command");
         assert_eq!(out, "I pushed the fix to git yesterday.");
+    }
+}
+
+#[cfg(test)]
+mod live {
+    /// End-to-end check of the Groq path with the stored key.
+    /// `cargo test --release live_groq -- --ignored --nocapture` with
+    /// `VW_BENCH_WAV` pointing at a 16 kHz mono speech clip.
+    #[test]
+    #[ignore = "calls the Groq API with the stored key"]
+    fn live_groq() {
+        crate::keychain::migrate_legacy();
+        let key = crate::keychain::get(crate::keychain::Purpose::Dictation).expect("no dictation key");
+        let wav = std::fs::read(std::env::var("VW_BENCH_WAV").unwrap()).unwrap();
+        let t = std::time::Instant::now();
+        let text = crate::groq::transcribe(wav, &key, "whisper-large-v3-turbo", "en").unwrap();
+        println!("transcribe ({:?}): {text}", t.elapsed());
+        let t = std::time::Instant::now();
+        match crate::groq::polish(&text, &key) {
+            Ok(p) => println!("polish ({:?}): {p}", t.elapsed()),
+            Err(e) => println!("polish FAILED: {e}"),
+        }
+        let action = crate::refine::Action::parse("translate:bn");
+        if let Some(a) = action {
+            match crate::refine::run(&text, &key, a) {
+                Ok(r) => println!("translate: {r}"),
+                Err(e) => println!("translate FAILED: {e}"),
+            }
+        }
     }
 }
