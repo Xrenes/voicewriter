@@ -27,8 +27,6 @@ pub struct Settings {
     /// Toggle hotkey for the "Web" browser window (open if hidden, hide if
     /// showing — same shape as `speak_hotkey`). Empty = disabled.
     pub web_hotkey: String,
-    /// Transcription engine: "auto" (Groq, local fallback) | "groq" | "local".
-    pub engine: String,
     /// Groq model id: "whisper-large-v3-turbo" (fast) | "whisper-large-v3" (accurate).
     pub groq_model: String,
     /// "paste" (default) | "type" | "clipboard" | "both"
@@ -41,8 +39,6 @@ pub struct Settings {
     pub loopback_device: String,
     /// Language code, e.g. "en". "auto" lets the engine detect.
     pub language: String,
-    /// Local whisper.cpp model id: "whisper-tiny" | "whisper-base" | "whisper-small".
-    pub model: String,
     /// Run the transcript through a Groq LLM cleanup pass (grammar, punctuation,
     /// filler removal) before typing. Falls back to local rules when unavailable.
     pub polish: bool,
@@ -83,13 +79,11 @@ impl Default for Settings {
             speak_hotkey: "Control+Alt+C".to_string(),
             wheel_hotkey: "Shift+Alt+C".to_string(),
             web_hotkey: "Alt+W".to_string(),
-            engine: "auto".to_string(),
             groq_model: "whisper-large-v3-turbo".to_string(),
             insertion: "paste".to_string(),
             mic_device: String::new(),
             loopback_device: String::new(),
             language: "en".to_string(),
-            model: "whisper-base".to_string(),
             polish: true,
             autostart: false,
             hide_tray: false,

@@ -1,11 +1,9 @@
-//! Voice model management: the known catalogue of downloadable local
-//! speech-to-text (whisper.cpp) and text-to-speech (Kokoro) models, their
-//! on-disk state, and first-run download with progress events for the
-//! Settings → Voice Models UI.
+//! Voice model management: the catalogue of downloadable local
+//! text-to-speech (Kokoro) models, their on-disk state, and download with
+//! progress events for the Settings → Voice Models UI.
 //!
 //! Models live in the OS app-data dir (see `tauri.conf.json` -> `identifier`),
-//! under a `models/` subfolder. STT models are a single `<id>.bin` ggml file;
-//! the TTS model is two files (the ONNX weights, and a separate voices pack)
+//! under a `models/` subfolder. The TTS model is two files (the ONNX weights, and a separate voices pack)
 //! since Kokoro's voice embeddings are distributed independently of the
 //! model itself — see `kokoro.rs`.
 
@@ -21,7 +19,6 @@ const DOWNLOAD_TIMEOUT: Duration = Duration::from_secs(600);
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub enum Kind {
-    Stt,
     Tts,
 }
 
@@ -45,46 +42,13 @@ struct Known {
 
 const MODELS: &[Known] = &[
     Known {
-        id: "whisper-tiny",
-        kind: Kind::Stt,
-        label: "Whisper Tiny",
-        files: &[KnownFile {
-            part: "model",
-            url: "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-tiny.bin",
-            file_name: "whisper-tiny.bin",
-            approx_bytes: 75_000_000,
-        }],
-    },
-    Known {
-        id: "whisper-base",
-        kind: Kind::Stt,
-        label: "Whisper Base",
-        files: &[KnownFile {
-            part: "model",
-            url: "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base.bin",
-            file_name: "whisper-base.bin",
-            approx_bytes: 148_000_000,
-        }],
-    },
-    Known {
-        id: "whisper-small",
-        kind: Kind::Stt,
-        label: "Whisper Small",
-        files: &[KnownFile {
-            part: "model",
-            url: "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-small.bin",
-            file_name: "whisper-small.bin",
-            approx_bytes: 488_000_000,
-        }],
-    },
-    Known {
         id: "kokoro-82m",
         kind: Kind::Tts,
         label: "Kokoro 82M",
         files: &[
-            // fp16: the "quality-safe" middle ground — near-identical output
-            // to fp32 (326 MB) at half the size, vs. visibly lower quality
-            // from the int8/q8 variants. See kokoro.rs for inference.
+            // fp16: benchmarked fastest on CPU (`kokoro::tests::bench_kokoro`)
+            // — ~1.5-1.9x real time vs ~1.0-1.3x for fp32 and ~0.6x for q8 —
+            // and near-identical to fp32 in quality.
             KnownFile {
                 part: "model",
                 url: "https://huggingface.co/onnx-community/Kokoro-82M-v1.0-ONNX/resolve/main/onnx/model_fp16.onnx",
@@ -128,12 +92,6 @@ fn file_path(app: &AppHandle<Wry>, model: &str, part: &str) -> Result<PathBuf> {
         .find(|f| f.part == part)
         .ok_or_else(|| anyhow!("model '{model}' has no '{part}' file"))?;
     Ok(models_dir(app)?.join(file.file_name))
-}
-
-/// Where the whisper.cpp ggml file for an STT `model` id lives. Used by the
-/// transcription engine, which only ever deals with the single STT file.
-pub fn model_path(app: &AppHandle<Wry>, model: &str) -> Result<PathBuf> {
-    file_path(app, model, "model")
 }
 
 /// Paths to Kokoro's ONNX weights and voices pack, in that order. Used by
