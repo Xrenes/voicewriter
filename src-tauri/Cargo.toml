@@ -128,3 +128,12 @@ global-hotkey = "0.8"
 [profile.release]
 opt-level = "s"
 strip = true
+
+# whisper.cpp and Kokoro are unusably slow unoptimised; optimise them even in
+# `tauri dev` so local dictation and speech run at near-release speed.
+[profile.dev.package.whisper-rs-sys]
+opt-level = 3
+[profile.dev.package.ndarray]
+opt-level = 3
+[profile.dev.package.rubato]
+opt-level = 3
