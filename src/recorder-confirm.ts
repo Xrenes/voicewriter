@@ -5,28 +5,41 @@ const filenameInput = document.getElementById("filename") as HTMLInputElement;
 const folderInput = document.getElementById("folder") as HTMLInputElement;
 const chooseFolderBtn = document.getElementById("chooseFolder") as HTMLButtonElement;
 const player = document.getElementById("player") as HTMLAudioElement;
+const captureInfo = document.getElementById("captureInfo") as HTMLSpanElement;
+const deviceNote = document.getElementById("deviceNote") as HTMLParagraphElement;
 const hint = document.getElementById("hint") as HTMLParagraphElement;
 const cancelBtn = document.getElementById("cancelBtn") as HTMLButtonElement;
 const confirmBtn = document.getElementById("confirmBtn") as HTMLButtonElement;
 
-interface ConfirmReadyPayload {
+interface ConfirmInfo {
+  /** Identifies the recording, so a duplicate notification doesn't reset typing. */
+  token: string;
   defaultName: string;
   defaultFolder: string;
+  durationSecs: number;
+  deviceCaptured: boolean;
+  deviceNote?: string | null;
 }
 
+let currentToken: string | null = null;
 let currentBlobUrl: string | null = null;
-let loaded = false;
 
-// The preview is mic + system audio already mixed together into one track
-// (see recording_audio_data in lib.rs) — matches what the final saved
-// recording will sound like, not two separate players.
+function formatDuration(secs: number): string {
+  const t = Math.max(0, Math.round(secs));
+  const h = Math.floor(t / 3600);
+  const m = Math.floor((t % 3600) / 60);
+  const s = String(t % 60).padStart(2, "0");
+  return h > 0 ? `${h}:${String(m).padStart(2, "0")}:${s}` : `${m}:${s}`;
+}
+
+// The preview is mic + device audio already mixed into one track — exactly
+// what gets saved.
 async function loadAudioPreview() {
   hint.textContent = "Loading preview…";
   try {
-    const bytes = await invoke<number[]>("recording_audio_data");
+    const bytes = await invoke<ArrayBuffer>("recording_audio_data");
     if (currentBlobUrl) URL.revokeObjectURL(currentBlobUrl);
-    const blob = new Blob([new Uint8Array(bytes)], { type: "audio/wav" });
-    currentBlobUrl = URL.createObjectURL(blob);
+    currentBlobUrl = URL.createObjectURL(new Blob([bytes], { type: "audio/wav" }));
     player.src = currentBlobUrl;
     hint.textContent = "";
   } catch (e) {
@@ -34,35 +47,35 @@ async function loadAudioPreview() {
   }
 }
 
-function applyDefaults(payload: ConfirmReadyPayload) {
-  filenameInput.value = payload.defaultName;
-  folderInput.value = payload.defaultFolder;
+// Every new recording replaces the form; the window is reused between
+// recordings rather than reloaded.
+function apply(info: ConfirmInfo) {
+  if (info.token === currentToken) return;
+  currentToken = info.token;
+  filenameInput.value = info.defaultName;
+  folderInput.value = info.defaultFolder;
+  const source = info.deviceCaptured ? "your mic + device audio" : "your mic only";
+  captureInfo.textContent = `${formatDuration(info.durationSecs)} · ${source}`;
+  deviceNote.textContent = info.deviceNote ?? "";
+  deviceNote.hidden = !info.deviceNote;
   confirmBtn.disabled = false;
-  loaded = true;
+  cancelBtn.disabled = false;
+  filenameInput.focus();
+  filenameInput.select();
   loadAudioPreview();
 }
 
-// Pull-based load on page open: this is the real source of truth. A plain
-// emit-and-hope from the backend right after dev_reload() (below/in lib.rs)
-// has a real race — dev_reload() destroys this page's JS context, and the
-// backend's emit can arrive before this fresh page's listen() call below
-// re-registers, silently dropping the payload. That exact bug produced a
-// genuine ~30s recording with an empty (0:00) preview forever, since
-// loadAudioPreview() never ran. Calling a request-response command directly
-// has no such race.
-invoke<ConfirmReadyPayload>("recorder_confirm_defaults")
-  .then(applyDefaults)
+// Pull on load as well as listening: in dev builds the window is reloaded
+// right before it's shown, which can drop an event emitted in between.
+invoke<ConfirmInfo | null>("recorder_confirm_defaults")
+  .then((info) => {
+    if (info) apply(info);
+  })
   .catch((e) => {
     hint.textContent = "Failed to load recording: " + String(e);
   });
 
-// Still listen for the already-open (not reloaded) case, and as a backup —
-// but only apply it once, so a redundant late-arriving event after the pull
-// above doesn't reset an in-progress filename edit.
-listen<ConfirmReadyPayload>("recorder-confirm-ready", (e) => {
-  if (loaded) return;
-  applyDefaults(e.payload);
-}).catch(() => {});
+listen<ConfirmInfo>("recorder-confirm-ready", (e) => apply(e.payload)).catch(() => {});
 
 chooseFolderBtn.addEventListener("click", async () => {
   const folder = await invoke<string | null>("choose_recording_folder");
@@ -70,19 +83,30 @@ chooseFolderBtn.addEventListener("click", async () => {
 });
 
 cancelBtn.addEventListener("click", async () => {
+  player.pause();
+  currentToken = null;
   await invoke("cancel_recording").catch(() => {});
 });
 
 confirmBtn.addEventListener("click", async () => {
   confirmBtn.disabled = true;
-  hint.textContent = "Transcribing…";
+  cancelBtn.disabled = true;
+  player.pause();
+  hint.textContent = "Saving…";
   try {
     await invoke("confirm_recording", {
       name: filenameInput.value.trim(),
       folder: folderInput.value.trim(),
     });
+    hint.textContent = "";
+    currentToken = null;
   } catch (e) {
-    hint.textContent = "Failed: " + String(e);
+    hint.textContent = "Couldn't save: " + String(e);
     confirmBtn.disabled = false;
+    cancelBtn.disabled = false;
   }
+});
+
+filenameInput.addEventListener("keydown", (ev) => {
+  if (ev.key === "Enter" && !confirmBtn.disabled) confirmBtn.click();
 });

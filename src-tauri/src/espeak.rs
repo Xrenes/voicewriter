@@ -87,10 +87,8 @@ pub fn speak(app: &AppHandle<Wry>, text: &str) -> Result<Vec<u8>> {
     speak_as(app, text, guess_voice(text))
 }
 
-/// Synthesize `text` via eSpeak NG using an explicit voice code (e.g. from
-/// the refine wheel's language picker, where the target language is already
-/// known — no need to guess from the translated text's script).
-pub fn speak_as(app: &AppHandle<Wry>, text: &str, voice: &str) -> Result<Vec<u8>> {
+/// Synthesize `text` via eSpeak NG using an explicit voice code.
+fn speak_as(app: &AppHandle<Wry>, text: &str, voice: &str) -> Result<Vec<u8>> {
     let trimmed = text.trim();
     if trimmed.is_empty() {
         return Err(anyhow!("nothing to speak"));

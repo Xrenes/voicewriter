@@ -31,6 +31,7 @@
             <p class="hint dim" id="linuxCliList" hidden>
               In your desktop's Settings → Keyboard → Custom Shortcuts, add any of:
               <span class="mono">voicewriter --dictate</span> (press once to start, again to stop and insert),
+              <span class="mono">voicewriter --refine</span>,
               <span class="mono">voicewriter --wheel</span>,
               <span class="mono">voicewriter --speak</span>,
               <span class="mono">voicewriter --web</span>,
@@ -48,23 +49,18 @@
             </div>
             <p class="hint">Hold to talk. Release to insert the text into the focused field.</p>
 
-            <div id="secondLanguageSection" hidden>
-              <div class="row">
-                <label>Second language</label>
-                <div class="hotkey">
-                  <input id="hotkey2" type="text" value="Alt+X" readonly />
-                  <button id="hotkey2Edit" class="ghost">Change</button>
-                </div>
+            <div class="row">
+              <label>Refine selection</label>
+              <div class="hotkey">
+                <input id="hotkeyRefine" type="text" value="Alt+R" readonly />
+                <button id="hotkeyRefineEdit" class="ghost">Change</button>
               </div>
-              <div class="row">
-                <label for="language2">Its language</label>
-                <input id="language2" type="text" value="bn" spellcheck="false" />
-              </div>
-              <p class="hint dim">
-                Hold this key to dictate in the second language (default Bangla, <span class="mono">bn</span>).
-                Clear the hotkey to disable it.
-              </p>
             </div>
+            <p class="hint dim">
+              Select text anywhere and press this key: spelling, grammar and sentence structure
+              are corrected and the text is polished, then it replaces your selection. Uses the
+              Groq API key below. Clear the hotkey to disable it.
+            </p>
 
             <div class="row">
               <label>Speak selection</label>
@@ -86,16 +82,15 @@
             </div>
 
             <div class="row">
-              <label>Refine selection</label>
+              <label>Quick menu (wheel)</label>
               <div class="hotkey">
                 <input id="hotkeyWheel" type="text" value="Shift+Alt+C" readonly />
                 <button id="hotkeyWheelEdit" class="ghost">Change</button>
               </div>
             </div>
             <p class="hint dim">
-              Press this key for a quick menu (Refine, Bangla, Translate, Record, Web, AI) — text
-              selection is only needed for Refine/Translate. Uses the Groq API key above.
-              Clear the hotkey to disable it.
+              Press this key for a quick menu: Refine (preview, copied to the clipboard), Record,
+              Web and AI. Text selection is only needed for Refine. Clear the hotkey to disable it.
             </p>
 
             <div class="row">
@@ -185,49 +180,6 @@
 
           <div class="card">
             <div class="row">
-              <label>ElevenLabs API key</label>
-              <span class="keyval" id="elevenlabsKeyStatus">Checking…</span>
-            </div>
-            <div class="row key-actions">
-              <button id="elevenlabsKeyReplace" class="ghost">Replace</button>
-              <button id="elevenlabsKeyTest" class="ghost">Test</button>
-              <button id="elevenlabsKeyClear" class="ghost danger" hidden>Remove</button>
-            </div>
-            <div class="row key-edit" id="elevenlabsKeyEditRow" hidden>
-              <input id="elevenlabsKeyInput" type="password" placeholder="ElevenLabs API key" spellcheck="false" />
-              <button id="elevenlabsKeySave" class="primary">Save</button>
-            </div>
-            <div class="row">
-              <label for="elevenlabsVoiceId">Voice ID</label>
-              <input id="elevenlabsVoiceId" type="text" placeholder="e.g. 21m00Tcm4TlvDq8ikWAM" spellcheck="false" />
-            </div>
-            <p class="hint" id="elevenlabsKeyHint">
-              Required for Bangla speech in the refine wheel's "Translate" wedge (natural voice).
-              Free at elevenlabs.io (no card required). Spanish, Italian, and English speech
-              don't need this — they use eSpeak NG / Groq instead.
-            </p>
-            <div class="row key-actions">
-              <button id="elevenlabsListVoices" class="ghost">List available voices (debug)</button>
-            </div>
-            <p class="hint dim" id="elevenlabsListHint"></p>
-            <div class="usage-nums">
-              <div><span id="elevenUToday">0</span><em>chars this month</em></div>
-              <div><span id="elevenURpm">0</span><em>requests / min</em></div>
-            </div>
-            <div class="meter">
-              <div class="meter-head">
-                <span>Monthly usage (est.)</span>
-                <span id="elevenMeterPct">0%</span>
-              </div>
-              <div class="meter-track">
-                <div class="meter-fill" id="elevenMeterFill"></div>
-              </div>
-            </div>
-            <p class="hint dim">Approximate against ElevenLabs' free-tier monthly character quota. Not account billing.</p>
-          </div>
-
-          <div class="card">
-            <div class="row">
               <label for="visionModelSelect">AI model</label>
               <select id="visionModelSelect" disabled>
                 <option value="">Save a key below to load models…</option>
@@ -306,8 +258,9 @@
               </select>
             </div>
             <p class="hint dim">
-              Used by the wheel's "Record" feature to also capture what's playing (e.g. the
-              other party's voice on a call) as a separate track alongside your mic.
+              The wheel's "Record" captures what this output plays (e.g. the other side of a
+              call) as its own track next to your mic, so the transcript can label who said what.
+              Pick your headset here if calls play through it rather than the default output.
             </p>
             <div class="row">
               <label for="language">Language</label>
@@ -413,25 +366,23 @@
           </div>
 
           <div class="card guide-card">
-            <h3>Refine wheel (Refine / Bangla / Translate / Record / Web / AI)</h3>
+            <h3>Refine selected text (Alt+R)</h3>
             <ol>
-              <li>Select some text, then press <strong>Shift+Alt+C</strong> to open the wheel.</li>
-              <li><strong>Refine</strong> and <strong>Bangla</strong> rewrite the selection using your main Groq key (Dictation's key above) — no extra setup.</li>
-              <li><strong>Translate</strong> picks a target language, then re-types the translation. Bangla output uses ElevenLabs for natural speech — see below.</li>
-              <li><strong>Record</strong> and <strong>Web</strong> need no API key at all (see their own guides below).</li>
-              <li><strong>AI</strong> opens a chat window — needs its own Groq key, see below.</li>
+              <li>Uses your main Groq key (Dictation's key above) — no extra setup.</li>
+              <li>Select text in any app, then press <strong>Alt+R</strong>.</li>
+              <li>Spelling, grammar and sentence structure are corrected and the wording is smoothed, keeping your meaning and tone. The result replaces your selection automatically.</li>
+              <li>A small "Refining…" note appears near the mouse while it works. Keep the text selected and don't switch windows until it says "Refined".</li>
             </ol>
           </div>
 
           <div class="card guide-card">
-            <h3>Bangla translate voice (ElevenLabs)</h3>
+            <h3>Wheel (Refine / Record / Web / AI)</h3>
             <ol>
-              <li>Open <a href="#" class="ext-link" data-url="https://elevenlabs.io">elevenlabs.io</a> and sign up (free tier, no card required).</li>
-              <li>Go to your profile settings (bottom-left avatar → API Keys) and create a key.</li>
-              <li>Paste it into <strong>ElevenLabs API key</strong> in API Keys &amp; Usage, then Save.</li>
-              <li>Optional: pick a Voice ID from <a href="#" class="ext-link" data-url="https://elevenlabs.io/app/voice-library">elevenlabs.io/app/voice-library</a> (click a voice → copy its ID) and paste it into the Voice ID field. Leave blank to use the default voice.</li>
+              <li>Press <strong>Shift+Alt+C</strong> to open the wheel.</li>
+              <li><strong>Refine</strong> shows the refined selection as a preview and copies it to the clipboard instead of replacing it.</li>
+              <li><strong>Record</strong> and <strong>Web</strong> have their own guides below.</li>
+              <li><strong>AI</strong> opens a chat window — needs its own Groq key, see below.</li>
             </ol>
-            <p class="hint dim">Only Bangla needs this — Spanish, Italian and English translate speech use eSpeak NG / Groq instead, no key required.</p>
           </div>
 
           <div class="card guide-card">
@@ -445,11 +396,12 @@
           </div>
 
           <div class="card guide-card">
-            <h3>Record (voice memo with transcript)</h3>
+            <h3>Record (calls and meetings, with a labeled transcript)</h3>
             <ol>
-              <li>No API key required for recording itself.</li>
-              <li>Open the wheel (Shift+Alt+C) and click <strong>Record</strong>, or use it from the wheel directly.</li>
-              <li>Speak, then stop — a transcript window opens using your Dictation Groq key if one is set (otherwise the local model).</li>
+              <li>Open the wheel (Shift+Alt+C) and click <strong>Record</strong>. Your mic and everything this PC plays (the other side of a call, a video, a meeting) are recorded as separate tracks.</li>
+              <li>Click the small floating button (or Record again) to stop. Preview it, pick a name and folder, then <strong>Transcribe &amp; Save</strong>.</li>
+              <li>The audio is saved first; the transcript then appears with each line labeled <strong>You</strong> (your mic) or <strong>Device</strong> (what the PC played) and timestamped. It's also saved as a .txt next to the audio.</li>
+              <li>Transcription uses your Dictation Groq key. If it fails (no key, no internet), the recording is kept and you can press <strong>Retry</strong>.</li>
             </ol>
           </div>
 
@@ -474,7 +426,7 @@
       </details>
 
       <footer class="foot">
-        <span class="build">v0.5.2</span>
+        <span class="build">v0.5.3</span>
       </footer>
     </main>
 

@@ -8,9 +8,24 @@
   </head>
   <body>
     <header class="head">
-      <h1>Transcript</h1>
-      <span class="file-path" id="filePath"></span>
+      <div class="titles">
+        <h1 id="title">Transcript</h1>
+        <span class="file-path" id="filePath"></span>
+      </div>
+      <div class="actions">
+        <button id="copyBtn" class="ghost" disabled>Copy</button>
+        <button id="revealBtn" class="ghost" disabled>Show file</button>
+      </div>
     </header>
+    <div class="status" id="status" hidden>
+      <span class="spinner" id="spinner" hidden></span>
+      <span class="status-text" id="statusText"></span>
+      <button id="retryBtn" class="primary" hidden>Retry</button>
+    </div>
+    <div class="legend" id="legend" hidden>
+      <span class="chip you">You</span> your microphone
+      <span class="chip device">Device</span> sound played on this PC
+    </div>
     <main class="thread" id="thread"></main>
     <script type="module" src="/src/transcript.ts"></script>
   </body>

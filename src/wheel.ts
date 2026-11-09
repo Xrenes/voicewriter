@@ -20,20 +20,6 @@ const ICON_REFINE =
   '<path d="M6 4v3M4.5 5.5h3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>' +
   '<path d="M19 16v2.5M17.75 17.25h2.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>';
 
-// A globe with meridian lines — represents translation in general.
-const ICON_GLOBE =
-  '<circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.6"/>' +
-  '<ellipse cx="12" cy="12" rx="4" ry="9" stroke="currentColor" stroke-width="1.6"/>' +
-  '<path d="M3 12h18" stroke="currentColor" stroke-width="1.6"/>' +
-  '<path d="M4.5 7h15M4.5 17h15" stroke="currentColor" stroke-width="1.6"/>';
-
-// Two overlapping speech bubbles — the dedicated one-click Bangla shortcut.
-const ICON_BANGLA =
-  '<path d="M3 6.5A2.5 2.5 0 0 1 5.5 4h8A2.5 2.5 0 0 1 16 6.5v4A2.5 2.5 0 0 1 13.5 13H9l-3.5 3v-3H5.5A2.5 2.5 0 0 1 3 10.5z" ' +
-  'stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>' +
-  '<path d="M15 9.5h1.5A2.5 2.5 0 0 1 19 12v3.5a2.5 2.5 0 0 1-2.5 2.5H16v2.5l-3-2.5" ' +
-  'stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>';
-
 // A solid red-tinted dot inside a ring — a record button.
 const ICON_RECORD =
   '<circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.6"/>' +
@@ -74,25 +60,14 @@ const ICON_WEB =
   '<circle cx="6" cy="6.5" r="0.6" fill="currentColor"/>' +
   '<circle cx="8" cy="6.5" r="0.6" fill="currentColor"/>';
 
-// Fixed 6-slot ring (like a full loadout wheel), starting at 12 o'clock,
-// going clockwise.
-const TOTAL_SLOTS = 6;
+// Fixed 4-slot ring, starting at 12 o'clock, going clockwise.
+const TOTAL_SLOTS = 4;
 
 const MAIN_WEDGES: WedgeDef[] = [
   { action: "refine", label: "Refine", icon: ICON_REFINE },
-  { action: "bangla", label: "Bangla", icon: ICON_BANGLA },
-  { action: "__translate", label: "Translate", icon: ICON_GLOBE },
   { action: "__record", label: "Record", icon: ICON_RECORD },
   { action: "__web", label: "Web", icon: ICON_WEB },
   { action: "__ai", label: "AI", icon: ICON_AI },
-];
-
-// Second-level menu shown after clicking "Translate": pick a target language.
-const LANGUAGE_WEDGES: WedgeDef[] = [
-  { action: "translate:en", label: "English", icon: ICON_GLOBE },
-  { action: "translate:bn", label: "Bangla", icon: ICON_GLOBE },
-  { action: "translate:es", label: "Spanish", icon: ICON_GLOBE },
-  { action: "translate:it", label: "Italian", icon: ICON_GLOBE },
 ];
 
 // Second-level menu shown after clicking "Find": pick a capture source.
@@ -209,10 +184,6 @@ function buildWheel(wedges: WedgeDef[]) {
 }
 
 function onWedgeClick(action: string) {
-  if (action === "__translate") {
-    buildWheel(LANGUAGE_WEDGES);
-    return;
-  }
   if (action === "__record") {
     // Fire-and-forget: closes the whole wheel immediately (recording has its
     // own floating widget, not the wheel's preview panel). Toggles: starts
@@ -222,8 +193,8 @@ function onWedgeClick(action: string) {
     return;
   }
   if (action === "__find") {
-    // Same submenu pattern as Translate: swap the ring to the capture-source
-    // wedges rather than opening a separate window.
+    // Swap the ring to the capture-source wedges rather than opening a
+    // separate window.
     buildWheel(FIND_WEDGES);
     return;
   }
@@ -242,7 +213,7 @@ function onWedgeClick(action: string) {
     invoke("wheel_cancel").catch(() => {});
     return;
   }
-  runAction(action);
+  if (action === "refine") runRefine();
 }
 
 /** Backend command for each Find submenu wedge. */
@@ -310,10 +281,10 @@ function showPreview(text: string) {
   preview.hidden = false;
 }
 
-async function runAction(action: string) {
+async function runRefine() {
   setLoading(true);
   try {
-    const result = await invoke<string>("wheel_run", { action });
+    const result = await invoke<string>("wheel_refine");
     setLoading(false);
     showPreview(result);
   } catch (e) {
@@ -328,7 +299,7 @@ buildWheel(MAIN_WEDGES);
 // wheel if already on the main menu.
 window.addEventListener("keydown", (ev) => {
   if (ev.key === "Escape") {
-    if (currentWedges === LANGUAGE_WEDGES || currentWedges === FIND_WEDGES) {
+    if (currentWedges === FIND_WEDGES) {
       buildWheel(MAIN_WEDGES);
     } else {
       invoke("wheel_cancel").catch(() => {});
@@ -348,7 +319,7 @@ document.body.addEventListener("click", (ev) => {
 });
 
 // The backend emits this right before showing the ring again, so a window
-// left on the preview panel, the language picker, or mid-loading from a
+// left on the preview panel, a submenu, or mid-loading from a
 // previous run starts clean — the window is only ever hidden between uses,
 // never reloaded.
 listen("wheel-reset", () => {

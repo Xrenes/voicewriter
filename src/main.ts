@@ -5,9 +5,8 @@ import { openUrl } from "@tauri-apps/plugin-opener";
 // ---- Types shared with the Rust backend ----
 interface Settings {
   hotkey: string;
-  secondaryHotkey: string;
-  secondaryLanguage: string;
   speakHotkey: string;
+  refineHotkey: string;
   wheelHotkey: string;
   webHotkey: string;
   engine: "auto" | "groq" | "local";
@@ -20,11 +19,10 @@ interface Settings {
   polish: boolean;
   autostart: boolean;
   hideTray: boolean;
-  elevenlabsVoiceId: string;
   visionModel: string;
 }
 
-type Status = "idle" | "recording" | "transcribing" | "ready" | "speaking" | "error";
+type Status = "idle" | "recording" | "transcribing" | "ready" | "speaking" | "refining" | "error";
 
 interface StatusEvent {
   status: Status;
@@ -67,11 +65,10 @@ const statusDot = $("statusDot");
 const statusText = $("statusText");
 const hotkeyInput = $<HTMLInputElement>("hotkey");
 const hotkeyEdit = $<HTMLButtonElement>("hotkeyEdit");
-const hotkey2Input = $<HTMLInputElement>("hotkey2");
-const hotkey2Edit = $<HTMLButtonElement>("hotkey2Edit");
-const language2Input = $<HTMLInputElement>("language2");
 const hotkeySpeakInput = $<HTMLInputElement>("hotkeySpeak");
 const hotkeySpeakEdit = $<HTMLButtonElement>("hotkeySpeakEdit");
+const hotkeyRefineInput = $<HTMLInputElement>("hotkeyRefine");
+const hotkeyRefineEdit = $<HTMLButtonElement>("hotkeyRefineEdit");
 const hotkeyWheelInput = $<HTMLInputElement>("hotkeyWheel");
 const hotkeyWheelEdit = $<HTMLButtonElement>("hotkeyWheelEdit");
 const hotkeyWebInput = $<HTMLInputElement>("hotkeyWeb");
@@ -84,15 +81,6 @@ const speakKeyEditRow = $("speakKeyEditRow");
 const speakKeyInput = $<HTMLInputElement>("speakKeyInput");
 const speakKeySave = $<HTMLButtonElement>("speakKeySave");
 const speakKeyHint = $("speakKeyHint");
-const elevenlabsKeyStatusEl = $("elevenlabsKeyStatus");
-const elevenlabsKeyReplace = $<HTMLButtonElement>("elevenlabsKeyReplace");
-const elevenlabsKeyTest = $<HTMLButtonElement>("elevenlabsKeyTest");
-const elevenlabsKeyClear = $<HTMLButtonElement>("elevenlabsKeyClear");
-const elevenlabsKeyEditRow = $("elevenlabsKeyEditRow");
-const elevenlabsKeyInput = $<HTMLInputElement>("elevenlabsKeyInput");
-const elevenlabsKeySave = $<HTMLButtonElement>("elevenlabsKeySave");
-const elevenlabsKeyHint = $("elevenlabsKeyHint");
-const elevenlabsVoiceIdInput = $<HTMLInputElement>("elevenlabsVoiceId");
 const visionKeyStatusEl = $("visionKeyStatus");
 const visionKeyReplace = $<HTMLButtonElement>("visionKeyReplace");
 const visionKeyTest = $<HTMLButtonElement>("visionKeyTest");
@@ -117,10 +105,6 @@ const speakUToday = $("speakUToday");
 const speakURpm = $("speakURpm");
 const speakMeterPct = $("speakMeterPct");
 const speakMeterFill = $<HTMLDivElement>("speakMeterFill");
-const elevenUToday = $("elevenUToday");
-const elevenURpm = $("elevenURpm");
-const elevenMeterPct = $("elevenMeterPct");
-const elevenMeterFill = $<HTMLDivElement>("elevenMeterFill");
 const visionUToday = $("visionUToday");
 const visionURpm = $("visionURpm");
 const visionMeterPct = $("visionMeterPct");
@@ -157,6 +141,7 @@ function applyStatus(s: Status, detail?: string) {
     transcribing: "Transcribing…",
     ready: "Ready",
     speaking: "Speaking…",
+    refining: "Refining…",
     error: "Error",
   };
   statusText.textContent = detail ? `${labels[s]} — ${detail}` : labels[s];
@@ -205,9 +190,8 @@ function applySpeakProgress(s: Status, detail?: string) {
 async function loadSettings() {
   settings = await invoke<Settings>("get_settings");
   hotkeyInput.value = settings.hotkey;
-  hotkey2Input.value = settings.secondaryHotkey || "(disabled)";
-  language2Input.value = settings.secondaryLanguage;
   hotkeySpeakInput.value = settings.speakHotkey || "(disabled)";
+  hotkeyRefineInput.value = settings.refineHotkey || "(disabled)";
   hotkeyWheelInput.value = settings.wheelHotkey || "(disabled)";
   hotkeyWebInput.value = settings.webHotkey || "(disabled)";
   engineSel.value = settings.engine;
@@ -218,7 +202,6 @@ async function loadSettings() {
   polishChk.checked = settings.polish;
   autostartChk.checked = settings.autostart;
   hideTrayChk.checked = settings.hideTray;
-  elevenlabsVoiceIdInput.value = settings.elevenlabsVoiceId;
 }
 
 async function save(patch: Partial<Settings>) {
@@ -344,68 +327,6 @@ speakKeyTest.addEventListener("click", async () => {
   }
 });
 
-// ---- ElevenLabs key + voice id (natural-voice Bangla speech for the wheel) ----
-async function refreshElevenlabsKey() {
-  const st = await invoke<KeyStatus>("elevenlabs_key_status");
-  if (st.present) {
-    elevenlabsKeyStatusEl.textContent = st.masked;
-    elevenlabsKeyStatusEl.classList.add("ok");
-    elevenlabsKeyClear.hidden = false;
-    elevenlabsKeyTest.hidden = false;
-    elevenlabsKeyHint.textContent =
-      "Bangla speech from the refine wheel uses this key + the voice ID below.";
-  } else {
-    elevenlabsKeyStatusEl.textContent = "No key — Bangla speech disabled";
-    elevenlabsKeyStatusEl.classList.remove("ok");
-    elevenlabsKeyClear.hidden = true;
-    elevenlabsKeyTest.hidden = true;
-    elevenlabsKeyHint.textContent =
-      "Required for Bangla speech in the refine wheel's \"Translate\" wedge (natural voice). " +
-      "Free at elevenlabs.io (no card required). Spanish, Italian, and English speech " +
-      "don't need this — they use eSpeak NG / Groq instead.";
-  }
-}
-
-elevenlabsKeyReplace.addEventListener("click", () => {
-  elevenlabsKeyEditRow.hidden = !elevenlabsKeyEditRow.hidden;
-  if (!elevenlabsKeyEditRow.hidden) elevenlabsKeyInput.focus();
-});
-
-elevenlabsKeySave.addEventListener("click", async () => {
-  const v = elevenlabsKeyInput.value.trim();
-  if (!v) return;
-  elevenlabsKeySave.disabled = true;
-  try {
-    await invoke("set_elevenlabs_key", { key: v });
-    elevenlabsKeyInput.value = "";
-    elevenlabsKeyEditRow.hidden = true;
-    await refreshElevenlabsKey();
-  } catch (e) {
-    elevenlabsKeyHint.textContent = String(e);
-  } finally {
-    elevenlabsKeySave.disabled = false;
-  }
-});
-
-elevenlabsKeyClear.addEventListener("click", async () => {
-  await invoke("clear_elevenlabs_key");
-  await refreshElevenlabsKey();
-});
-
-elevenlabsKeyTest.addEventListener("click", async () => {
-  elevenlabsKeyTest.disabled = true;
-  elevenlabsKeyStatusEl.textContent = "Testing…";
-  try {
-    const r = await invoke<string>("test_elevenlabs_key");
-    elevenlabsKeyStatusEl.textContent = r;
-  } catch (e) {
-    elevenlabsKeyStatusEl.textContent = "Test failed: " + String(e);
-  } finally {
-    elevenlabsKeyTest.disabled = false;
-    setTimeout(refreshElevenlabsKey, 2500);
-  }
-});
-
 // ---- AI (Groq) key — separate slot from Dictation's key, for the wheel's "AI" chat wedge ----
 
 // Model dropdown, auto-populated from this Groq key's own actual model list
@@ -520,28 +441,6 @@ visionKeyTest.addEventListener("click", async () => {
   }
 });
 
-elevenlabsVoiceIdInput.addEventListener("change", () =>
-  save({ elevenlabsVoiceId: elevenlabsVoiceIdInput.value.trim() }),
-);
-
-// Prints this account's ElevenLabs voices (name, id, category) to the dev
-// console — helps pick a voice id that actually works via the API on the
-// free tier (see debug_list_elevenlabs_voices's doc comment in lib.rs).
-const elevenlabsListVoicesBtn = $<HTMLButtonElement>("elevenlabsListVoices");
-const elevenlabsListHint = $("elevenlabsListHint");
-elevenlabsListVoicesBtn.addEventListener("click", async () => {
-  elevenlabsListVoicesBtn.disabled = true;
-  elevenlabsListHint.textContent = "Listing…";
-  try {
-    const r = await invoke<string>("debug_list_elevenlabs_voices");
-    elevenlabsListHint.textContent = r;
-  } catch (e) {
-    elevenlabsListHint.textContent = "Failed: " + String(e);
-  } finally {
-    elevenlabsListVoicesBtn.disabled = false;
-  }
-});
-
 const resetCapturePermissionBtn = $<HTMLButtonElement>("resetCapturePermission");
 resetCapturePermissionBtn.addEventListener("click", async () => {
   resetCapturePermissionBtn.disabled = true;
@@ -582,15 +481,13 @@ const dictULabel = $("dictULabel");
 
 async function refreshUsage() {
   try {
-    const [dict, speak, eleven, vision] = await Promise.all([
+    const [dict, speak, vision] = await Promise.all([
       invoke<UsageSnapshot>("get_usage_dictation"),
       invoke<UsageSnapshot>("get_usage_speak_aloud"),
-      invoke<UsageSnapshot>("get_usage_elevenlabs"),
       invoke<UsageSnapshot>("get_usage_vision"),
     ]);
     applyUsageMeter(dict, dictUToday, dictULabel, dictURpm, dictMeterPct, dictMeterFill);
     applyUsageMeter(speak, speakUToday, null, speakURpm, speakMeterPct, speakMeterFill);
-    applyUsageMeter(eleven, elevenUToday, null, elevenURpm, elevenMeterPct, elevenMeterFill);
     applyUsageMeter(vision, visionUToday, null, visionURpm, visionMeterPct, visionMeterFill);
   } catch (e) {
     console.error("get_usage failed", e);
@@ -684,7 +581,7 @@ autostartChk.addEventListener("change", async () => {
 interface HotkeyBinding {
   input: HTMLInputElement;
   editBtn: HTMLButtonElement;
-  command: "set_hotkey" | "set_secondary_hotkey" | "set_speak_hotkey" | "set_wheel_hotkey" | "set_web_hotkey";
+  command: "set_hotkey" | "set_speak_hotkey" | "set_refine_hotkey" | "set_wheel_hotkey" | "set_web_hotkey";
   get: () => string;
   set: (v: string) => void;
 }
@@ -705,7 +602,7 @@ function bindHotkey(b: HotkeyBinding) {
       capturingHotkey = false;
       b.editBtn.textContent = "Change";
 
-      // Esc clears the binding (allowed for the secondary hotkey).
+      // Esc clears the binding.
       const combo =
         ev.key === "Escape"
           ? ""
@@ -745,18 +642,18 @@ bindHotkey({
   set: (v) => (settings.hotkey = v),
 });
 bindHotkey({
-  input: hotkey2Input,
-  editBtn: hotkey2Edit,
-  command: "set_secondary_hotkey",
-  get: () => settings.secondaryHotkey,
-  set: (v) => (settings.secondaryHotkey = v),
-});
-bindHotkey({
   input: hotkeySpeakInput,
   editBtn: hotkeySpeakEdit,
   command: "set_speak_hotkey",
   get: () => settings.speakHotkey,
   set: (v) => (settings.speakHotkey = v),
+});
+bindHotkey({
+  input: hotkeyRefineInput,
+  editBtn: hotkeyRefineEdit,
+  command: "set_refine_hotkey",
+  get: () => settings.refineHotkey,
+  set: (v) => (settings.refineHotkey = v),
 });
 bindHotkey({
   input: hotkeyWheelInput,
@@ -772,10 +669,6 @@ bindHotkey({
   get: () => settings.webHotkey,
   set: (v) => (settings.webHotkey = v),
 });
-
-language2Input.addEventListener("change", () =>
-  save({ secondaryLanguage: language2Input.value.trim() || "bn" }),
-);
 
 // Note: click-outside-to-hide is handled in the Rust backend via the window's
 // Focused(false) event, so it works even when focus goes to a native surface.
@@ -807,7 +700,6 @@ async function boot() {
   await refreshModelState();
   await refreshKey();
   await refreshSpeakKey();
-  await refreshElevenlabsKey();
   await refreshVisionKey();
   await refreshUsage();
   applyStatus("idle");

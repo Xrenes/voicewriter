@@ -32,14 +32,16 @@
       <section class="card">
         <div class="row preview-row">
           <label>Preview</label>
+          <span class="capture-info" id="captureInfo"></span>
         </div>
         <audio id="player" controls></audio>
+        <p class="hint note" id="deviceNote" hidden></p>
       </section>
 
       <p class="hint dim" id="hint"></p>
 
       <footer class="actions">
-        <button id="cancelBtn" class="ghost">Cancel</button>
+        <button id="cancelBtn" class="ghost">Discard</button>
         <button id="confirmBtn" class="primary">Transcribe &amp; Save</button>
       </footer>
     </main>

@@ -71,16 +71,6 @@ pub fn encode_wav_16k_mono(samples: &[f32]) -> Result<Vec<u8>> {
     Ok(buf.into_inner())
 }
 
-/// Decode a 16-bit PCM WAV (as written by `encode_wav_16k_mono`) back to f32
-/// samples, for mixing two previously-recorded tracks together.
-pub fn decode_wav_16k_mono(wav_bytes: &[u8]) -> Result<Vec<f32>> {
-    let mut reader = hound::WavReader::new(Cursor::new(wav_bytes)).context("wav reader")?;
-    reader
-        .samples::<i16>()
-        .map(|s| s.map(|v| v as f32 / i16::MAX as f32).context("read sample"))
-        .collect()
-}
-
 /// `model` e.g. "whisper-large-v3-turbo" or "whisper-large-v3".
 /// `language` is an ISO code, or "auto" to let Groq detect.
 pub fn transcribe(
@@ -131,36 +121,75 @@ pub fn transcribe(
     Ok(text.trim().to_string())
 }
 
-/// One transcribed sentence/phrase with its start time (seconds) within the
-/// clip it came from — used to best-effort chronologically merge two
-/// separately-recorded tracks (mic + system audio) into one call transcript.
-/// Not real speaker diarization: each segment is just labeled by which whole
-/// track it was transcribed from.
+/// One Whisper segment from a `verbose_json` transcription: timing within
+/// the uploaded clip plus the decoder's confidence signals, which call
+/// recording uses to drop hallucinated lines (see `record.rs`).
+#[derive(Debug, Clone)]
 pub struct Segment {
-    pub start_secs: f64,
+    pub start: f64,
+    pub end: f64,
     pub text: String,
+    pub avg_logprob: f64,
+    pub no_speech_prob: f64,
+    pub compression_ratio: f64,
 }
 
-/// Like `transcribe`, but requests Groq's `verbose_json` format to also get
-/// per-segment start timestamps, for chronologically merging two separately
-/// recorded tracks (see `record::merge_call_transcript`). Used only by the
-/// wheel's "Record" (call recording) feature — hold-to-talk dictation and
-/// "speak selection" use the plain `transcribe` above, which doesn't need
-/// timing.
-pub fn transcribe_with_segments(
+/// A failed transcription request, with enough detail for the caller to
+/// decide whether waiting and retrying (or trying another model) can help.
+#[derive(Debug)]
+pub struct TranscribeError {
+    /// HTTP status, or `None` when Groq couldn't be reached at all.
+    pub status: Option<u16>,
+    /// From Groq's `retry-after` header on a 429.
+    pub retry_after: Option<Duration>,
+    pub message: String,
+}
+
+impl std::fmt::Display for TranscribeError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(&self.message)
+    }
+}
+
+impl TranscribeError {
+    fn other(message: impl Into<String>) -> Self {
+        Self { status: None, retry_after: None, message: message.into() }
+    }
+
+    /// The model itself is unavailable to this key (missing or retired).
+    pub fn model_unavailable(&self) -> bool {
+        let lower = self.message.to_lowercase();
+        self.status == Some(404)
+            || lower.contains("model_not_found")
+            || lower.contains("does not exist")
+            || lower.contains("decommissioned")
+    }
+}
+
+/// Upload limit headroom: long recordings are split into chunks well under
+/// this before upload (see `record.rs`), so one request taking minutes means
+/// a slow connection, not a stuck call.
+const SEGMENTS_TIMEOUT: Duration = Duration::from_secs(300);
+
+/// Like `transcribe`, but with Groq's `verbose_json` format for per-segment
+/// timestamps and confidence. `prompt` is optional context (e.g. the end of
+/// the previous chunk) that helps Whisper stay consistent across chunks.
+pub fn transcribe_segments(
     wav: Vec<u8>,
     api_key: &str,
     model: &str,
     language: &str,
-) -> Result<(String, Vec<Segment>)> {
+    prompt: Option<&str>,
+) -> std::result::Result<Vec<Segment>, TranscribeError> {
     let client = reqwest::blocking::Client::builder()
-        .timeout(TIMEOUT)
+        .timeout(SEGMENTS_TIMEOUT)
         .build()
-        .context("build http client")?;
+        .map_err(|e| TranscribeError::other(e.to_string()))?;
 
     let part = reqwest::blocking::multipart::Part::bytes(wav)
         .file_name("clip.wav")
-        .mime_str("audio/wav")?;
+        .mime_str("audio/wav")
+        .map_err(|e| TranscribeError::other(e.to_string()))?;
 
     let mut form = reqwest::blocking::multipart::Form::new()
         .part("file", part)
@@ -170,49 +199,69 @@ pub fn transcribe_with_segments(
     if language != "auto" && !language.is_empty() {
         form = form.text("language", language.to_string());
     }
+    if let Some(p) = prompt.filter(|p| !p.trim().is_empty()) {
+        form = form.text("prompt", p.to_string());
+    }
 
     let resp = client
         .post(ENDPOINT)
         .bearer_auth(api_key)
         .multipart(form)
         .send()
-        .context("send groq request")?;
+        .map_err(|e| TranscribeError::other(format!("couldn't reach Groq: {e}")))?;
 
     let status = resp.status();
-    let body = resp.text().context("read groq response")?;
+    let retry_after = resp
+        .headers()
+        .get("retry-after")
+        .and_then(|v| v.to_str().ok())
+        .and_then(|v| v.trim().parse::<f64>().ok())
+        .map(|secs| Duration::from_secs_f64(secs.clamp(0.0, 600.0)));
+    let body = resp
+        .text()
+        .map_err(|e| TranscribeError::other(format!("reading Groq's response failed: {e}")))?;
 
     if !status.is_success() {
         let detail = extract_error(&body).unwrap_or_else(|| body.clone());
-        return Err(anyhow!("Groq {}: {}", status.as_u16(), truncate(&detail, 200)));
+        return Err(TranscribeError {
+            status: Some(status.as_u16()),
+            retry_after,
+            message: format!("Groq {} [{}]: {}", status.as_u16(), model, truncate(&detail, 200)),
+        });
     }
 
-    let parsed: serde_json::Value =
-        serde_json::from_str(&body).context("parse groq json")?;
-    let text = parsed
-        .get("text")
-        .and_then(|t| t.as_str())
-        .ok_or_else(|| anyhow!("no 'text' in Groq response"))?
-        .trim()
-        .to_string();
+    let parsed: serde_json::Value = serde_json::from_str(&body)
+        .map_err(|e| TranscribeError::other(format!("unexpected Groq response: {e}")))?;
+    Ok(parse_segments(&parsed))
+}
 
-    let segments = parsed
+fn parse_segments(parsed: &serde_json::Value) -> Vec<Segment> {
+    let num = |seg: &serde_json::Value, key: &str, default: f64| {
+        seg.get(key).and_then(|v| v.as_f64()).unwrap_or(default)
+    };
+    parsed
         .get("segments")
         .and_then(|s| s.as_array())
         .map(|arr| {
             arr.iter()
                 .filter_map(|seg| {
-                    let start_secs = seg.get("start")?.as_f64()?;
+                    let start = seg.get("start")?.as_f64()?;
                     let text = seg.get("text")?.as_str()?.trim().to_string();
                     if text.is_empty() {
                         return None;
                     }
-                    Some(Segment { start_secs, text })
+                    Some(Segment {
+                        start,
+                        end: num(seg, "end", start),
+                        text,
+                        avg_logprob: num(seg, "avg_logprob", 0.0),
+                        no_speech_prob: num(seg, "no_speech_prob", 0.0),
+                        compression_ratio: num(seg, "compression_ratio", 1.0),
+                    })
                 })
                 .collect()
         })
-        .unwrap_or_default();
-
-    Ok((text, segments))
+        .unwrap_or_default()
 }
 
 use std::sync::Mutex;
@@ -453,6 +502,26 @@ mod tests {
         assert_eq!(strip_wrapping_quotes("'hi'"), "hi");
         assert_eq!(strip_wrapping_quotes("no quotes here"), "no quotes here");
         assert_eq!(strip_wrapping_quotes("\"unbalanced"), "\"unbalanced");
+    }
+
+    #[test]
+    fn parses_verbose_segments_with_defaults() {
+        let v = serde_json::json!({
+            "text": "Hello there. Bye.",
+            "segments": [
+                {"start": 0.0, "end": 1.5, "text": " Hello there.", "avg_logprob": -0.2,
+                 "no_speech_prob": 0.01, "compression_ratio": 1.1},
+                {"start": 1.5, "end": 1.9, "text": "  "},
+                {"start": 2.0, "end": 2.6, "text": "Bye."}
+            ]
+        });
+        let segs = parse_segments(&v);
+        assert_eq!(segs.len(), 2);
+        assert_eq!(segs[0].text, "Hello there.");
+        assert_eq!(segs[0].end, 1.5);
+        assert_eq!(segs[0].no_speech_prob, 0.01);
+        assert_eq!(segs[1].start, 2.0);
+        assert_eq!(segs[1].compression_ratio, 1.0);
     }
 
     #[test]
