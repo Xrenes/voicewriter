@@ -51,8 +51,8 @@ impl Route {
             };
         }
 
-        // Explicit non-English mode (e.g. Bangla via Alt+X): tidy in that
-        // language, allow the (language-aware, no-translate) polish pass.
+        // Explicit non-English dictation language (Settings → Language): tidy
+        // in that language, allow the (language-aware, no-translate) polish pass.
         Route {
             tidy_lang: match language {
                 "de" => "de",
@@ -116,7 +116,7 @@ pub fn run(
         if let Some(key) = keychain::get(keychain::Purpose::Dictation) {
             match try_groq(&key, cfg, samples) {
                 Ok(text) => {
-                    usage::record_ok(app, usage::Purpose::Dictation, audio_secs, 0.0);
+                    usage::record_ok(app, usage::Purpose::Dictation, audio_secs);
                     return finish(app, cfg, text, "groq");
                 }
                 Err(e) => {
@@ -308,7 +308,7 @@ mod scenarios {
         );
     }
 
-    // ---------- Bangla script on Alt+X ----------
+    // ---------- Bangla script with language set to "bn" ----------
     #[test]
     fn bangla_cases() {
         check("bn", "আমি ভালো আছি তুমি কেমন আছো", Kind::Bangla, "আমি ভালো আছি তুমি কেমন আছো");

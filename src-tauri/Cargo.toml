@@ -1,6 +1,6 @@
 [package]
 name = "voicewriter"
-version = "0.5.2"
+version = "0.5.3"
 description = "Voice writing assistant"
 authors = ["ifti237@gmail.com"]
 edition = "2021"
@@ -36,10 +36,7 @@ rubato = "0.16"
 # streamed WAV with a placeholder 0xFFFFFFFF RIFF size (unknown length while
 # streaming); rodio's bundled `wav` (hound) decoder rejects that as malformed,
 # so we use the symphonia-backed WAV decoder instead, which tolerates it.
-# ElevenLabs' free tier ignores any requested WAV output_format and always
-# returns MP3 regardless (WAV output is Pro-tier-and-above only), so MP3
-# decoding is needed too.
-rodio = { version = "0.19", default-features = false, features = ["symphonia-wav", "symphonia-mp3"] }
+rodio = { version = "0.19", default-features = false, features = ["symphonia-wav"] }
 
 # Local speech-to-text (whisper.cpp bindings) — fallback engine
 # TEMPORARILY DISABLED for local testing: whisper-rs-sys needs libclang,
@@ -68,8 +65,8 @@ base64 = "0.22"
 # Groq API key storage in the OS keychain (Windows Credential Manager / Secret Service)
 keyring = { version = "3", features = ["windows-native", "sync-secret-service"] }
 
-# Timestamps for usage counters
-time = { version = "0.3", features = ["formatting"] }
+# Timestamps for usage counters and recording file names (local time)
+time = { version = "0.3", features = ["formatting", "local-offset"] }
 
 # Opens URLs in the user's system default browser (Settings guide's
 # sign-up/API-key links) — deliberately NOT the in-app Web browser, since

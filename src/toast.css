@@ -1,0 +1,74 @@
+html,
+body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  background: transparent;
+  overflow: hidden;
+  -webkit-user-select: none;
+  user-select: none;
+  font: 12.5px/1.35 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+body {
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding: 4px 6px;
+  box-sizing: border-box;
+}
+
+.toast {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 100%;
+  padding: 7px 12px;
+  border-radius: 12px;
+  background: rgba(0, 0, 0, 0.86);
+  color: #ffffff;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
+  box-sizing: border-box;
+}
+
+.text {
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  word-break: break-word;
+}
+
+.icon {
+  flex: none;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  box-sizing: border-box;
+}
+
+.toast[data-kind="busy"] .icon {
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: #ffffff;
+  animation: spin 0.8s linear infinite;
+}
+
+.toast[data-kind="done"] .icon {
+  background: #3ecf8e;
+}
+
+.toast[data-kind="error"] {
+  border-color: rgba(255, 154, 154, 0.7);
+}
+
+.toast[data-kind="error"] .icon {
+  background: #ff6b6b;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}

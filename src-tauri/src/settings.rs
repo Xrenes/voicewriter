@@ -13,15 +13,13 @@ const KEY: &str = "settings";
 pub struct Settings {
     /// Primary global hotkey. Always hold-to-talk: hold to record, release to insert.
     pub hotkey: String,
-    /// Secondary hotkey for the secondary language (Bangla). Empty = disabled.
-    pub secondary_hotkey: String,
-    /// Language code the secondary hotkey dictates in. "bn" = Bangla.
-    pub secondary_language: String,
     /// Toggle hotkey for "speak selected text aloud" (English only, via Groq
     /// TTS). Press once to speak, press again to stop. Empty = disabled.
     pub speak_hotkey: String,
-    /// Hotkey that opens the "refine selection" wheel menu (Refine /
-    /// Translate / Bangla / Record) over the current text selection. Empty =
+    /// Hotkey that corrects and refines the selected text in place. Empty =
+    /// disabled.
+    pub refine_hotkey: String,
+    /// Hotkey that opens the wheel menu (Refine / Record / Web / AI). Empty =
     /// disabled.
     pub wheel_hotkey: String,
     /// Toggle hotkey for the "Web" browser window (open if hidden, hide if
@@ -50,10 +48,6 @@ pub struct Settings {
     /// Run with no tray icon at all. Settings is then reachable only via
     /// `voicewriter --settings` (or launching the app again).
     pub hide_tray: bool,
-    /// ElevenLabs voice id used to speak wheel translations aloud in
-    /// languages Groq's Orpheus TTS doesn't cover. Empty = fall back to the
-    /// offline (robotic) eSpeak NG engine instead.
-    pub elevenlabs_voice_id: String,
     /// One-time consent for the "Find"/"AI" wedges' camera and screen
     /// capture, asked via a custom in-app dialog (see `ai_chat.rs`) rather
     /// than relying on Windows' own per-API prompts. Reset this to `false`
@@ -76,9 +70,8 @@ impl Default for Settings {
     fn default() -> Self {
         Self {
             hotkey: "Alt+C".to_string(),
-            secondary_hotkey: "Alt+X".to_string(),
-            secondary_language: "bn".to_string(),
             speak_hotkey: "Control+Alt+C".to_string(),
+            refine_hotkey: "Alt+R".to_string(),
             wheel_hotkey: "Shift+Alt+C".to_string(),
             web_hotkey: "Alt+W".to_string(),
             engine: "auto".to_string(),
@@ -91,7 +84,6 @@ impl Default for Settings {
             polish: true,
             autostart: false,
             hide_tray: false,
-            elevenlabs_voice_id: String::new(),
             capture_permission_granted: false,
             vision_model: String::new(),
             web_default_url: String::new(),

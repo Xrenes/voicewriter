@@ -27,6 +27,7 @@ export default defineConfig({
         recorder: fileURLToPath(new URL("./recorder.html", import.meta.url)),
         recorderConfirm: fileURLToPath(new URL("./recorder-confirm.html", import.meta.url)),
         transcript: fileURLToPath(new URL("./transcript.html", import.meta.url)),
+        toast: fileURLToPath(new URL("./toast.html", import.meta.url)),
         regionSelect: fileURLToPath(new URL("./region-select.html", import.meta.url)),
         aiChat: fileURLToPath(new URL("./ai-chat.html", import.meta.url)),
         webToolbar: fileURLToPath(new URL("./web-toolbar.html", import.meta.url)),

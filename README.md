@@ -14,6 +14,11 @@ No window, no cloud — transcription runs locally with whisper.cpp (or Groq, if
 - **Insertion**: types into the focused field, or copies to clipboard, or both.
 - **Speak selected text aloud**: select text anywhere, press a hotkey (default `Control+Alt+C`)
   to hear it read back via Groq TTS (English only for now). Press again to stop.
+- **Refine selection**: select text anywhere and press `Alt+R` — spelling, grammar and
+  sentence structure are corrected via Groq and the result replaces the selection.
+- **Call recording** (wheel → Record): records your mic and the PC's audio output as two
+  time-aligned tracks, saves the mixed audio, and transcribes each track separately into a
+  timestamped transcript labeled You / Device.
 - **Cross-platform**: Windows and Linux (X11). See notes below.
 
 This repository contains both the application source (`src/`, `src-tauri/`) and the

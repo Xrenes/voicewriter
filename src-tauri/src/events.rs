@@ -15,6 +15,7 @@ pub enum Status {
     #[allow(dead_code)]
     Ready,
     Speaking,
+    Refining,
     Error,
 }
 
@@ -26,6 +27,7 @@ impl Status {
             Status::Transcribing => "transcribing",
             Status::Ready => "ready",
             Status::Speaking => "speaking",
+            Status::Refining => "refining",
             Status::Error => "error",
         }
     }
@@ -71,6 +73,7 @@ fn update_tray(app: &AppHandle<Wry>, status: Status) {
             Status::Recording => "VoiceWriter — listening",
             Status::Transcribing => "VoiceWriter — transcribing",
             Status::Speaking => "VoiceWriter — speaking",
+            Status::Refining => "VoiceWriter — refining",
             Status::Error => "VoiceWriter — error",
             _ => "VoiceWriter — idle",
         };
