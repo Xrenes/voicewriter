@@ -581,7 +581,50 @@ fn merge_lines(you: Vec<Segment>, device: Vec<Segment>) -> Vec<Line> {
         }
         lines.push(Line { speaker, start: seg.start, end: seg.end, text: seg.text });
     }
+    for line in &mut lines {
+        line.text = collapse_repeats(&line.text);
+    }
     lines
+}
+
+/// Whisper sometimes loops, repeating a clause or a whole passage back to
+/// back. Drop any run of clauses (4+ words in total) that exactly repeats
+/// the run right before it; short real repeats ("yes, yes") are kept.
+fn collapse_repeats(text: &str) -> String {
+    let mut clauses: Vec<&str> = Vec::new();
+    let mut start = 0;
+    for (i, c) in text.char_indices() {
+        if matches!(c, '.' | ',' | '!' | '?' | ';') {
+            let end = i + c.len_utf8();
+            clauses.push(&text[start..end]);
+            start = end;
+        }
+    }
+    if start < text.len() {
+        clauses.push(&text[start..]);
+    }
+    let norm: Vec<String> = clauses.iter().map(|c| normalize(c)).collect();
+
+    let mut kept: Vec<usize> = Vec::new();
+    let mut i = 0;
+    while i < clauses.len() {
+        let mut skipped = false;
+        // Longest repeated run first, so whole repeated passages go at once.
+        for len in (1..=kept.len().min(clauses.len() - i)).rev() {
+            let prev = &kept[kept.len() - len..];
+            let words: usize = prev.iter().map(|&k| norm[k].split(' ').filter(|w| !w.is_empty()).count()).sum();
+            if words >= 4 && (0..len).all(|j| norm[prev[j]] == norm[i + j]) {
+                i += len;
+                skipped = true;
+                break;
+            }
+        }
+        if !skipped {
+            kept.push(i);
+            i += 1;
+        }
+    }
+    kept.iter().map(|&k| clauses[k]).collect::<String>().trim().to_string()
 }
 
 #[cfg(test)]
@@ -636,6 +679,20 @@ mod tests {
         let speakers: Vec<Speaker> = lines.iter().map(|l| l.speaker).collect();
         assert_eq!(speakers, vec![Speaker::Device, Speaker::You]);
         assert_eq!(lines[1].text, "Great, thanks.");
+    }
+
+    #[test]
+    fn whisper_loops_are_collapsed() {
+        assert_eq!(
+            collapse_repeats("The food was being served in the city, the food was being served in the city, the food was being served in the city,"),
+            "The food was being served in the city,"
+        );
+        assert_eq!(
+            collapse_repeats("Hello, this is a test. How can I help you? Hello, this is a test. How can I help you?"),
+            "Hello, this is a test. How can I help you?"
+        );
+        assert_eq!(collapse_repeats("Yes, yes, that's right."), "Yes, yes, that's right.");
+        assert_eq!(collapse_repeats("No repeats here at all."), "No repeats here at all.");
     }
 
     #[test]
