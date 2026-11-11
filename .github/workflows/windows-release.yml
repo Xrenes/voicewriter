@@ -1,0 +1,146 @@
+name: Windows release build
+
+# Builds the Windows installers (.msi and NSIS .exe), installs each one on the
+# runner and checks that the app starts and keeps running, then attaches both
+# installers to the GitHub release for the pushed tag. Create the release
+# first (a draft is fine); this workflow only uploads to it. A manual run
+# without a release tag only builds and tests, and keeps the installers as a
+# workflow artifact.
+on:
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: "Existing GitHub release tag to attach the installers to (e.g. v0.5.4). Leave empty to only build and test."
+        required: false
+        default: ""
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Check the tag matches the app version
+        if: github.event_name == 'push' || inputs.release_tag != ''
+        shell: bash
+        env:
+          TAG: ${{ inputs.release_tag || github.ref_name }}
+        run: |
+          version=$(node -p "require('./src-tauri/tauri.conf.json').version")
+          if [ "v$version" != "$TAG" ]; then
+            echo "::error::Tag $TAG does not match version $version in src-tauri/tauri.conf.json"
+            exit 1
+          fi
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - name: Install npm dependencies
+        run: npm ci
+
+      # No `cargo test` step: on Windows, a Tauri app's test binaries start
+      # without the app manifest and exit with STATUS_ENTRYPOINT_NOT_FOUND.
+      # The smoke test below checks the installed app instead.
+
+      - name: Build installers
+        run: npx tauri build --bundles msi,nsis
+
+      - name: Collect installers
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force out | Out-Null
+          Copy-Item src-tauri/target/release/bundle/msi/*.msi out/
+          Copy-Item src-tauri/target/release/bundle/nsis/*-setup.exe out/
+          Get-ChildItem out | ForEach-Object {
+            $hash = (Get-FileHash $_.FullName -Algorithm SHA256).Hash
+            "{0}  {1:N1} MB  SHA256 {2}" -f $_.Name, ($_.Length / 1MB), $hash
+          }
+
+      - name: Smoke test - install, launch, uninstall
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+
+          # Run an installer and return its exit code. Waits for the installer
+          # process only, not for anything it starts.
+          function Invoke-Installer([string]$File, [string]$Arguments) {
+            $p = Start-Process -FilePath $File -ArgumentList $Arguments -PassThru
+            $null = $p.Handle  # keep the handle so ExitCode is readable afterwards
+            $p.WaitForExit()
+            return $p.ExitCode
+          }
+
+          function Find-AppExe([string]$Dir) {
+            if (-not (Test-Path $Dir)) { return $null }
+            Get-ChildItem $Dir -Filter *.exe |
+              Where-Object { $_.Name -notmatch '^(espeak-ng|uninstall)' } |
+              Select-Object -First 1
+          }
+
+          # Start the installed app, check it is still running after 20 s,
+          # report its memory use, then close it.
+          function Test-Launch([string]$Exe, [string]$Label) {
+            $name = [IO.Path]::GetFileNameWithoutExtension($Exe)
+            Get-Process -Name $name -ErrorAction SilentlyContinue | Stop-Process -Force
+            Write-Host "Launching $Label ($Exe)"
+            $p = Start-Process -FilePath $Exe -PassThru
+            $null = $p.Handle  # keep the handle so ExitCode is readable if it crashes
+            Start-Sleep -Seconds 20
+            if ($p.HasExited) { throw "$Label exited within 20 s with code $($p.ExitCode)" }
+            $p.Refresh()
+            $web = Get-Process msedgewebview2 -ErrorAction SilentlyContinue | Measure-Object WorkingSet64 -Sum
+            Write-Host ("{0} is running. App process: {1:N1} MB. WebView2: {2} processes, {3:N1} MB." -f $Label, ($p.WorkingSet64 / 1MB), $web.Count, ($web.Sum / 1MB))
+            Stop-Process -Id $p.Id -Force
+            Start-Sleep -Seconds 3
+          }
+
+          # .msi: silent per-machine install into Program Files.
+          $msi = (Get-ChildItem out -Filter *.msi | Select-Object -First 1).FullName
+          $log = Join-Path $env:RUNNER_TEMP 'msi-install.log'
+          $code = Invoke-Installer 'msiexec.exe' "/i `"$msi`" /qn /norestart /l*v `"$log`""
+          if ($code -notin 0, 3010) { Get-Content $log -Tail 40; throw "MSI install failed with exit code $code" }
+          $exe = Find-AppExe (Join-Path $env:ProgramFiles 'VoiceWriter')
+          if (-not $exe) { throw 'MSI install finished but no VoiceWriter .exe was found in Program Files' }
+          Write-Host "MSI installed $($exe.FullName), version $($exe.VersionInfo.ProductVersion)"
+          Test-Launch $exe.FullName 'VoiceWriter (.msi install)'
+          $code = Invoke-Installer 'msiexec.exe' "/x `"$msi`" /qn /norestart"
+          if ($code -notin 0, 3010) { throw "MSI uninstall failed with exit code $code" }
+          if (Test-Path $exe.FullName) { throw "MSI uninstall left $($exe.FullName) behind" }
+          Write-Host 'MSI uninstall removed the app'
+
+          # .exe (NSIS): silent per-user install, no admin rights needed.
+          $setup = (Get-ChildItem out -Filter *-setup.exe | Select-Object -First 1).FullName
+          $code = Invoke-Installer $setup '/S'
+          if ($code -ne 0) { throw "NSIS install failed with exit code $code" }
+          $exe = Find-AppExe (Join-Path $env:LOCALAPPDATA 'VoiceWriter')
+          if (-not $exe) { $exe = Find-AppExe (Join-Path $env:LOCALAPPDATA 'Programs\VoiceWriter') }
+          if (-not $exe) { throw 'NSIS install finished but no VoiceWriter .exe was found' }
+          Write-Host "NSIS installed $($exe.FullName), version $($exe.VersionInfo.ProductVersion)"
+          Test-Launch $exe.FullName 'VoiceWriter (.exe install)'
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: voicewriter-windows
+          path: out/*
+
+      - name: Attach to release
+        if: github.event_name == 'push' || inputs.release_tag != ''
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ inputs.release_tag || github.ref_name }}
+        run: gh release upload "$TAG" out/* --clobber

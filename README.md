@@ -2,24 +2,34 @@
 
 Hold **Alt+C** while speaking, then release to type your words into the focused text field.
 Wait for transcription to finish before starting another recording.
-No window, no cloud — transcription runs locally with whisper.cpp (or Groq, if you set an API key).
+No window — speech is transcribed by Groq's Whisper using your own free Groq API key.
 
 - **Website:** https://xrenes.github.io/voicewriter/
-- **Downloads:** see [Releases](https://github.com/Xrenes/voicewriter/releases) —
-  `.exe` (NSIS installer) and `.msi`.
+- **Download (Windows 10/11, 64-bit):** [VoiceWriter 0.5.4](https://github.com/Xrenes/voicewriter/releases/tag/v0.5.4) —
+  `.msi` installer (installs for all users, asks for admin rights) or `.exe` installer
+  (installs just for your account).
 - **Headless**: starts with no visible window; lives in the system tray.
 - **Global hotkey**: `Alt+C` (editable in Settings) records while held and transcribes on release.
   Quick taps shorter than 0.3 seconds of audio are ignored.
-- **Local STT**: whisper.cpp via `whisper-rs`. The model is downloaded on first run.
+- **Transcription**: Groq Whisper (`whisper-large-v3-turbo` by default). Local whisper.cpp
+  transcription is switched off in this build.
 - **Insertion**: types into the focused field, or copies to clipboard, or both.
 - **Speak selected text aloud**: select text anywhere, press a hotkey (default `Control+Alt+C`)
   to hear it read back via Groq TTS (English only for now). Press again to stop.
-- **Refine selection**: select text anywhere and press `Alt+R` — spelling, grammar and
-  sentence structure are corrected via Groq and the result replaces the selection.
+- **Rewrite selection** (via Groq; the result replaces the selection). Select text anywhere and press:
+  - `Alt+R` **Refine**: corrects spelling, grammar and sentence structure, keeping your tone.
+  - `Alt+P` **Professional**: turns a casual draft into a polished, courteous reply for clients
+    and colleagues on WhatsApp, LinkedIn or email, without inventing or dropping details.
+  - `Alt+H` **Humanize**: rewrites stiff or AI-sounding text so it reads naturally.
+
+  All three hotkeys can be changed in Settings. The wheel's Refine wedge offers the same three
+  modes as a preview that is copied to the clipboard. On Linux/Wayland, bind
+  `voicewriter --refine`, `--professional` or `--humanize` to a desktop shortcut.
 - **Call recording** (wheel → Record): records your mic and the PC's audio output as two
   time-aligned tracks, saves the mixed audio, and transcribes each track separately into a
   timestamped transcript labeled You / Device.
-- **Cross-platform**: Windows and Linux (X11). See notes below.
+- **Platforms**: the 0.5.4 release is Windows-only. The source also builds on Linux (X11);
+  see the notes below.
 
 This repository contains both the application source (`src/`, `src-tauri/`) and the
 marketing website (`site/`).
@@ -54,10 +64,10 @@ npm install
 npm run tauri dev
 ```
 
-The first `cargo` build compiles whisper.cpp and can take several minutes.
+The first `cargo` build can take several minutes.
 
-No window appears — look for the tray icon. **Left-click the tray icon** to open Settings,
-choose a model, and click **Download** (base.en ≈ 148 MB).
+No window appears — look for the tray icon. **Left-click the tray icon** to open Settings
+and add your Groq API key.
 
 ## Build installers
 
@@ -65,7 +75,7 @@ choose a model, and click **Download** (base.en ≈ 148 MB).
 npm run tauri build
 ```
 
-Output in `src-tauri/target/release/bundle/` — NSIS `.exe` on Windows, `.deb` + AppImage on Linux.
+Output in `src-tauri/target/release/bundle/` — `.msi` and NSIS `.exe` on Windows, `.deb` + AppImage on Linux.
 
 ---
 
@@ -184,11 +194,15 @@ python -m http.server 8000
 # open http://localhost:8000
 ```
 
-### Releasing a new version
+### Releasing a new version (Windows)
 
-1. Build the installers (`npm run tauri build`).
-2. Draft a GitHub Release here, tag `vX.Y.Z`.
-3. Upload `VoiceWriter_X.Y.Z_x64-setup.exe` and `VoiceWriter_X.Y.Z_x64_en-US.msi`.
-4. The website reads the latest release from the GitHub API, so the download
-   buttons update automatically. The `download.js` fallback URLs use
-   `/releases/latest/download/…` and keep working without changes.
+1. Bump the version in `package.json`, `src-tauri/Cargo.toml` and `src-tauri/tauri.conf.json`.
+2. Create a draft GitHub release for tag `vX.Y.Z`, then push that tag.
+3. [`.github/workflows/windows-release.yml`](.github/workflows/windows-release.yml) builds
+   `VoiceWriter_X.Y.Z_x64_en-US.msi` and `VoiceWriter_X.Y.Z_x64-setup.exe`, installs and
+   launches each one on a clean Windows runner, and attaches both to the release.
+4. Publish the release, then update the version and download links in `site/index.html`
+   and the release tag in `site/main.js`.
+
+Linux packages are not part of releases for now; run
+[`.github/workflows/linux-release.yml`](.github/workflows/linux-release.yml) manually to build them.
