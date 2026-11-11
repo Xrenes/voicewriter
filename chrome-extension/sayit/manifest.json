@@ -1,29 +1,42 @@
 {
   "manifest_version": 3,
   "name": "SayIt",
-  "version": "0.1.0",
-  "description": "Play your recorded voicemail into a web dialer call with one hotkey (Alt+L).",
-  "permissions": ["storage", "unlimitedStorage"],
+  "version": "0.2.0",
+  "description": "Record your voicemail once, then play it into web dialer calls (Aloware, GHL) with one hotkey — instantly, with nothing on screen.",
+  "permissions": ["storage", "unlimitedStorage", "scripting", "activeTab"],
+  "host_permissions": [
+    "https://*.aloware.com/*",
+    "https://*.gohighlevel.com/*",
+    "https://*.leadconnectorhq.com/*"
+  ],
+  "optional_host_permissions": ["https://*/*"],
   "background": { "service_worker": "background.js" },
-  "action": { "default_title": "SayIt — record your message" },
+  "action": { "default_title": "SayIt", "default_popup": "popup.html" },
   "options_page": "options.html",
   "commands": {
     "toggle-message": {
-      "suggested_key": { "default": "Alt+L" },
-      "description": "Play / stop your SayIt message in the call"
+      "description": "Play / stop the message from any Chrome tab (optional)"
     }
   },
   "content_scripts": [
     {
-      "matches": ["https://*.aloware.com/*", "https://*.gohighlevel.com/*", "https://*.leadconnectorhq.com/*"],
+      "matches": [
+        "https://*.aloware.com/*",
+        "https://*.gohighlevel.com/*",
+        "https://*.leadconnectorhq.com/*"
+      ],
       "js": ["inject.js"],
       "run_at": "document_start",
       "world": "MAIN",
       "all_frames": true
     },
     {
-      "matches": ["https://*.aloware.com/*", "https://*.gohighlevel.com/*", "https://*.leadconnectorhq.com/*"],
-      "js": ["relay.js"],
+      "matches": [
+        "https://*.aloware.com/*",
+        "https://*.gohighlevel.com/*",
+        "https://*.leadconnectorhq.com/*"
+      ],
+      "js": ["common.js", "relay.js"],
       "run_at": "document_start",
       "all_frames": true
     }

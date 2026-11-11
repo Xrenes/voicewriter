@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>SayIt</title>
+    <link rel="stylesheet" href="popup.css" />
+  </head>
+  <body>
+    <header>
+      <span class="brand">SayIt</span>
+      <nav>
+        <button id="tabMessage" class="tab on">Message</button>
+        <button id="tabSettings" class="tab">Settings</button>
+      </nav>
+    </header>
+
+    <section id="viewMessage">
+      <p class="state" id="state">Loading…</p>
+      <div class="row">
+        <button id="record" class="rec">● Record</button>
+        <button id="listen" hidden>▶ Play</button>
+        <button id="save" class="primary" hidden>Save</button>
+        <button id="discard" hidden>Discard</button>
+        <button id="remove" class="danger" hidden>Delete</button>
+      </div>
+      <button id="playCall" class="wide" hidden>Play into the call now</button>
+      <p class="hint" id="hint"></p>
+      <button id="allowMic" class="wide" hidden>Allow microphone access…</button>
+      <p class="error" id="error"></p>
+      <p class="tabstate" id="tabState" hidden></p>
+      <audio id="player"></audio>
+    </section>
+
+    <section id="viewSettings" hidden>
+      <div class="field">
+        <label>Hotkey</label>
+        <div class="row">
+          <span class="key" id="hotkeyLabel">Alt+L</span>
+          <button id="changeHotkey">Change</button>
+          <button id="resetHotkey">Reset</button>
+        </div>
+        <p class="hint" id="hotkeyHint">Press it while the dialer tab is in front: plays instantly, press again to stop.</p>
+      </div>
+
+      <label class="check">
+        <input type="checkbox" id="muteMic" />
+        Mute my microphone while the message plays
+      </label>
+
+      <div class="field">
+        <label>From any Chrome tab (optional)</label>
+        <p class="hint">Chrome can also start it while another tab is in front — <a href="#" id="shortcuts">set a key for that</a>.</p>
+      </div>
+
+      <div class="field">
+        <label>Works on</label>
+        <p class="hint">Aloware · GoHighLevel (gohighlevel.com, leadconnectorhq.com)</p>
+        <ul class="sites" id="siteList"></ul>
+        <button id="addSite" class="wide" hidden>+ Add this site</button>
+        <p class="hint" id="siteHint">Dialer on another address (a white-label GHL, or a CRM that embeds it)? Open it, then add it here.</p>
+      </div>
+
+      <button id="openTest" class="wide">Test it (hear what a call would hear)</button>
+      <p class="hint small">If VoiceWriter's SayIt uses the same key, VoiceWriter takes it first — change one of them.</p>
+    </section>
+
+    <script src="common.js"></script>
+    <script src="popup.js"></script>
+  </body>
+</html>

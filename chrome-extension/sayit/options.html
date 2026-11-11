@@ -2,55 +2,50 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <title>SayIt</title>
+    <title>SayIt — test</title>
     <link rel="stylesheet" href="options.css" />
-    <!-- Same mic hand-off the dialer pages get, so "Test" hears what a call would. -->
+    <!-- The same in-page engine the dialers get, so this page behaves like a call. -->
     <script src="inject.js"></script>
   </head>
   <body>
     <main>
       <h1>SayIt</h1>
-      <p class="lead">Record your voicemail once. During a call in Aloware or GHL, press
-        <span class="k" id="hotkey">Alt+L</span> to play it into the call, and again to stop.
-        Nothing appears on screen.</p>
 
-      <section>
-        <h2>Your message</h2>
-        <p class="state" id="state">Loading…</p>
-        <div class="row">
-          <button id="record" class="rec">● Record</button>
-          <button id="listen">▶ Listen</button>
-          <button id="save" class="primary" hidden>Save</button>
-          <button id="discard" hidden>Discard</button>
-          <button id="remove" class="danger" hidden>Delete</button>
-        </div>
-        <audio id="player"></audio>
+      <section id="micSection" hidden>
+        <h2>Allow the microphone</h2>
+        <p>Chrome asks once before SayIt can record your message. Click below and choose <strong>Allow</strong>.</p>
+        <button id="allowMic" class="primary">Allow microphone</button>
+        <p class="ok" id="micOk" hidden>Done — open SayIt from the toolbar and press Record.</p>
       </section>
 
       <section>
         <h2>Test it</h2>
-        <p>Press <strong>Start test</strong>, talk a little, press the hotkey (or <strong>Play</strong>)
-          to play the message, then <strong>Stop test</strong> — you'll hear exactly what the
-          other side of a call would have heard.</p>
+        <p>This page acts like a call. Press <strong>Start test</strong>, say something, press
+          <span class="k" id="hotkey">Alt+L</span> to play your message (again to stop it early),
+          then <strong>Stop test</strong> and listen: that's exactly what the other side of a call hears.</p>
         <div class="row">
-          <button id="testStart">Start test</button>
-          <button id="testPlay" hidden>Play / stop message</button>
+          <button id="testStart" class="primary">Start test</button>
           <button id="testStop" hidden>Stop test</button>
         </div>
+        <p class="state" id="testState"></p>
         <audio id="testPlayer" controls hidden></audio>
       </section>
 
       <section>
-        <h2>Setup</h2>
-        <ol>
-          <li>After installing or updating the extension, reload your Aloware / GHL tab once.</li>
-          <li>Change the hotkey at <span class="mono">chrome://extensions/shortcuts</span>.
-            If VoiceWriter's own SayIt uses the same key, VoiceWriter takes it first — give one of them a different key.</li>
-          <li>The hotkey works while Chrome is the window you're using.</li>
-        </ol>
+        <h2>Good to know</h2>
+        <ul>
+          <li>After installing or updating SayIt, reload your Aloware / GHL tab once.</li>
+          <li>The hotkey works while the dialer tab is the one in front; nothing shows on screen.</li>
+          <li>Change the hotkey in the SayIt popup → Settings.</li>
+          <li>Dialer on another address (a white-label GHL, or a CRM that embeds it)? Open it, then
+            SayIt popup → Settings → <strong>Add</strong> it, and reload that tab.</li>
+          <li>If VoiceWriter's SayIt uses the same key, VoiceWriter takes it first — change one of them.</li>
+        </ul>
       </section>
       <p class="error" id="error"></p>
     </main>
+    <script src="common.js"></script>
+    <script src="relay.js"></script>
     <script src="options.js"></script>
   </body>
 </html>

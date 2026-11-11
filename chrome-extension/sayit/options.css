@@ -26,7 +26,6 @@ section {
   padding: 14px 16px;
   margin: 16px 0;
 }
-.lead,
 section p,
 li {
   color: #c7c7cc;
@@ -52,20 +51,11 @@ button {
 button:hover {
   border-color: #b23859;
 }
-button.rec {
-  background: #2a0f16;
-  border-color: #6b2235;
-  color: #ffd5de;
-  font-weight: 600;
-}
 button.primary {
   background: #b23859;
   border-color: #b23859;
   color: #fff2f5;
   font-weight: 600;
-}
-button.danger {
-  color: #ff9a9a;
 }
 [hidden] {
   display: none !important;
@@ -74,8 +64,7 @@ audio {
   width: 100%;
   margin-top: 10px;
 }
-.k,
-.mono {
+.k {
   font-family: ui-monospace, Consolas, monospace;
   background: #161618;
   border-radius: 5px;
@@ -83,4 +72,11 @@ audio {
 }
 .error {
   color: #ff9a9a;
+}
+.ok {
+  color: #6fd3a0;
+}
+ul {
+  margin: 0;
+  padding-left: 18px;
 }
