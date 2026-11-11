@@ -5,6 +5,9 @@ name: Linux release build
 # oldest Ubuntu that ships webkit2gtk-4.1 (required by Tauri 2). So these
 # packages run on Ubuntu 22.04, 24.04, 26.04 and newer, plus Debian 12+,
 # Linux Mint 21+, Pop!_OS 22.04+, and similar.
+#
+# Releases are Windows-only for now, so this no longer runs when a version
+# tag is pushed. Run it manually from the Actions tab to build Linux packages.
 on:
   workflow_dispatch:
     inputs:
@@ -12,8 +15,6 @@ on:
         description: "Existing GitHub release tag to attach the packages to (e.g. v0.5.0). Leave empty to only upload build artifacts."
         required: false
         default: ""
-  push:
-    tags: ["v*"]
 
 permissions:
   contents: write
