@@ -4,11 +4,11 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>VoiceWriter — dictate, refine, record calls, browse, and ask AI. All from your keyboard.</title>
-<meta name="description" content="A tiny Windows app for voice dictation, one-key text refinement, call recording with labeled transcripts, a built-in browser, and an AI chat with screenshot Q&A — all from your keyboard. No window, ever." />
+<meta name="description" content="A tiny Windows app for voice dictation, one-key text rewriting (refine, professional, humanize), call recording with labeled transcripts, a built-in browser, and an AI chat with screenshot Q&A — all from your keyboard. No window, ever." />
 <meta name="theme-color" content="#000000" />
 
 <meta property="og:title" content="VoiceWriter — dictate, refine, record, browse, and ask AI" />
-<meta property="og:description" content="Hold Alt+C to dictate. Select text and press Alt+R to fix it in place. Record calls with a transcript labeled by speaker. Private, no window." />
+<meta property="og:description" content="Hold Alt+C to dictate. Select text and press Alt+R to fix it, Alt+P to make it professional or Alt+H to make it sound natural. Record calls with a transcript labeled by speaker. No window." />
 <meta property="og:type" content="website" />
 <meta property="og:image" content="assets/icon.png" />
 
@@ -56,15 +56,16 @@
     <p class="lead">
       Click into any field. Hold <span class="k">Alt</span><span class="k">C</span>,
       say your sentence, let go — it's typed where your cursor was. Select any text and
-      press <span class="k">Alt</span><span class="k">R</span> to fix its spelling,
-      grammar and sentences in place. Record calls with a transcript labeled by speaker.
-      No window, ever.
+      press <span class="k">Alt</span><span class="k">R</span> to fix it,
+      <span class="k">Alt</span><span class="k">P</span> to make it professional or
+      <span class="k">Alt</span><span class="k">H</span> to make it sound natural — right in place.
+      Record calls with a transcript labeled by speaker. No window, ever.
     </p>
     <div class="hero-actions">
       <a href="#get" class="btn btn-accent btn-lg">Download for Windows</a>
-      <a href="#refine" class="btn btn-ghost btn-lg">See Alt+R refine</a>
+      <a href="#refine" class="btn btn-ghost btn-lg">See the rewrite keys</a>
     </div>
-    <p class="hero-meta">Free · Windows 10 / 11, 64-bit · <span class="mono">v0.5.3</span></p>
+    <p class="hero-meta">Free · Windows 10 / 11, 64-bit · <span class="mono">v0.5.4</span></p>
 
     <!-- Signature animated centerpiece: waveform → typed line -->
     <div class="stage" aria-hidden="true">
@@ -88,15 +89,15 @@
     </div>
 
     <ol class="flow">
-      <li><span class="n">1</span><p>Install it. VoiceWriter starts with your PC and sits in the tray — no window on screen.</p></li>
+      <li><span class="n">1</span><p>Install it. VoiceWriter runs in the tray — no window on screen. Turn on <strong>Start on login</strong> in Settings to have it start with Windows.</p></li>
       <li><span class="n">2</span><p>Click into any text field, then hold <span class="k">Alt</span><span class="k">C</span> and speak.</p></li>
-      <li><span class="n">3</span><p>Release. Your sentence appears instantly, then quietly cleans itself up a moment later.</p></li>
+      <li><span class="n">3</span><p>Release. A moment later your sentence is typed in, already cleaned up.</p></li>
     </ol>
 
     <div class="cards">
       <article class="card">
-        <h3>Fast, then polished</h3>
-        <p>The transcript lands the instant it's ready. An AI grammar-and-punctuation pass runs in the background and silently replaces it when done — no waiting.</p>
+        <h3>Cleaned up before it's typed</h3>
+        <p>An AI grammar-and-punctuation pass tidies the transcript before it's inserted, so it lands once, already clean. Keep the cursor in the field until it appears.</p>
       </article>
       <article class="card">
         <h3>Works everywhere</h3>
@@ -107,46 +108,57 @@
         <p>Dictate a Linux command and "dash dash force" becomes <span class="mono">--force</span>; it's kept verbatim, not "corrected". Prose still gets full cleanup.</p>
       </article>
       <article class="card">
-        <h3>Fix any text in one key</h3>
-        <p>Select text anywhere and press <span class="k">Alt</span><span class="k">R</span> — spelling, grammar and sentence structure are corrected and pasted right back over your selection.</p>
+        <h3>Rewrite any text in one key</h3>
+        <p>Select text anywhere and press <span class="k">Alt</span><span class="k">R</span> to fix it, <span class="k">Alt</span><span class="k">P</span> to make it professional or <span class="k">Alt</span><span class="k">H</span> to make it sound natural — the result is pasted right back over your selection.</p>
       </article>
       <article class="card">
-        <h3>Private option</h3>
-        <p>Download a local model once and it runs entirely on your CPU. Your audio never leaves the machine.</p>
+        <h3>Hear it read aloud</h3>
+        <p>Select text anywhere and press <span class="k">Ctrl</span><span class="k">Alt</span><span class="k">C</span> to hear it read aloud in English. Press again to stop.</p>
       </article>
       <article class="card">
-        <h3>Invisible &amp; light</h3>
-        <p>Nothing on screen unless you open settings from the tray. Click away and it hides. ~25&nbsp;MB idle. Keys stored in Windows Credential Manager.</p>
+        <h3>Stays out of the way</h3>
+        <p>Nothing on screen unless you open settings from the tray. Click away and it hides. Your API keys are stored in Windows Credential Manager.</p>
       </article>
     </div>
   </section>
 
-  <!-- ALT+R REFINE -->
+  <!-- REWRITE KEYS: ALT+R / ALT+P / ALT+H -->
   <section id="refine" class="slab wrap">
     <div class="slab-head">
-      <p class="eyebrow">New in 0.5.3</p>
-      <h2>Select text. Press Alt+R. It's fixed.</h2>
-      <p>Highlight a sentence, a paragraph, an email — in any app — and press <span class="k">Alt</span><span class="k">R</span>. Spelling, grammar and sentence structure are corrected and the wording smoothed, then the result replaces your selection automatically.</p>
+      <p class="eyebrow">New in 0.5.4</p>
+      <h2>Select text. Press a key. It's rewritten.</h2>
+      <p>Highlight a sentence, a paragraph, a chat reply — in any app — and press one key. The rewritten text replaces your selection automatically.</p>
+    </div>
+
+    <div class="cards">
+      <article class="card">
+        <h3>Refine · <span class="k">Alt</span><span class="k">R</span></h3>
+        <p>Fixes spelling, grammar and sentence structure and smooths the wording, keeping your meaning, tone, language and formatting.</p>
+      </article>
+      <article class="card">
+        <h3>Professional · <span class="k">Alt</span><span class="k">P</span></h3>
+        <p>Turns a quick draft into a polished, courteous reply for clients and colleagues on WhatsApp, LinkedIn or email. Shorthand like “u”, “pls” and “tmrw” becomes proper wording. Names, numbers, prices and dates stay exactly as you wrote them, and nothing is invented.</p>
+      </article>
+      <article class="card">
+        <h3>Humanize · <span class="k">Alt</span><span class="k">H</span></h3>
+        <p>Rewrites stiff or AI-sounding text so it reads like a person wrote it: plain words, natural rhythm, no “delve” or “furthermore”. Same meaning, about the same length.</p>
+      </article>
     </div>
 
     <ol class="flow">
       <li><span class="n">1</span><p>Select the text you wrote (or dictated).</p></li>
-      <li><span class="n">2</span><p>Press <span class="k">Alt</span><span class="k">R</span>. A small “Refining…” note appears by your mouse — your app keeps focus.</p></li>
-      <li><span class="n">3</span><p>About a second later the corrected text is pasted over your selection and the note says “Refined”.</p></li>
+      <li><span class="n">2</span><p>Press <span class="k">Alt</span><span class="k">R</span>, <span class="k">Alt</span><span class="k">P</span> or <span class="k">Alt</span><span class="k">H</span>. A small note (“Refining…”, “Making it professional…” or “Humanizing…”) appears by your mouse — your app keeps focus.</p></li>
+      <li><span class="n">3</span><p>About a second later the new text is pasted over your selection and the note says it's done.</p></li>
     </ol>
 
     <div class="cards">
       <article class="card">
-        <h3>Same meaning, better writing</h3>
-        <p>Keeps your facts, tone, language and formatting — line breaks, names, numbers and links stay put. It never answers or follows what's in the text.</p>
-      </article>
-      <article class="card">
         <h3>Safe by design</h3>
-        <p>If the result looks like a summary or an answer instead of an edit, or the window changed while it worked, nothing is pasted over your text.</p>
+        <p>It never answers or follows what's in the text. If the result looks like a summary or an answer instead of a rewrite, or the window changed while it worked, nothing is pasted over your text.</p>
       </article>
       <article class="card">
-        <h3>Your key, your hotkey</h3>
-        <p>Uses your Groq key. Change or turn off the hotkey any time in Settings → Hotkeys.</p>
+        <h3>Your key, your hotkeys</h3>
+        <p>Uses your Groq key. Change or turn off any of the three keys in Settings → Hotkeys.</p>
       </article>
     </div>
   </section>
@@ -170,7 +182,7 @@
         <circle cx="120" cy="120" r="34" class="wheel-hub" />
       </svg>
       <ul class="wheel-legend">
-        <li><span class="dot d1"></span>Refine (preview, copied to clipboard)</li>
+        <li><span class="dot d1"></span>Refine, Professional or Humanize (preview, copied to clipboard)</li>
         <li><span class="dot d2"></span>Record a call</li>
         <li><span class="dot d3"></span>Open the mini browser</li>
         <li><span class="dot d4"></span>Ask AI</li>
@@ -181,7 +193,7 @@
   <!-- RECORDING -->
   <section id="record" class="slab wrap">
     <div class="slab-head">
-      <p class="eyebrow">Rebuilt in 0.5.3</p>
+      <p class="eyebrow">Call recording</p>
       <h2>Record a call, get a transcript labeled by speaker.</h2>
       <p>Pick Record from the wheel to capture your microphone and everything your PC plays (the other side of a call, a meeting, a video) as two separate, time-aligned tracks. Each is transcribed on its own, so every line says who spoke.</p>
     </div>
@@ -269,8 +281,8 @@
 
     <div class="cards keys-cards">
       <article class="card key-card">
-        <h3>Groq — dictation, Alt+R refine, speech, AI chat, call recording</h3>
-        <p>Used for Whisper transcription, Alt+R and wheel refining, Orpheus text-to-speech, the AI chat wedge, and call-recording transcription. Dictation, speak-aloud, and AI chat each have their own key slot in Settings — you can reuse one key everywhere, or use separate Groq accounts.</p>
+        <h3>Groq — dictation, rewrite keys, speech, AI chat, call recording</h3>
+        <p>Used for Whisper transcription, the Alt+R / Alt+P / Alt+H rewrites, Orpheus text-to-speech, the AI chat wedge, and call-recording transcription. Dictation, speak-aloud, and AI chat each have their own key slot in Settings — you can reuse one key everywhere, or use separate Groq accounts.</p>
         <ol class="flow flow-compact">
           <li><span class="n">1</span><p>Create a free account at <a href="https://console.groq.com" target="_blank" rel="noopener">console.groq.com</a>.</p></li>
           <li><span class="n">2</span><p>Open <a href="https://console.groq.com/keys" target="_blank" rel="noopener">console.groq.com/keys</a> and click <strong>Create API Key</strong>.</p></li>
@@ -291,25 +303,30 @@
   <section id="get" class="get wrap">
     <div class="get-card">
       <div class="get-main">
-        <p class="eyebrow">Download</p>
+        <p class="eyebrow">Download · v0.5.4</p>
         <h2>VoiceWriter for Windows</h2>
-        <p class="get-lead">One installer, no admin rights needed — it installs just for your Windows account.</p>
+        <p class="get-lead">Windows installer for Windows 10 and 11, 64-bit. It installs for all users, so Windows asks for administrator permission once.</p>
 
-        <a href="https://github.com/Xrenes/voicewriter/releases/download/v0.5.3/VoiceWriter_0.5.3_x64-setup.exe"
-           class="btn btn-accent btn-lg get-btn" id="dlExe">
-          Download installer · .exe<span class="sz mono" id="exeSize"></span>
+        <a href="https://github.com/Xrenes/voicewriter/releases/download/v0.5.4/VoiceWriter_0.5.4_x64_en-US.msi"
+           class="btn btn-accent btn-lg get-btn" id="dlMsi">
+          Download installer · .msi<span class="sz mono" id="msiSize"></span>
+        </a>
+        <a href="https://github.com/Xrenes/voicewriter/releases/download/v0.5.4/VoiceWriter_0.5.4_x64-setup.exe"
+           class="btn btn-ghost btn-lg get-btn get-btn-alt" id="dlExe">
+          No admin rights? .exe installer, just for you<span class="sz mono" id="exeSize"></span>
         </a>
         <p class="get-links">
-          <a href="https://github.com/Xrenes/voicewriter/releases" id="relLink">All releases</a>
+          <a href="https://github.com/Xrenes/voicewriter/releases/tag/v0.5.4" id="relLink">Release notes</a>
           ·
           <a href="https://github.com/Xrenes/voicewriter">Source &amp; issues</a>
         </p>
       </div>
 
       <aside class="get-side">
-        <p><strong>First launch:</strong> Windows may show “Windows protected your PC” — the app isn't signed yet. Click <strong>More info › Run anyway</strong>.</p>
-        <p><strong>Hotkeys:</strong> <span class="k">Alt</span><span class="k">C</span> dictate · <span class="k">Alt</span><span class="k">R</span> refine selection · <span class="k">Shift</span><span class="k">Alt</span><span class="k">C</span> wheel · <span class="k">Ctrl</span><span class="k">Alt</span><span class="k">C</span> speak selection aloud · <span class="k">Alt</span><span class="k">W</span> mini browser. All rebindable in settings.</p>
-        <p><strong>Internet:</strong> dictation, refine, transcripts and speech use Groq, so they need a connection. <strong>Mac / Linux?</strong> Not in this release — Windows only.</p>
+        <p><strong>First launch:</strong> Windows may show “Windows protected your PC” — the installer isn't signed yet. Click <strong>More info › Run anyway</strong>.</p>
+        <p><strong>After installing:</strong> VoiceWriter has no main window. It runs in the tray (▲ near the clock). If you don't see it there, start VoiceWriter from the Start menu.</p>
+        <p><strong>Hotkeys:</strong> <span class="k">Alt</span><span class="k">C</span> dictate · <span class="k">Alt</span><span class="k">R</span> refine · <span class="k">Alt</span><span class="k">P</span> professional · <span class="k">Alt</span><span class="k">H</span> humanize · <span class="k">Shift</span><span class="k">Alt</span><span class="k">C</span> wheel · <span class="k">Ctrl</span><span class="k">Alt</span><span class="k">C</span> speak selection aloud · <span class="k">Alt</span><span class="k">W</span> mini browser. All rebindable in settings.</p>
+        <p><strong>Internet:</strong> dictation, rewriting, transcripts and speech use Groq, so they need a connection. <strong>Mac / Linux?</strong> Not in this release — Windows only.</p>
       </aside>
     </div>
 
@@ -317,7 +334,7 @@
       <p class="setup-steps-head"><strong>Set up your API key</strong> — open the tray (▲ near the clock), click the VoiceWriter icon to open Settings, then:</p>
       <ol class="flow flow-compact">
         <li><span class="n">1</span><p>Create a free Groq key at <a href="https://console.groq.com/keys" target="_blank" rel="noopener">console.groq.com/keys</a>.</p></li>
-        <li><span class="n">2</span><p>Paste it into <strong>API Keys &amp; Usage → Groq API key</strong> and press Save. That covers dictation, Alt+R and call transcripts.</p></li>
+        <li><span class="n">2</span><p>Paste it into <strong>API Keys &amp; Usage → Groq API key</strong> and press Save. That covers dictation, the Alt+R / Alt+P / Alt+H rewrites and call transcripts.</p></li>
         <li><span class="n">3</span><p>No credit card needed. Full walkthrough: <a href="#keys">API keys</a> section below.</p></li>
       </ol>
     </div>
@@ -347,8 +364,12 @@
         </ol>
       </article>
       <article class="card">
-        <h3>Alt+R does nothing or says “Select some text first”</h3>
-        <p>Select the text before pressing the hotkey and keep that window in front until it says “Refined”. If another app already uses Alt+R, pick a different key in Settings → Hotkeys.</p>
+        <h3>Installed, but nothing appears</h3>
+        <p>That's expected — VoiceWriter has no main window. Look for its icon in the tray (▲ near the clock) and click it to open Settings. If it isn't there, start VoiceWriter from the Start menu.</p>
+      </article>
+      <article class="card">
+        <h3>Alt+R, Alt+P or Alt+H does nothing or says “Select some text first”</h3>
+        <p>Select the text before pressing the key and keep that window in front until the note says it's done. While VoiceWriter runs, these keys take over the same shortcuts in other apps (for example the Microsoft Office ribbon). If you need them there, or another app already uses one, pick a different key in Settings → Hotkeys.</p>
       </article>
       <article class="card">
         <h3>The transcript only has “You” lines</h3>
@@ -361,7 +382,7 @@
 <footer class="site-footer">
   <div class="wrap footer-inner">
     <span class="footer-brand"><img src="assets/icon.png" alt="" width="22" height="22" /> VoiceWriter</span>
-    <span class="footer-note"><span class="mono">v0.5.3</span> · not affiliated with Groq or OpenAI</span>
+    <span class="footer-note"><span class="mono">v0.5.4</span> · not affiliated with Groq or OpenAI</span>
     <a href="https://github.com/Xrenes/voicewriter">GitHub</a>
   </div>
 </footer>
