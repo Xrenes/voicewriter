@@ -20,6 +20,19 @@ const ICON_REFINE =
   '<path d="M6 4v3M4.5 5.5h3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>' +
   '<path d="M19 16v2.5M17.75 17.25h2.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>';
 
+// A briefcase — "Professional" rewrite.
+const ICON_PROFESSIONAL =
+  '<rect x="3.5" y="7.5" width="17" height="12" rx="2" fill="none" stroke="currentColor" stroke-width="1.6"/>' +
+  '<path d="M9 7.5V6a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v1.5M3.5 12.5h17" fill="none" stroke="currentColor" ' +
+  'stroke-width="1.6" stroke-linecap="round"/>';
+
+// A smiling face — "Humanize" rewrite.
+const ICON_HUMANIZE =
+  '<circle cx="12" cy="12" r="8.5" fill="none" stroke="currentColor" stroke-width="1.6"/>' +
+  '<path d="M8.5 14a4 4 0 0 0 7 0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>' +
+  '<circle cx="9.3" cy="10" r="1" fill="currentColor"/>' +
+  '<circle cx="14.7" cy="10" r="1" fill="currentColor"/>';
+
 // A solid red-tinted dot inside a ring — a record button.
 const ICON_RECORD =
   '<circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.6"/>' +
@@ -64,10 +77,18 @@ const ICON_WEB =
 const TOTAL_SLOTS = 4;
 
 const MAIN_WEDGES: WedgeDef[] = [
-  { action: "refine", label: "Refine", icon: ICON_REFINE },
+  { action: "__refine", label: "Refine", icon: ICON_REFINE },
   { action: "__record", label: "Record", icon: ICON_RECORD },
   { action: "__web", label: "Web", icon: ICON_WEB },
   { action: "__ai", label: "AI", icon: ICON_AI },
+];
+
+// Second-level menu shown after clicking "Refine": pick a rewrite mode. The
+// part after "refine:" is the mode name the backend's `wheel_refine` takes.
+const REFINE_WEDGES: WedgeDef[] = [
+  { action: "refine:refine", label: "Refine", icon: ICON_REFINE },
+  { action: "refine:professional", label: "Professional", icon: ICON_PROFESSIONAL },
+  { action: "refine:humanize", label: "Humanize", icon: ICON_HUMANIZE },
 ];
 
 // Second-level menu shown after clicking "Find": pick a capture source.
@@ -128,6 +149,8 @@ function buildWheel(wedges: WedgeDef[]) {
   svg.innerHTML = "";
   labelsLayer.innerHTML = "";
   hubLabel.textContent = "";
+  // The hovered wedge is removed without a mouseleave, so clear its hover.
+  hub.classList.remove("hover");
 
   const step = 360 / TOTAL_SLOTS;
   const mid = (INNER_R + OUTER_R) / 2;
@@ -213,7 +236,14 @@ function onWedgeClick(action: string) {
     invoke("wheel_cancel").catch(() => {});
     return;
   }
-  if (action === "refine") runRefine();
+  if (action === "__refine") {
+    // Swap the ring to the rewrite-mode wedges.
+    buildWheel(REFINE_WEDGES);
+    return;
+  }
+  if (action.startsWith("refine:")) {
+    runRefine(action.slice("refine:".length));
+  }
 }
 
 /** Backend command for each Find submenu wedge. */
@@ -281,10 +311,10 @@ function showPreview(text: string) {
   preview.hidden = false;
 }
 
-async function runRefine() {
+async function runRefine(style: string) {
   setLoading(true);
   try {
-    const result = await invoke<string>("wheel_refine");
+    const result = await invoke<string>("wheel_refine", { style });
     setLoading(false);
     showPreview(result);
   } catch (e) {
@@ -299,7 +329,7 @@ buildWheel(MAIN_WEDGES);
 // wheel if already on the main menu.
 window.addEventListener("keydown", (ev) => {
   if (ev.key === "Escape") {
-    if (currentWedges === FIND_WEDGES) {
+    if (currentWedges !== MAIN_WEDGES) {
       buildWheel(MAIN_WEDGES);
     } else {
       invoke("wheel_cancel").catch(() => {});

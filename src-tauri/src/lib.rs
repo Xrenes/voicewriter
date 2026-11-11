@@ -67,9 +67,23 @@ enum Slot {
     Wheel,
     /// Toggle the Web browser window.
     Web,
+    /// Rewrite the selected text as a professional message in place.
+    Professional,
+    /// Rewrite the selected text so it sounds natural and human, in place.
+    Humanize,
 }
 
-const SLOTS: [Slot; 5] = [Slot::Dictate, Slot::Speak, Slot::Refine, Slot::Wheel, Slot::Web];
+const SLOT_COUNT: usize = 7;
+
+const SLOTS: [Slot; SLOT_COUNT] = [
+    Slot::Dictate,
+    Slot::Speak,
+    Slot::Refine,
+    Slot::Wheel,
+    Slot::Web,
+    Slot::Professional,
+    Slot::Humanize,
+];
 
 impl Slot {
     fn configured(self, cfg: &Settings) -> &str {
@@ -79,6 +93,8 @@ impl Slot {
             Slot::Refine => &cfg.refine_hotkey,
             Slot::Wheel => &cfg.wheel_hotkey,
             Slot::Web => &cfg.web_hotkey,
+            Slot::Professional => &cfg.professional_hotkey,
+            Slot::Humanize => &cfg.humanize_hotkey,
         }
     }
 
@@ -89,6 +105,17 @@ impl Slot {
             Slot::Refine => "refine",
             Slot::Wheel => "wheel",
             Slot::Web => "Web",
+            Slot::Professional => "professional",
+            Slot::Humanize => "humanize",
+        }
+    }
+
+    /// The hotkey slot that runs a given rewrite mode.
+    fn for_style(style: refine::Style) -> Self {
+        match style {
+            refine::Style::Standard => Slot::Refine,
+            refine::Style::Professional => Slot::Professional,
+            refine::Style::Humanize => Slot::Humanize,
         }
     }
 }
@@ -158,7 +185,7 @@ pub struct AppState {
     /// True only while the user has the settings window open (via the tray).
     settings_open: AtomicBool,
     /// Registered global shortcuts, indexed by `Slot`.
-    shortcuts: [Mutex<Option<Shortcut>>; 5],
+    shortcuts: [Mutex<Option<Shortcut>>; SLOT_COUNT],
     shortcut_update: Mutex<()>,
     /// Owns current TTS playback so a second hotkey press can stop it.
     speaker: Arc<speak::Speaker>,
@@ -289,7 +316,15 @@ fn on_shortcut(app: &AppHandle<Wry>, shortcut: &Shortcut, event: ShortcutState) 
                 }
                 Slot::Refine => {
                     typer::prepare_hotkey();
-                    on_refine_selection(app);
+                    on_refine_selection(app, refine::Style::Standard);
+                }
+                Slot::Professional => {
+                    typer::prepare_hotkey();
+                    on_refine_selection(app, refine::Style::Professional);
+                }
+                Slot::Humanize => {
+                    typer::prepare_hotkey();
+                    on_refine_selection(app, refine::Style::Humanize);
                 }
                 Slot::Wheel => {
                     typer::prepare_hotkey();
@@ -353,7 +388,9 @@ fn run_cli_action(app: &AppHandle<Wry>, args: &[String]) -> bool {
                 start_recording(app);
             }
         }
-        "--refine" => on_refine_selection(app),
+        "--refine" => on_refine_selection(app, refine::Style::Standard),
+        "--professional" => on_refine_selection(app, refine::Style::Professional),
+        "--humanize" => on_refine_selection(app, refine::Style::Humanize),
         "--wheel" => on_wheel_open(app),
         "--speak" => on_speak_toggle(app),
         "--web" => on_web_toggle(app),
@@ -544,11 +581,12 @@ fn on_web_toggle(app: &AppHandle<Wry>) {
 }
 
 // ---------------------------------------------------------------------------
-// Refine selection (Alt+R) — select text anywhere, press the hotkey, and the
-// corrected, refined text replaces the selection.
+// Rewrite selection — select text anywhere and press Alt+R (Refine), Alt+P
+// (Professional) or Alt+H (Humanize); the rewritten text replaces the
+// selection. Only one rewrite runs at a time, whichever mode it is.
 // ---------------------------------------------------------------------------
 
-fn on_refine_selection(app: &AppHandle<Wry>) {
+fn on_refine_selection(app: &AppHandle<Wry>, style: refine::Style) {
     let state: State<AppState> = app.state();
     if state.refining.swap(true, Ordering::SeqCst) {
         return;
@@ -558,14 +596,14 @@ fn on_refine_selection(app: &AppHandle<Wry>) {
     let target = typer::Target::capture();
     let app = app.clone();
     std::thread::spawn(move || {
-        let result = refine_selection(&app, target);
+        let result = refine_selection(&app, target, style);
         let state: State<AppState> = app.state();
         state.refining.store(false, Ordering::SeqCst);
         drop(state);
         match result {
             Ok(changed) => {
                 events::emit(&app, Status::Idle, None);
-                let message = if changed { "Refined" } else { "Already looks good" };
+                let message = if changed { style.done_message() } else { style.unchanged_message() };
                 show_toast(&app, ToastKind::Done, message, Some(Duration::from_millis(1400)));
             }
             Err(e) => {
@@ -577,30 +615,35 @@ fn on_refine_selection(app: &AppHandle<Wry>) {
     });
 }
 
-/// Copy the selection, refine it via Groq, and paste the result over it.
-/// Returns whether the text changed.
-fn refine_selection(app: &AppHandle<Wry>, target: typer::Target) -> anyhow::Result<bool> {
+/// Copy the selection, rewrite it via Groq in `style`, and paste the result
+/// over it. Returns whether the text changed.
+fn refine_selection(app: &AppHandle<Wry>, target: typer::Target, style: refine::Style) -> anyhow::Result<bool> {
     let cfg = settings::load(app);
     let Some(key) = keychain::get(keychain::Purpose::Dictation) else {
         anyhow::bail!("Add your Groq API key in VoiceWriter Settings → API Keys to use Refine");
     };
     let text = speak::capture_selection(app).map_err(|e| {
         if e.to_string().contains("no text selected") {
-            anyhow::anyhow!("Select some text first, then press {}", cfg.refine_hotkey)
+            let hotkey = Slot::for_style(style).configured(&cfg);
+            if hotkey.is_empty() {
+                anyhow::anyhow!("Select some text first, then try again")
+            } else {
+                anyhow::anyhow!("Select some text first, then press {hotkey}")
+            }
         } else {
             e
         }
     })?;
 
     events::emit(app, Status::Refining, None);
-    show_toast(app, ToastKind::Busy, "Refining…", None);
-    let refined = match refine::run(&text, &key) {
+    show_toast(app, ToastKind::Busy, style.busy_message(), None);
+    let refined = match refine::run(&text, &key, style) {
         Ok(r) => {
             usage::record_ok(app, usage::Purpose::Dictation, 0.0);
             r
         }
         Err(e) => {
-            usage::record_err(app, usage::Purpose::Dictation, &format!("refine: {e}"));
+            usage::record_err(app, usage::Purpose::Dictation, &format!("{}: {e}", style.name()));
             return Err(e);
         }
     };
@@ -798,12 +841,18 @@ fn wheel_cancel(app: AppHandle<Wry>) {
     }
 }
 
-/// The wheel's Refine wedge: refine the selection captured when the wheel
-/// opened, copy the result to the clipboard, and return it for the wheel's
-/// preview panel. Unlike Alt+R, nothing is pasted automatically — the user
-/// reviews it and pastes it themselves.
+/// The wheel's Refine submenu: rewrite the selection captured when the wheel
+/// opened in the chosen mode ("refine", "professional" or "humanize"), copy
+/// the result to the clipboard, and return it for the wheel's preview panel.
+/// Unlike the hotkeys, nothing is pasted automatically — the user reviews it
+/// and pastes it themselves.
 #[tauri::command]
-async fn wheel_refine(app: AppHandle<Wry>) -> Result<String, String> {
+async fn wheel_refine(app: AppHandle<Wry>, style: Option<String>) -> Result<String, String> {
+    let mode = style.unwrap_or_default();
+    let Some(style) = refine::Style::parse(&mode) else {
+        return Err(format!("unknown refine mode '{mode}'"));
+    };
+
     let state: State<AppState> = app.state();
     let text = state.wheel_text.lock().clone();
     drop(state);
@@ -812,7 +861,7 @@ async fn wheel_refine(app: AppHandle<Wry>) -> Result<String, String> {
         return Err("Groq API key required — set it in Settings".to_string());
     };
 
-    let result = tauri::async_runtime::spawn_blocking(move || refine::run(&text, &key))
+    let result = tauri::async_runtime::spawn_blocking(move || refine::run(&text, &key, style))
         .await
         .map_err(|e| e.to_string())?
         .map_err(|e| e.to_string())?;
@@ -1791,6 +1840,8 @@ fn set_slot_hotkey(app: &AppHandle<Wry>, slot: Slot, hotkey: String) -> bool {
         Slot::Refine => cfg.refine_hotkey = hotkey,
         Slot::Wheel => cfg.wheel_hotkey = hotkey,
         Slot::Web => cfg.web_hotkey = hotkey,
+        Slot::Professional => cfg.professional_hotkey = hotkey,
+        Slot::Humanize => cfg.humanize_hotkey = hotkey,
     }
     let _ = settings::save(app, &cfg);
     true
@@ -1809,6 +1860,16 @@ fn set_speak_hotkey(app: AppHandle<Wry>, hotkey: String) -> bool {
 #[tauri::command]
 fn set_refine_hotkey(app: AppHandle<Wry>, hotkey: String) -> bool {
     set_slot_hotkey(&app, Slot::Refine, hotkey)
+}
+
+#[tauri::command]
+fn set_professional_hotkey(app: AppHandle<Wry>, hotkey: String) -> bool {
+    set_slot_hotkey(&app, Slot::Professional, hotkey)
+}
+
+#[tauri::command]
+fn set_humanize_hotkey(app: AppHandle<Wry>, hotkey: String) -> bool {
+    set_slot_hotkey(&app, Slot::Humanize, hotkey)
 }
 
 #[tauri::command]
@@ -2164,6 +2225,8 @@ pub fn run() {
             dismiss_error,
             set_speak_hotkey,
             set_refine_hotkey,
+            set_professional_hotkey,
+            set_humanize_hotkey,
             set_wheel_hotkey,
             set_web_hotkey,
             wheel_refine,

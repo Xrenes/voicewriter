@@ -7,6 +7,8 @@ interface Settings {
   hotkey: string;
   speakHotkey: string;
   refineHotkey: string;
+  professionalHotkey: string;
+  humanizeHotkey: string;
   wheelHotkey: string;
   webHotkey: string;
   engine: "auto" | "groq" | "local";
@@ -69,6 +71,10 @@ const hotkeySpeakInput = $<HTMLInputElement>("hotkeySpeak");
 const hotkeySpeakEdit = $<HTMLButtonElement>("hotkeySpeakEdit");
 const hotkeyRefineInput = $<HTMLInputElement>("hotkeyRefine");
 const hotkeyRefineEdit = $<HTMLButtonElement>("hotkeyRefineEdit");
+const hotkeyProfessionalInput = $<HTMLInputElement>("hotkeyProfessional");
+const hotkeyProfessionalEdit = $<HTMLButtonElement>("hotkeyProfessionalEdit");
+const hotkeyHumanizeInput = $<HTMLInputElement>("hotkeyHumanize");
+const hotkeyHumanizeEdit = $<HTMLButtonElement>("hotkeyHumanizeEdit");
 const hotkeyWheelInput = $<HTMLInputElement>("hotkeyWheel");
 const hotkeyWheelEdit = $<HTMLButtonElement>("hotkeyWheelEdit");
 const hotkeyWebInput = $<HTMLInputElement>("hotkeyWeb");
@@ -192,6 +198,8 @@ async function loadSettings() {
   hotkeyInput.value = settings.hotkey;
   hotkeySpeakInput.value = settings.speakHotkey || "(disabled)";
   hotkeyRefineInput.value = settings.refineHotkey || "(disabled)";
+  hotkeyProfessionalInput.value = settings.professionalHotkey || "(disabled)";
+  hotkeyHumanizeInput.value = settings.humanizeHotkey || "(disabled)";
   hotkeyWheelInput.value = settings.wheelHotkey || "(disabled)";
   hotkeyWebInput.value = settings.webHotkey || "(disabled)";
   engineSel.value = settings.engine;
@@ -581,7 +589,14 @@ autostartChk.addEventListener("change", async () => {
 interface HotkeyBinding {
   input: HTMLInputElement;
   editBtn: HTMLButtonElement;
-  command: "set_hotkey" | "set_speak_hotkey" | "set_refine_hotkey" | "set_wheel_hotkey" | "set_web_hotkey";
+  command:
+    | "set_hotkey"
+    | "set_speak_hotkey"
+    | "set_refine_hotkey"
+    | "set_professional_hotkey"
+    | "set_humanize_hotkey"
+    | "set_wheel_hotkey"
+    | "set_web_hotkey";
   get: () => string;
   set: (v: string) => void;
 }
@@ -654,6 +669,20 @@ bindHotkey({
   command: "set_refine_hotkey",
   get: () => settings.refineHotkey,
   set: (v) => (settings.refineHotkey = v),
+});
+bindHotkey({
+  input: hotkeyProfessionalInput,
+  editBtn: hotkeyProfessionalEdit,
+  command: "set_professional_hotkey",
+  get: () => settings.professionalHotkey,
+  set: (v) => (settings.professionalHotkey = v),
+});
+bindHotkey({
+  input: hotkeyHumanizeInput,
+  editBtn: hotkeyHumanizeEdit,
+  command: "set_humanize_hotkey",
+  get: () => settings.humanizeHotkey,
+  set: (v) => (settings.humanizeHotkey = v),
 });
 bindHotkey({
   input: hotkeyWheelInput,

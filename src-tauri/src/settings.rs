@@ -19,6 +19,13 @@ pub struct Settings {
     /// Hotkey that corrects and refines the selected text in place. Empty =
     /// disabled.
     pub refine_hotkey: String,
+    /// Hotkey that rewrites the selected text as a polished, professional
+    /// message (client replies on WhatsApp, LinkedIn, email). Empty =
+    /// disabled.
+    pub professional_hotkey: String,
+    /// Hotkey that rewrites the selected text so it reads naturally, as if
+    /// a person wrote it. Empty = disabled.
+    pub humanize_hotkey: String,
     /// Hotkey that opens the wheel menu (Refine / Record / Web / AI). Empty =
     /// disabled.
     pub wheel_hotkey: String,
@@ -72,6 +79,8 @@ impl Default for Settings {
             hotkey: "Alt+C".to_string(),
             speak_hotkey: "Control+Alt+C".to_string(),
             refine_hotkey: "Alt+R".to_string(),
+            professional_hotkey: "Alt+P".to_string(),
+            humanize_hotkey: "Alt+H".to_string(),
             wheel_hotkey: "Shift+Alt+C".to_string(),
             web_hotkey: "Alt+W".to_string(),
             engine: "auto".to_string(),
