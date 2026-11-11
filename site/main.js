@@ -18,13 +18,16 @@
   onScroll();
   window.addEventListener("scroll", onScroll, { passive: true });
 
-  /* ---- Fill download buttons with live file sizes from GitHub ---- */
+  /* ---- Show the installers' file sizes, read from this version's release.
+     The download links are fixed in the HTML and always point at this
+     version; only the sizes come from GitHub. ---- */
   var REPO = "Xrenes/voicewriter";
+  var TAG = "v0.5.4";
   function mb(bytes) {
     return bytes ? "~" + (bytes / 1048576).toFixed(1) + " MB" : "";
   }
   if (window.fetch) {
-    fetch("https://api.github.com/repos/" + REPO + "/releases/latest", {
+    fetch("https://api.github.com/repos/" + REPO + "/releases/tags/" + TAG, {
       headers: { Accept: "application/vnd.github+json" },
     })
       .then(function (r) {
@@ -33,24 +36,18 @@
       .then(function (data) {
         if (!data) return;
         var assets = data.assets || [];
-        var exe = assets.find(function (a) {
-          return /\.exe$/i.test(a.name);
-        });
-        var msi = assets.find(function (a) {
-          return /\.msi$/i.test(a.name);
-        });
-        var apply = function (id, sizeId, asset) {
-          if (!asset) return;
-          var a = document.getElementById(id);
+        var size = function (sizeId, pattern) {
+          var asset = assets.find(function (a) {
+            return pattern.test(a.name);
+          });
           var s = document.getElementById(sizeId);
-          if (a) a.setAttribute("href", asset.browser_download_url);
-          if (s) s.textContent = mb(asset.size);
+          if (asset && s) s.textContent = mb(asset.size);
         };
-        apply("dlExe", "exeSize", exe);
-        apply("dlMsi", "msiSize", msi);
+        size("msiSize", /\.msi$/i);
+        size("exeSize", /\.exe$/i);
       })
       .catch(function () {
-        /* fall back to the hard-coded /releases/latest/download/... links */
+        /* sizes are optional; the links work without them */
       });
   }
 
