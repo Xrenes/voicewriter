@@ -22,6 +22,7 @@ mod linux;
 mod model;
 mod record;
 mod refine;
+mod sayit;
 mod settings;
 mod speak;
 mod transcribe;
@@ -71,9 +72,13 @@ enum Slot {
     Professional,
     /// Rewrite the selected text so it sounds natural and human, in place.
     Humanize,
+    /// SayIt: play the saved message into the call, or stop it.
+    SayIt,
+    /// SayIt: open/close the window that records the message.
+    SayItRecorder,
 }
 
-const SLOT_COUNT: usize = 7;
+const SLOT_COUNT: usize = 9;
 
 const SLOTS: [Slot; SLOT_COUNT] = [
     Slot::Dictate,
@@ -83,6 +88,8 @@ const SLOTS: [Slot; SLOT_COUNT] = [
     Slot::Web,
     Slot::Professional,
     Slot::Humanize,
+    Slot::SayIt,
+    Slot::SayItRecorder,
 ];
 
 impl Slot {
@@ -95,6 +102,8 @@ impl Slot {
             Slot::Web => &cfg.web_hotkey,
             Slot::Professional => &cfg.professional_hotkey,
             Slot::Humanize => &cfg.humanize_hotkey,
+            Slot::SayIt => &cfg.sayit_hotkey,
+            Slot::SayItRecorder => &cfg.sayit_recorder_hotkey,
         }
     }
 
@@ -107,6 +116,8 @@ impl Slot {
             Slot::Web => "Web",
             Slot::Professional => "professional",
             Slot::Humanize => "humanize",
+            Slot::SayIt => "SayIt",
+            Slot::SayItRecorder => "SayIt recorder",
         }
     }
 
@@ -206,6 +217,12 @@ pub struct AppState {
     /// currently showing — reopening the window resumes this session rather
     /// than starting blank, per the "load working session" requirement.
     active_ai_chat_id: Mutex<Option<String>>,
+    /// SayIt's playback engine (mic pass-through + message into the call).
+    sayit: sayit::SayIt,
+    /// SayIt's own microphone recorder for taking the message.
+    sayit_mic: audio::Recorder,
+    /// A recorded but not yet saved SayIt take (16 kHz mono).
+    sayit_take: Mutex<Option<Vec<f32>>>,
 }
 
 impl AppState {
@@ -230,6 +247,9 @@ impl AppState {
             transcription_gen: AtomicU64::new(0),
             transcript_view: Mutex::new(None),
             active_ai_chat_id: Mutex::new(None),
+            sayit: sayit::SayIt::spawn(),
+            sayit_mic: audio::Recorder::spawn(audio::Source::Mic),
+            sayit_take: Mutex::new(None),
         }
     }
 
@@ -332,6 +352,14 @@ fn on_shortcut(app: &AppHandle<Wry>, shortcut: &Shortcut, event: ShortcutState) 
                 }
                 // Only shows/hides a window — no typing setup needed.
                 Slot::Web => on_web_toggle(app),
+                Slot::SayIt => {
+                    typer::prepare_hotkey();
+                    on_sayit_toggle(app);
+                }
+                Slot::SayItRecorder => {
+                    typer::prepare_hotkey();
+                    toggle_sayit_window(app);
+                }
                 Slot::Dictate => {}
             }
         }
@@ -398,6 +426,8 @@ fn run_cli_action(app: &AppHandle<Wry>, args: &[String]) -> bool {
             let _ = wheel_record_toggle(app.clone());
         }
         "--settings" => show_settings(app),
+        "--sayit" => on_sayit_toggle(app),
+        "--sayit-recorder" => toggle_sayit_window(app),
         other => {
             eprintln!("unknown command-line action {other}");
             return false;
@@ -1842,6 +1872,8 @@ fn set_slot_hotkey(app: &AppHandle<Wry>, slot: Slot, hotkey: String) -> bool {
         Slot::Web => cfg.web_hotkey = hotkey,
         Slot::Professional => cfg.professional_hotkey = hotkey,
         Slot::Humanize => cfg.humanize_hotkey = hotkey,
+        Slot::SayIt => cfg.sayit_hotkey = hotkey,
+        Slot::SayItRecorder => cfg.sayit_recorder_hotkey = hotkey,
     }
     let _ = settings::save(app, &cfg);
     true
@@ -1880,6 +1912,281 @@ fn set_wheel_hotkey(app: AppHandle<Wry>, hotkey: String) -> bool {
 #[tauri::command]
 fn set_web_hotkey(app: AppHandle<Wry>, hotkey: String) -> bool {
     set_slot_hotkey(&app, Slot::Web, hotkey)
+}
+
+#[tauri::command]
+fn set_sayit_hotkey(app: AppHandle<Wry>, hotkey: String) -> bool {
+    set_slot_hotkey(&app, Slot::SayIt, hotkey)
+}
+
+#[tauri::command]
+fn set_sayit_recorder_hotkey(app: AppHandle<Wry>, hotkey: String) -> bool {
+    set_slot_hotkey(&app, Slot::SayItRecorder, hotkey)
+}
+
+// ---------------------------------------------------------------------------
+// SayIt — record a message once, then play it into calls with a hotkey
+// ---------------------------------------------------------------------------
+
+const SAYIT_RATE: u32 = audio::TARGET_SR;
+
+fn sayit_file(app: &AppHandle<Wry>) -> anyhow::Result<PathBuf> {
+    let dir = app.path().app_data_dir()?.join("sayit");
+    std::fs::create_dir_all(&dir)?;
+    Ok(dir.join("message.wav"))
+}
+
+fn read_sayit_message(app: &AppHandle<Wry>) -> anyhow::Result<Option<Vec<f32>>> {
+    let path = sayit_file(app)?;
+    if !path.exists() {
+        return Ok(None);
+    }
+    let mut reader = hound::WavReader::open(&path)?;
+    let samples = reader
+        .samples::<i16>()
+        .map(|s| s.map(|v| v as f32 / i16::MAX as f32))
+        .collect::<Result<Vec<f32>, _>>()?;
+    Ok(Some(samples))
+}
+
+/// Connect SayIt to the virtual cable the call app listens to (the one in
+/// Settings, else any "CABLE Input"), passing the real mic through.
+fn apply_sayit_route(app: &AppHandle<Wry>) -> sayit::Route {
+    let cfg = settings::load(app);
+    let output = if cfg.sayit_output_device.trim().is_empty() {
+        sayit::find_cable_input()
+    } else {
+        Some(cfg.sayit_output_device.clone())
+    };
+    let mic = cfg.sayit_route_mic.then(|| cfg.mic_device.clone());
+    let state: State<AppState> = app.state();
+    let route = state.sayit.connect(output, mic);
+    if let Some(e) = &route.error {
+        eprintln!("sayit: {e}");
+    }
+    route
+}
+
+#[derive(Clone, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+struct SayItStatus {
+    saved_secs: Option<f64>,
+    take_secs: Option<f64>,
+    recording: bool,
+    playing: bool,
+    route: sayit::Route,
+    play_hotkey: String,
+}
+
+fn sayit_status_for(app: &AppHandle<Wry>) -> SayItStatus {
+    let saved_secs = read_sayit_message(app)
+        .ok()
+        .flatten()
+        .map(|s| s.len() as f64 / SAYIT_RATE as f64);
+    let state: State<AppState> = app.state();
+    let take_secs = state.sayit_take.lock().as_ref().map(|s| s.len() as f64 / SAYIT_RATE as f64);
+    let status = SayItStatus {
+        saved_secs,
+        take_secs,
+        recording: state.sayit_mic.is_recording(),
+        playing: state.sayit.remaining_secs().is_some(),
+        route: state.sayit.route(),
+        play_hotkey: settings::load(app).sayit_hotkey,
+    };
+    status
+}
+
+fn emit_sayit_status(app: &AppHandle<Wry>) {
+    let _ = app.emit("sayit-status", sayit_status_for(app));
+}
+
+/// Ctrl+Alt+L: show the SayIt window near the cursor, or hide it.
+fn toggle_sayit_window(app: &AppHandle<Wry>) {
+    let Some(win) = app.get_webview_window("sayit") else { return };
+    if win.is_visible().unwrap_or(false) {
+        let _ = win.hide();
+        return;
+    }
+    dev_reload(&win);
+    let (x, y) = typer::cursor_pos();
+    let size = win.outer_size().map(|s| (s.width as i32, s.height as i32)).unwrap_or((340, 260));
+    let (sx, sy, sw, sh) = virtual_screen_rect();
+    let px = (x - size.0 / 2).clamp(sx, (sx + sw - size.0).max(sx));
+    let py = (y + 20).clamp(sy, (sy + sh - size.1).max(sy));
+    let _ = win.set_position(tauri::PhysicalPosition::new(px, py));
+    let _ = win.show();
+    let _ = win.set_focus();
+    emit_sayit_status(app);
+}
+
+/// Alt+L: play the saved message into the call, or stop it if it's playing.
+fn on_sayit_toggle(app: &AppHandle<Wry>) {
+    let state: State<AppState> = app.state();
+    if state.sayit.remaining_secs().is_some() {
+        // The playback watcher below notices and shows "SayIt done".
+        state.sayit.stop();
+        return;
+    }
+    drop(state);
+    let cfg = settings::load(app);
+    let message = match read_sayit_message(app) {
+        Ok(Some(m)) if !m.is_empty() => m,
+        Ok(_) => {
+            let text = format!(
+                "No SayIt message saved yet — press {} to record one",
+                cfg.sayit_recorder_hotkey
+            );
+            show_toast(app, ToastKind::Error, &text, Some(Duration::from_secs(4)));
+            return;
+        }
+        Err(e) => {
+            show_toast(app, ToastKind::Error, &format!("Can't read the SayIt message: {e}"), Some(Duration::from_secs(5)));
+            return;
+        }
+    };
+    let state: State<AppState> = app.state();
+    let route = state.sayit.route();
+    let started = state.sayit.play(message, SAYIT_RATE);
+    drop(state);
+    if let Err(e) = started {
+        show_toast(app, ToastKind::Error, &format!("SayIt couldn't play: {e}"), Some(Duration::from_secs(5)));
+        return;
+    }
+    emit_sayit_status(app);
+
+    // Keep a small "playing" note up with the time left; it also tells the
+    // user when it's safe to hang up.
+    let app = app.clone();
+    std::thread::spawn(move || {
+        let hotkey = settings::load(&app).sayit_hotkey;
+        loop {
+            let state: State<AppState> = app.state();
+            let left = state.sayit.remaining_secs();
+            drop(state);
+            let Some(left) = left else { break };
+            let text = if route.to_call {
+                format!("SayIt playing into the call · {}s left · {hotkey} to stop", left.ceil() as u64)
+            } else {
+                format!("SayIt playing on your speakers only (no virtual cable) · {}s left", left.ceil() as u64)
+            };
+            show_toast(&app, ToastKind::Busy, &text, None);
+            std::thread::sleep(Duration::from_millis(500));
+        }
+        show_toast(&app, ToastKind::Done, "SayIt done", Some(Duration::from_millis(1500)));
+        emit_sayit_status(&app);
+    });
+}
+
+#[tauri::command]
+fn sayit_status(app: AppHandle<Wry>) -> SayItStatus {
+    sayit_status_for(&app)
+}
+
+/// Start recording a new take, or stop and keep it (unsaved) for preview.
+#[tauri::command]
+fn sayit_record_toggle(app: AppHandle<Wry>) -> Result<SayItStatus, String> {
+    let state: State<AppState> = app.state();
+    if state.sayit_mic.is_recording() {
+        let samples = state.sayit_mic.stop().map_err(|e| e.to_string())?;
+        if (samples.len() as f64 / SAYIT_RATE as f64) < 0.5 {
+            drop(state);
+            return Err("That was too short — record your message again.".into());
+        }
+        *state.sayit_take.lock() = Some(sayit::prepare_message(&samples, SAYIT_RATE));
+    } else {
+        let cfg = settings::load(&app);
+        state.sayit.stop();
+        *state.sayit_take.lock() = None;
+        state
+            .sayit_mic
+            .start(&cfg.mic_device)
+            .map_err(|e| mic_hint(&e.to_string()))?;
+    }
+    drop(state);
+    let status = sayit_status_for(&app);
+    let _ = app.emit("sayit-status", status.clone());
+    Ok(status)
+}
+
+/// The new take if there is one, else the saved message — as WAV bytes for
+/// the window's player.
+#[tauri::command]
+fn sayit_audio(app: AppHandle<Wry>) -> Result<tauri::ipc::Response, String> {
+    let state: State<AppState> = app.state();
+    let take = state.sayit_take.lock().clone();
+    drop(state);
+    let samples = match take {
+        Some(t) => t,
+        None => read_sayit_message(&app)
+            .map_err(|e| e.to_string())?
+            .ok_or_else(|| "nothing recorded yet".to_string())?,
+    };
+    groq::encode_wav_16k_mono(&samples)
+        .map(tauri::ipc::Response::new)
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn sayit_save(app: AppHandle<Wry>) -> Result<SayItStatus, String> {
+    let state: State<AppState> = app.state();
+    let take = state.sayit_take.lock().take();
+    drop(state);
+    let take = take.ok_or_else(|| "record a message first".to_string())?;
+    let wav = groq::encode_wav_16k_mono(&take).map_err(|e| e.to_string())?;
+    let path = sayit_file(&app).map_err(|e| e.to_string())?;
+    std::fs::write(&path, wav).map_err(|e| format!("couldn't save the message: {e}"))?;
+    let status = sayit_status_for(&app);
+    let _ = app.emit("sayit-status", status.clone());
+    Ok(status)
+}
+
+#[tauri::command]
+fn sayit_discard(app: AppHandle<Wry>) -> SayItStatus {
+    let state: State<AppState> = app.state();
+    if state.sayit_mic.is_recording() {
+        let _ = state.sayit_mic.stop();
+    }
+    *state.sayit_take.lock() = None;
+    drop(state);
+    let status = sayit_status_for(&app);
+    let _ = app.emit("sayit-status", status.clone());
+    status
+}
+
+#[tauri::command]
+fn sayit_delete(app: AppHandle<Wry>) -> Result<SayItStatus, String> {
+    let state: State<AppState> = app.state();
+    state.sayit.stop();
+    drop(state);
+    let path = sayit_file(&app).map_err(|e| e.to_string())?;
+    if path.exists() {
+        std::fs::remove_file(&path).map_err(|e| format!("couldn't delete the message: {e}"))?;
+    }
+    let status = sayit_status_for(&app);
+    let _ = app.emit("sayit-status", status.clone());
+    Ok(status)
+}
+
+#[tauri::command]
+fn sayit_play_toggle(app: AppHandle<Wry>) {
+    on_sayit_toggle(&app);
+}
+
+/// Re-detect the virtual cable / microphone (after installing the cable or
+/// changing devices) and reconnect.
+#[tauri::command]
+fn sayit_reconnect(app: AppHandle<Wry>) -> SayItStatus {
+    apply_sayit_route(&app);
+    let status = sayit_status_for(&app);
+    let _ = app.emit("sayit-status", status.clone());
+    status
+}
+
+#[tauri::command]
+fn sayit_hide(app: AppHandle<Wry>) {
+    if let Some(win) = app.get_webview_window("sayit") {
+        let _ = win.hide();
+    }
 }
 
 #[tauri::command]
@@ -2277,6 +2584,17 @@ pub fn run() {
             web_copy_url,
             web_close,
             platform_info,
+            set_sayit_hotkey,
+            set_sayit_recorder_hotkey,
+            sayit_status,
+            sayit_record_toggle,
+            sayit_audio,
+            sayit_save,
+            sayit_discard,
+            sayit_delete,
+            sayit_play_toggle,
+            sayit_reconnect,
+            sayit_hide,
         ])
         .setup(|app| {
             let handle = app.handle().clone();
@@ -2304,6 +2622,7 @@ pub fn run() {
                     );
                 }
             }
+            apply_sayit_route(&handle);
 
             let mgr = handle.autolaunch();
             let _ = if cfg.autostart {
@@ -2349,7 +2668,7 @@ pub fn run() {
                 // These windows are created once and reused; closing one
                 // (title-bar X or Alt+F4) would destroy it for the rest of
                 // the session, so hide it instead.
-                if matches!(label.as_str(), "transcript" | "recorder-confirm" | "toast") {
+                if matches!(label.as_str(), "transcript" | "recorder-confirm" | "toast" | "sayit") {
                     if let WindowEvent::CloseRequested { api, .. } = event {
                         api.prevent_close();
                         if let Some(win) = app.get_webview_window(&label) {

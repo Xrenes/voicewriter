@@ -22,6 +22,10 @@ interface Settings {
   autostart: boolean;
   hideTray: boolean;
   visionModel: string;
+  sayitHotkey: string;
+  sayitRecorderHotkey: string;
+  sayitOutputDevice: string;
+  sayitRouteMic: boolean;
 }
 
 type Status = "idle" | "recording" | "transcribing" | "ready" | "speaking" | "refining" | "error";
@@ -564,7 +568,11 @@ engineSel.addEventListener("change", () =>
   save({ engine: engineSel.value as Settings["engine"] }),
 );
 groqModelSel.addEventListener("change", () => save({ groqModel: groqModelSel.value }));
-micSel.addEventListener("change", () => save({ micDevice: micSel.value }));
+// SayIt passes this mic through to calls, so reconnect it on change.
+micSel.addEventListener("change", async () => {
+  await save({ micDevice: micSel.value });
+  invoke("sayit_reconnect").catch(() => {});
+});
 loopbackSel.addEventListener("change", () => save({ loopbackDevice: loopbackSel.value }));
 langInput.addEventListener("change", () => save({ language: langInput.value.trim() || "en" }));
 modelSel.addEventListener("change", async () => {
@@ -596,7 +604,9 @@ interface HotkeyBinding {
     | "set_professional_hotkey"
     | "set_humanize_hotkey"
     | "set_wheel_hotkey"
-    | "set_web_hotkey";
+    | "set_web_hotkey"
+    | "set_sayit_hotkey"
+    | "set_sayit_recorder_hotkey";
   get: () => string;
   set: (v: string) => void;
 }
@@ -684,6 +694,89 @@ bindHotkey({
   get: () => settings.humanizeHotkey,
   set: (v) => (settings.humanizeHotkey = v),
 });
+
+// ---- SayIt (voicemail) ----
+interface SayItRoute {
+  toCall: boolean;
+  device: string;
+  mic: string;
+  error?: string | null;
+}
+
+const hotkeySayItInput = $<HTMLInputElement>("hotkeySayIt");
+const hotkeySayItRecorderInput = $<HTMLInputElement>("hotkeySayItRecorder");
+const sayitDeviceSel = $<HTMLSelectElement>("sayitDevice");
+const sayitRouteMicChk = $<HTMLInputElement>("sayitRouteMic");
+const sayitRouteText = $("sayitRoute");
+const sayitReconnectBtn = $<HTMLButtonElement>("sayitReconnect");
+
+bindHotkey({
+  input: hotkeySayItInput,
+  editBtn: $<HTMLButtonElement>("hotkeySayItEdit"),
+  command: "set_sayit_hotkey",
+  get: () => settings.sayitHotkey,
+  set: (v) => (settings.sayitHotkey = v),
+});
+bindHotkey({
+  input: hotkeySayItRecorderInput,
+  editBtn: $<HTMLButtonElement>("hotkeySayItRecorderEdit"),
+  command: "set_sayit_recorder_hotkey",
+  get: () => settings.sayitRecorderHotkey,
+  set: (v) => (settings.sayitRecorderHotkey = v),
+});
+
+function showSayItRoute(route: SayItRoute) {
+  sayitRouteText.textContent = route.toCall
+    ? `✓ Connected to ${route.device}` + (route.mic ? ` · your voice: ${route.mic}` : " · your voice is not passed through")
+    : "Not connected — no virtual cable found" + (route.error ? ` (${route.error})` : "");
+  sayitRouteText.classList.toggle("ok", route.toCall);
+}
+
+async function reconnectSayIt() {
+  sayitReconnectBtn.disabled = true;
+  try {
+    const st = await invoke<{ route: SayItRoute }>("sayit_reconnect");
+    showSayItRoute(st.route);
+  } finally {
+    sayitReconnectBtn.disabled = false;
+  }
+}
+
+async function initSayIt() {
+  hotkeySayItInput.value = settings.sayitHotkey || "(disabled)";
+  hotkeySayItRecorderInput.value = settings.sayitRecorderHotkey || "(disabled)";
+  sayitRouteMicChk.checked = settings.sayitRouteMic;
+  try {
+    const devices = await invoke<string[]>("list_output_devices");
+    for (const d of devices) {
+      const opt = document.createElement("option");
+      opt.value = d;
+      opt.textContent = d;
+      sayitDeviceSel.appendChild(opt);
+    }
+  } catch (e) {
+    console.error("list_output_devices failed", e);
+  }
+  sayitDeviceSel.value = settings.sayitOutputDevice;
+  try {
+    const st = await invoke<{ route: SayItRoute }>("sayit_status");
+    showSayItRoute(st.route);
+  } catch (e) {
+    sayitRouteText.textContent = String(e);
+  }
+}
+
+sayitDeviceSel.addEventListener("change", async () => {
+  await save({ sayitOutputDevice: sayitDeviceSel.value });
+  await reconnectSayIt();
+});
+sayitRouteMicChk.addEventListener("change", async () => {
+  await save({ sayitRouteMic: sayitRouteMicChk.checked });
+  await reconnectSayIt();
+});
+sayitReconnectBtn.addEventListener("click", () => {
+  reconnectSayIt().catch((e) => (sayitRouteText.textContent = String(e)));
+});
 bindHotkey({
   input: hotkeyWheelInput,
   editBtn: hotkeyWheelEdit,
@@ -726,6 +819,7 @@ async function boot() {
   await loadSettings();
   await loadMics();
   await loadLoopbackDevices();
+  await initSayIt();
   await refreshModelState();
   await refreshKey();
   await refreshSpeakKey();

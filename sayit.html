@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SayIt</title>
+    <link rel="stylesheet" href="/src/sayit.css" />
+  </head>
+  <body>
+    <div class="titlebar" data-tauri-drag-region>
+      <span class="titlebar-name" data-tauri-drag-region>SayIt</span>
+      <button class="close" id="closeBtn" aria-label="Close">×</button>
+    </div>
+    <main class="app">
+      <p class="state" id="stateText">Loading…</p>
+
+      <div class="row">
+        <button id="recordBtn" class="rec">● Record</button>
+        <button id="listenBtn" class="ghost">▶ Listen</button>
+        <button id="saveBtn" class="primary" hidden>Save</button>
+        <button id="discardBtn" class="ghost" hidden>Discard</button>
+        <button id="deleteBtn" class="ghost danger" hidden>Delete</button>
+      </div>
+
+      <button id="playBtn" class="ghost wide">▶ Play into the call now</button>
+
+      <p class="route" id="routeText"></p>
+      <p class="hint" id="hintText"></p>
+      <p class="error" id="errorText"></p>
+      <audio id="player"></audio>
+    </main>
+    <script type="module" src="/src/sayit.ts"></script>
+  </body>
+</html>

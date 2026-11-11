@@ -71,6 +71,18 @@ pub struct Settings {
     /// resumes here rather than always resetting to the default. Empty =
     /// use `web_browser::DEFAULT_URL` (chatgpt.com).
     pub web_default_url: String,
+    /// SayIt: hotkey that plays the saved message into the call (press again
+    /// to stop). Empty = disabled.
+    pub sayit_hotkey: String,
+    /// SayIt: hotkey that opens the window to record / listen / delete the
+    /// message. Empty = disabled.
+    pub sayit_recorder_hotkey: String,
+    /// SayIt: playback device the call app listens to as its microphone
+    /// (a virtual cable's input side). Empty = find "CABLE Input" automatically.
+    pub sayit_output_device: String,
+    /// SayIt: keep passing the real microphone into that device so the call
+    /// hears you normally between messages.
+    pub sayit_route_mic: bool,
 }
 
 impl Default for Settings {
@@ -96,6 +108,10 @@ impl Default for Settings {
             capture_permission_granted: false,
             vision_model: String::new(),
             web_default_url: String::new(),
+            sayit_hotkey: "Alt+L".to_string(),
+            sayit_recorder_hotkey: "Control+Alt+L".to_string(),
+            sayit_output_device: String::new(),
+            sayit_route_mic: true,
         }
     }
 }

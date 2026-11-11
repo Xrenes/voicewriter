@@ -141,6 +141,54 @@
       </details>
 
       <details class="section">
+        <summary>SayIt (voicemail)</summary>
+        <div class="section-body">
+          <div class="card">
+            <div class="row">
+              <label>Record message</label>
+              <div class="hotkey">
+                <input id="hotkeySayItRecorder" type="text" value="Control+Alt+L" readonly />
+                <button id="hotkeySayItRecorderEdit" class="ghost">Change</button>
+              </div>
+            </div>
+            <p class="hint dim">Opens the SayIt window: record your message, listen to it, re-record, save or delete it.</p>
+            <div class="row">
+              <label>Play / stop</label>
+              <div class="hotkey">
+                <input id="hotkeySayIt" type="text" value="Alt+L" readonly />
+                <button id="hotkeySayItEdit" class="ghost">Change</button>
+              </div>
+            </div>
+            <p class="hint dim">During a call, press it to play your saved message into the call; press it again to stop.</p>
+          </div>
+
+          <div class="card">
+            <div class="row">
+              <label for="sayitDevice">Send to</label>
+              <select id="sayitDevice">
+                <option value="">Virtual cable (automatic)</option>
+              </select>
+            </div>
+            <label class="check">
+              <input type="checkbox" id="sayitRouteMic" />
+              Pass my microphone through, so the call hears me between messages
+            </label>
+            <div class="row">
+              <span class="hint" id="sayitRoute">Checking…</span>
+              <button id="sayitReconnect" class="ghost">Reconnect</button>
+            </div>
+            <p class="hint dim">
+              One-time setup: install the free VB-Audio Virtual Cable
+              (<a href="#" class="ext-link" data-url="https://vb-audio.com/Cable/">vb-audio.com/Cable</a>,
+              needs admin once), press Reconnect, then set your call app's microphone to
+              <span class="mono">CABLE Output (VB-Audio Virtual Cable)</span>. Keep VoiceWriter running
+              while you call — it carries your voice to the call.
+            </p>
+          </div>
+        </div>
+      </details>
+
+      <details class="section">
         <summary>API Keys &amp; Usage</summary>
         <div class="section-body">
           <div class="card">
@@ -463,7 +511,7 @@
       </details>
 
       <footer class="foot">
-        <span class="build">v0.5.4</span>
+        <span class="build">v0.5.5</span>
       </footer>
     </main>
 

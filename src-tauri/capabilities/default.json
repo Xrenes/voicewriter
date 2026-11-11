@@ -2,7 +2,7 @@
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
   "description": "Capabilities for the VoiceWriter main window",
-  "windows": ["main", "wheel", "recorder", "recorder-confirm", "transcript", "toast", "region-select", "ai-chat"],
+  "windows": ["main", "wheel", "recorder", "recorder-confirm", "transcript", "toast", "sayit", "region-select", "ai-chat"],
   "webviews": ["web-toolbar"],
   "permissions": [
     "core:default",
