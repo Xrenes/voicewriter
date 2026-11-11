@@ -3,9 +3,9 @@ name: Windows release build
 # Builds the Windows installers (.msi and NSIS .exe), installs each one on the
 # runner and checks that the app starts and keeps running, then attaches both
 # installers to the GitHub release for the pushed tag. Create the release
-# first (a draft is fine); this workflow only uploads to it. A manual run
-# without a release tag only builds and tests, and keeps the installers as a
-# workflow artifact.
+# first (a draft is fine); this workflow only uploads to it. Pull requests
+# that touch the app, and manual runs without a release tag, only build and
+# test, and keep the installers as a workflow artifact.
 on:
   workflow_dispatch:
     inputs:
@@ -15,6 +15,15 @@ on:
         default: ""
   push:
     tags: ["v*"]
+  pull_request:
+    paths:
+      - "src/**"
+      - "src-tauri/**"
+      - "*.html"
+      - "package.json"
+      - "package-lock.json"
+      - "vite.config.ts"
+      - ".github/workflows/windows-release.yml"
 
 permissions:
   contents: write
