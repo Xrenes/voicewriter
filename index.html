@@ -32,6 +32,8 @@
               In your desktop's Settings → Keyboard → Custom Shortcuts, add any of:
               <span class="mono">voicewriter --dictate</span> (press once to start, again to stop and insert),
               <span class="mono">voicewriter --refine</span>,
+              <span class="mono">voicewriter --professional</span>,
+              <span class="mono">voicewriter --humanize</span>,
               <span class="mono">voicewriter --wheel</span>,
               <span class="mono">voicewriter --speak</span>,
               <span class="mono">voicewriter --web</span>,
@@ -63,6 +65,34 @@
             </p>
 
             <div class="row">
+              <label>Professional reply</label>
+              <div class="hotkey">
+                <input id="hotkeyProfessional" type="text" value="Alt+P" readonly />
+                <button id="hotkeyProfessionalEdit" class="ghost">Change</button>
+              </div>
+            </div>
+            <p class="hint dim">
+              Select a draft message and press this key: it is rewritten as a polished, courteous,
+              ready-to-send reply for clients and colleagues on WhatsApp, LinkedIn or email. Names,
+              numbers, prices and dates are kept exactly; nothing is invented. Clear the hotkey to
+              disable it.
+            </p>
+
+            <div class="row">
+              <label>Humanize</label>
+              <div class="hotkey">
+                <input id="hotkeyHumanize" type="text" value="Alt+H" readonly />
+                <button id="hotkeyHumanizeEdit" class="ghost">Change</button>
+              </div>
+            </div>
+            <p class="hint dim">
+              Select text and press this key: stiff or AI-sounding wording is rewritten so it reads
+              naturally, like a person wrote it. Clear the hotkey to disable it. While VoiceWriter
+              runs, Alt+R, Alt+P and Alt+H take over those keys in other apps (for example the
+              Microsoft Office ribbon tabs). Pick different keys if you need them there.
+            </p>
+
+            <div class="row">
               <label>Speak selection</label>
               <div class="hotkey">
                 <input id="hotkeySpeak" type="text" value="Control+Alt+C" readonly />
@@ -89,8 +119,9 @@
               </div>
             </div>
             <p class="hint dim">
-              Press this key for a quick menu: Refine (preview, copied to the clipboard), Record,
-              Web and AI. Text selection is only needed for Refine. Clear the hotkey to disable it.
+              Press this key for a quick menu: Refine (choose Refine, Professional or Humanize; the
+              result is previewed and copied to the clipboard), Record, Web and AI. Text selection
+              is only needed for Refine. Clear the hotkey to disable it.
             </p>
 
             <div class="row">
@@ -366,12 +397,18 @@
           </div>
 
           <div class="card guide-card">
-            <h3>Refine selected text (Alt+R)</h3>
+            <h3>Rewrite selected text (Alt+R / Alt+P / Alt+H)</h3>
             <ol>
               <li>Uses your main Groq key (Dictation's key above) — no extra setup.</li>
-              <li>Select text in any app, then press <strong>Alt+R</strong>.</li>
-              <li>Spelling, grammar and sentence structure are corrected and the wording is smoothed, keeping your meaning and tone. The result replaces your selection automatically.</li>
-              <li>A small "Refining…" note appears near the mouse while it works. Keep the text selected and don't switch windows until it says "Refined".</li>
+              <li>Select text in any app, then press one of:
+                <ul>
+                  <li><strong>Alt+R — Refine:</strong> spelling, grammar and sentence structure are corrected and the wording is smoothed, keeping your meaning and tone.</li>
+                  <li><strong>Alt+P — Professional:</strong> a casual draft becomes a polished, courteous reply for clients and colleagues on WhatsApp, LinkedIn or email.</li>
+                  <li><strong>Alt+H — Humanize:</strong> stiff or AI-sounding text is rewritten so it reads naturally, like a person wrote it.</li>
+                </ul>
+              </li>
+              <li>The result replaces your selection automatically. Names, numbers, prices, dates and links are kept as written.</li>
+              <li>A small note appears near the mouse while it works ("Refining…", "Making it professional…", "Humanizing…"). Keep the text selected and don't switch windows until it says it's done.</li>
             </ol>
           </div>
 
@@ -379,7 +416,7 @@
             <h3>Wheel (Refine / Record / Web / AI)</h3>
             <ol>
               <li>Press <strong>Shift+Alt+C</strong> to open the wheel.</li>
-              <li><strong>Refine</strong> shows the refined selection as a preview and copies it to the clipboard instead of replacing it.</li>
+              <li><strong>Refine</strong> opens three choices: Refine, Professional and Humanize. The rewritten selection is shown as a preview and copied to the clipboard instead of replacing it. Press Esc to go back.</li>
               <li><strong>Record</strong> and <strong>Web</strong> have their own guides below.</li>
               <li><strong>AI</strong> opens a chat window — needs its own Groq key, see below.</li>
             </ol>
