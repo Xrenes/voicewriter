@@ -1,0 +1,31 @@
+{
+  "manifest_version": 3,
+  "name": "SayIt",
+  "version": "0.1.0",
+  "description": "Play your recorded voicemail into a web dialer call with one hotkey (Alt+L).",
+  "permissions": ["storage", "unlimitedStorage"],
+  "background": { "service_worker": "background.js" },
+  "action": { "default_title": "SayIt — record your message" },
+  "options_page": "options.html",
+  "commands": {
+    "toggle-message": {
+      "suggested_key": { "default": "Alt+L" },
+      "description": "Play / stop your SayIt message in the call"
+    }
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://*.aloware.com/*", "https://*.gohighlevel.com/*", "https://*.leadconnectorhq.com/*"],
+      "js": ["inject.js"],
+      "run_at": "document_start",
+      "world": "MAIN",
+      "all_frames": true
+    },
+    {
+      "matches": ["https://*.aloware.com/*", "https://*.gohighlevel.com/*", "https://*.leadconnectorhq.com/*"],
+      "js": ["relay.js"],
+      "run_at": "document_start",
+      "all_frames": true
+    }
+  ]
+}

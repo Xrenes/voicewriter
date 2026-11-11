@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>SayIt</title>
+    <link rel="stylesheet" href="options.css" />
+    <!-- Same mic hand-off the dialer pages get, so "Test" hears what a call would. -->
+    <script src="inject.js"></script>
+  </head>
+  <body>
+    <main>
+      <h1>SayIt</h1>
+      <p class="lead">Record your voicemail once. During a call in Aloware or GHL, press
+        <span class="k" id="hotkey">Alt+L</span> to play it into the call, and again to stop.
+        Nothing appears on screen.</p>
+
+      <section>
+        <h2>Your message</h2>
+        <p class="state" id="state">Loading…</p>
+        <div class="row">
+          <button id="record" class="rec">● Record</button>
+          <button id="listen">▶ Listen</button>
+          <button id="save" class="primary" hidden>Save</button>
+          <button id="discard" hidden>Discard</button>
+          <button id="remove" class="danger" hidden>Delete</button>
+        </div>
+        <audio id="player"></audio>
+      </section>
+
+      <section>
+        <h2>Test it</h2>
+        <p>Press <strong>Start test</strong>, talk a little, press the hotkey (or <strong>Play</strong>)
+          to play the message, then <strong>Stop test</strong> — you'll hear exactly what the
+          other side of a call would have heard.</p>
+        <div class="row">
+          <button id="testStart">Start test</button>
+          <button id="testPlay" hidden>Play / stop message</button>
+          <button id="testStop" hidden>Stop test</button>
+        </div>
+        <audio id="testPlayer" controls hidden></audio>
+      </section>
+
+      <section>
+        <h2>Setup</h2>
+        <ol>
+          <li>After installing or updating the extension, reload your Aloware / GHL tab once.</li>
+          <li>Change the hotkey at <span class="mono">chrome://extensions/shortcuts</span>.
+            If VoiceWriter's own SayIt uses the same key, VoiceWriter takes it first — give one of them a different key.</li>
+          <li>The hotkey works while Chrome is the window you're using.</li>
+        </ol>
+      </section>
+      <p class="error" id="error"></p>
+    </main>
+    <script src="options.js"></script>
+  </body>
+</html>

@@ -1,0 +1,86 @@
+:root {
+  color-scheme: dark;
+}
+body {
+  margin: 0;
+  background: #000;
+  color: #ededed;
+  font: 14px/1.5 system-ui, "Segoe UI", Roboto, sans-serif;
+}
+main {
+  max-width: 620px;
+  margin: 32px auto;
+  padding: 0 20px;
+}
+h1 {
+  margin: 0 0 6px;
+  font-size: 22px;
+}
+h2 {
+  font-size: 15px;
+  margin: 0 0 8px;
+}
+section {
+  border: 1px solid #1c1c1e;
+  border-radius: 10px;
+  padding: 14px 16px;
+  margin: 16px 0;
+}
+.lead,
+section p,
+li {
+  color: #c7c7cc;
+}
+.state {
+  font-weight: 600;
+  color: #ededed;
+}
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+button {
+  font: inherit;
+  border-radius: 8px;
+  padding: 7px 14px;
+  border: 1px solid #262628;
+  background: #0d0d0d;
+  color: #ededed;
+  cursor: pointer;
+}
+button:hover {
+  border-color: #b23859;
+}
+button.rec {
+  background: #2a0f16;
+  border-color: #6b2235;
+  color: #ffd5de;
+  font-weight: 600;
+}
+button.primary {
+  background: #b23859;
+  border-color: #b23859;
+  color: #fff2f5;
+  font-weight: 600;
+}
+button.danger {
+  color: #ff9a9a;
+}
+[hidden] {
+  display: none !important;
+}
+audio {
+  width: 100%;
+  margin-top: 10px;
+}
+.k,
+.mono {
+  font-family: ui-monospace, Consolas, monospace;
+  background: #161618;
+  border-radius: 5px;
+  padding: 1px 6px;
+}
+.error {
+  color: #ff9a9a;
+}
