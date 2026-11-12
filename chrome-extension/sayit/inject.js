@@ -22,7 +22,13 @@
   let hearIt = true; // also play it quietly in your own headset
   let asked = null; // a toggle passed to the other frames, until one of them takes it
 
-  const audioCtx = () => (ctx ||= new AudioContext({ latencyHint: "interactive" }));
+  const audioCtx = () => {
+    if (!ctx) {
+      ctx = new AudioContext({ latencyHint: "interactive" });
+      if (sinkId && ctx.setSinkId) ctx.setSinkId(sinkId).catch(() => {});
+    }
+    return ctx;
+  };
   const post = (msg) => window.postMessage(msg, "*");
   const report = (state) => post({ __sayit: "state", state, at: performance.now() });
 
@@ -30,6 +36,24 @@
   Object.defineProperty(window, "__sayitStatus", {
     value: () => ({ call: calls.size > 0, playing: !!current, ready: !!clip }),
   });
+
+  // Play your preview on the same output the dialer plays the call on (its
+  // chosen headset); until it picks one, Windows' default output.
+  let sinkId = "";
+  const followSink = (id) => {
+    if (typeof id !== "string" || id === sinkId) return;
+    sinkId = id;
+    if (ctx && ctx.setSinkId) ctx.setSinkId(id).catch(() => {});
+  };
+  window.__sayitSink = () => (ctx ? ctx.sinkId : sinkId);
+  for (const proto of [window.HTMLMediaElement && HTMLMediaElement.prototype, window.AudioContext && AudioContext.prototype]) {
+    if (!proto || !proto.setSinkId) continue;
+    const real = proto.setSinkId;
+    proto.setSinkId = function (id) {
+      if (this !== ctx) followSink(id);
+      return real.apply(this, arguments);
+    };
+  }
 
   const media = navigator.mediaDevices;
   if (media && media.getUserMedia) {
