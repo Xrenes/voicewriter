@@ -168,6 +168,11 @@ button.small {
 .tabstate.ok {
   color: #6fd3a0;
 }
-.tabstate.warn {
+.tabstate.warn,
+.warnline {
   color: #f0b46a;
+}
+.warnline {
+  margin: 0;
+  font-size: 12px;
 }

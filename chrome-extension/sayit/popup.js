@@ -219,6 +219,7 @@ function renderSettings() {
   hotkeyLabel.textContent = sayitHotkeyLabel(settings.hotkey);
   $("muteMic").checked = settings.muteMic;
   $("hearIt").checked = settings.hearIt;
+  $("everywhere").checked = settings.everywhere;
 }
 
 async function saveSettings(patch) {
@@ -293,95 +294,76 @@ $("shortcuts").addEventListener("click", (e) => {
 });
 $("openTest").addEventListener("click", () => chrome.tabs.create({ url: "options.html" }));
 
-// ---- This tab, and the sites SayIt runs on ----
-let tabOrigin = null; // the active tab's https origin, if any
-let addedSites = []; // match patterns of the sites added below
-
-async function loadSites() {
-  const { origins = [] } = await chrome.permissions.getAll();
-  addedSites = origins.filter((o) => !SAYIT_DIALERS.includes(o));
-}
-
-const coversTab = () => !!tabOrigin && (sayitBuiltIn(tabOrigin) || addedSites.includes(`${tabOrigin}/*`));
+// ---- Where the call is, and the sites SayIt's microphone runs on ----
+let tabOrigin = null; // the active tab's web origin, if any
 
 async function checkTab() {
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
   try {
     const u = new URL((tab && tab.url) || "");
-    if (u.protocol === "https:") tabOrigin = u.origin;
+    if (u.protocol === "https:" || u.protocol === "http:") tabOrigin = u.origin;
   } catch {}
-  await loadSites();
   renderSites();
-  let frames = [];
-  if (coversTab()) {
-    try {
-      frames = await chrome.scripting.executeScript({
-        target: { tabId: tab.id, allFrames: true },
-        world: "MAIN",
-        func: () => (window.__sayitStatus ? window.__sayitStatus() : null),
-      });
-    } catch {}
+  // Tabs opened before SayIt was installed or updated don't have it yet.
+  if (tabOrigin) {
+    const has = await chrome.tabs.sendMessage(tab.id, { sayit: "ping" }, { frameId: 0 }).then(
+      () => true,
+      () => false,
+    );
+    $("reloadState").hidden = has;
   }
-  renderTab(frames.map((f) => f.result).filter(Boolean));
 }
 
-function renderTab(states) {
-  let text = "";
+// "calls.aloware.com inside app-na2.hubspot.com"
+const placeOf = (where) =>
+  where && where.length > 1 ? `${where[0]} inside ${where[where.length - 1]}` : (where && where[0]) || "";
+
+async function renderCall() {
+  let list = [];
+  try {
+    list = (await chrome.runtime.sendMessage({ sayit: "calls" })) || [];
+  } catch {}
+  const playing = list.find((f) => f.playing);
+  const live = list.find((f) => f.live > 0);
+  let text;
   let tone = "";
-  if (states.length) {
-    const call = states.some((s) => s.call);
-    if (states.some((s) => s.playing)) [text, tone] = ["This tab: playing your message", "ok"];
-    else if (call && saved && !states.some((s) => s.ready))
-      [text, tone] = ["This tab: call connected, but the message didn't load — reload the tab", "warn"];
-    else if (call) [text, tone] = [`This tab: call connected — ${sayitHotkeyLabel(settings.hotkey)} plays it`, "ok"];
-    else text = "This tab: SayIt is on · no call yet";
-  } else if (coversTab()) {
-    [text, tone] = ["This tab: reload it once to turn SayIt on", "warn"];
-  } else if (tabOrigin) {
-    text = "SayIt is off on this site — add it in Settings if your dialer is here";
-  }
+  if (playing) [text, tone] = [`Playing your message · ${placeOf(playing.where)}`, "ok"];
+  else if (live) [text, tone] = [`Live call found — ${sayitHotkeyLabel(settings.hotkey)} plays it · ${placeOf(live.where)}`, "ok"];
+  else if (list.length) text = `Microphone found, no connected call yet · ${placeOf(list[0].where)}`;
+  else text = "No call found yet — start a call, then look here.";
   const el = $("tabState");
   el.textContent = text;
   el.className = `tabstate ${tone}`;
-  el.hidden = !text;
+  el.hidden = false;
 }
 
 function renderSites() {
   $("siteList").replaceChildren(
-    ...addedSites.map((pattern) => {
+    ...settings.sites.map((origin) => {
       const li = document.createElement("li");
       const name = document.createElement("span");
-      name.textContent = sayitSiteName(pattern);
+      name.textContent = sayitHost(origin);
       const remove = document.createElement("button");
       remove.className = "small";
       remove.textContent = "Remove";
-      remove.addEventListener("click", async () => {
-        await chrome.permissions.remove({ origins: [pattern] });
-        await loadSites();
-        renderSites();
-      });
+      remove.addEventListener("click", () =>
+        saveSettings({ sites: settings.sites.filter((o) => o !== origin) }).then(renderSites),
+      );
       li.append(name, remove);
       return li;
     }),
   );
   const add = $("addSite");
-  add.hidden = !tabOrigin || coversTab();
-  if (tabOrigin) add.textContent = `+ Add ${new URL(tabOrigin).host}`;
+  add.hidden = !tabOrigin || settings.everywhere || sayitBuiltIn(tabOrigin) || settings.sites.includes(tabOrigin);
+  if (tabOrigin) add.textContent = `+ Add ${sayitHost(tabOrigin)}`;
 }
 
-$("addSite").addEventListener("click", () => {
-  // Chrome asks to confirm; the background starts SayIt there once allowed.
-  const host = new URL(tabOrigin).host;
-  chrome.permissions
-    .request({ origins: [`${tabOrigin}/*`] })
-    .then(async (ok) => {
-      if (!ok) return;
-      await loadSites();
-      renderSites();
-      $("siteHint").textContent = `Added — reload ${host} once (not during a call).`;
-    })
-    .catch((e) => ($("siteHint").textContent = String(e)));
+$("addSite").addEventListener("click", async () => {
+  await saveSettings({ sites: [...settings.sites, tabOrigin] });
+  renderSites();
+  $("siteHint").textContent = "Added — SayIt takes the microphone there from the next call on.";
 });
+$("everywhere").addEventListener("change", (e) => saveSettings({ everywhere: e.target.checked }).then(renderSites));
 
 // ---- Tabs ----
 function showView(name) {
@@ -399,4 +381,6 @@ $("tabSettings").addEventListener("click", () => showView("settings"));
   renderSettings();
   render();
   checkTab();
+  renderCall();
+  setInterval(renderCall, 1000);
 })();

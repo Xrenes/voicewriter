@@ -1,55 +1,78 @@
 importScripts("common.js");
 
-// Every tab SayIt runs in: the built-in dialers plus the sites added in Settings.
-async function dialerTabs() {
-  const { origins = [] } = await chrome.permissions.getAll();
-  return origins.length ? chrome.tabs.query({ url: origins }) : [];
-}
+// The call finder. Every frame that holds a call microphone — in any tab or
+// window, embedded or not — reports here over a port (relay.js):
+// "tabId:frameId" → { port, calls, live, playing, newestCallAt, liveAt, where }
+const frames = new Map();
 
-// Toggle the message wherever a call is. Used by the optional "any tab"
-// Chrome shortcut, the popup's button, and a hotkey pressed in a dialer tab
-// that has no call. A hotkey pressed in the call's own tab never comes
-// through here, so it stays instant.
-async function toggleInDialers(exceptTab) {
-  chrome.runtime.sendMessage({ sayit: "toggle" }).catch(() => {}); // the test page
-  for (const tab of await dialerTabs()) {
-    if (tab.id !== exceptTab) chrome.tabs.sendMessage(tab.id, { sayit: "toggle" }).catch(() => {});
+chrome.runtime.onConnect.addListener((port) => {
+  if (port.name !== "sayit-call") return;
+  const s = port.sender || {};
+  const key = `${s.tab ? s.tab.id : -1}:${s.frameId || 0}`;
+  port.onMessage.addListener((m) => {
+    if (!m || !m.status) return;
+    if (m.status.calls > 0) frames.set(key, { ...m.status, port });
+    else frames.delete(key);
+  });
+  port.onDisconnect.addListener(() => {
+    const f = frames.get(key);
+    if (f && f.port === port) frames.delete(key);
+  });
+});
+
+const tell = (f, what) => {
+  try {
+    f.port.postMessage({ sayit: what });
+  } catch {}
+};
+
+// One press: stop the message if it's playing anywhere; otherwise play it on
+// the call that's connected right now (else on the newest microphone).
+function pressed() {
+  const all = [...frames.values()];
+  const playing = all.filter((f) => f.playing);
+  if (playing.length) {
+    for (const f of playing) {
+      f.playing = false;
+      tell(f, "stop");
+    }
+    return "stopped";
   }
+  const target =
+    all.filter((f) => f.live > 0).sort((a, b) => b.liveAt - a.liveAt)[0] ||
+    all.sort((a, b) => b.newestCallAt - a.newestCallAt)[0];
+  if (!target) return "no-call";
+  target.playing = true; // until its own report says otherwise
+  tell(target, "play");
+  return "playing";
 }
 
 chrome.commands.onCommand.addListener((command) => {
-  if (command === "toggle-message") toggleInDialers();
+  if (command === "toggle-message") pressed();
 });
 
-chrome.runtime.onMessage.addListener((m, sender) => {
+chrome.runtime.onMessage.addListener((m, _sender, respond) => {
   if (!m) return;
-  if (m.sayit === "toggle-calls") toggleInDialers();
-  else if (m.sayit === "toggle-other-tabs") toggleInDialers(sender.tab && sender.tab.id);
+  if (m.sayit === "hotkey" || m.sayit === "toggle-calls") respond(pressed());
+  else if (m.sayit === "calls") {
+    respond([...frames.values()].map(({ calls, live, playing, ready, where }) => ({ calls, live, playing, ready, where })));
+  }
 });
 
-// Sites added in Settings (a white-label GHL, a CRM that embeds the dialer)
-// get the same scripts as the built-in dialers once Chrome grants access.
-const SITE_SCRIPTS = ["sayit-page", "sayit-relay"];
-let syncing = Promise.resolve();
+// A changed hotkey or site list reaches every open page at once (pages only
+// follow storage themselves where the microphone runs: the message is large).
+chrome.storage.onChanged.addListener(async (changes, area) => {
+  if (area !== "local" || !changes.settings) return;
+  for (const tab of await chrome.tabs.query({})) {
+    chrome.tabs.sendMessage(tab.id, { sayit: "settings" }).catch(() => {});
+  }
+});
 
-function syncAddedSites() {
-  syncing = syncing
-    .then(async () => {
-      const { origins = [] } = await chrome.permissions.getAll();
-      const sites = origins.filter((o) => !SAYIT_DIALERS.includes(o));
-      const old = await chrome.scripting.getRegisteredContentScripts({ ids: SITE_SCRIPTS });
-      if (old.length) await chrome.scripting.unregisterContentScripts({ ids: old.map((s) => s.id) });
-      if (!sites.length) return;
-      await chrome.scripting.registerContentScripts([
-        { id: "sayit-page", matches: sites, js: ["inject.js"], runAt: "document_start", world: "MAIN", allFrames: true },
-        { id: "sayit-relay", matches: sites, js: ["common.js", "relay.js"], runAt: "document_start", allFrames: true },
-      ]);
-    })
-    .catch((e) => console.warn("SayIt: couldn't update the added sites", e));
-  return syncing;
-}
-
-chrome.runtime.onInstalled.addListener(syncAddedSites);
-chrome.runtime.onStartup.addListener(syncAddedSites);
-chrome.permissions.onAdded.addListener(syncAddedSites);
-chrome.permissions.onRemoved.addListener(syncAddedSites);
+// SayIt 0.2 registered extra scripts for added sites; it now runs on every
+// page, so remove them (otherwise those pages would get it twice).
+chrome.runtime.onInstalled.addListener(async () => {
+  try {
+    const old = await chrome.scripting.getRegisteredContentScripts();
+    if (old.length) await chrome.scripting.unregisterContentScripts({ ids: old.map((s) => s.id) });
+  } catch {}
+});

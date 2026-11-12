@@ -2,26 +2,35 @@
 const SAYIT_DEFAULTS = {
   hotkey: { code: "KeyL", key: "L", alt: true, ctrl: false, shift: false, meta: false },
   muteMic: true,
-  hearIt: true, // also play the message quietly in your own headset
+  hearIt: true, // also play the message in your own headset
+  sites: [], // origins added in Settings, e.g. "https://app.agency.com"
+  everywhere: false, // SayIt's microphone on every website
 };
 
-const SAYIT_DIALERS = [
-  "https://*.aloware.com/*",
-  "https://*.gohighlevel.com/*",
-  "https://*.leadconnectorhq.com/*",
-];
+// Dialers SayIt's microphone runs on — and every frame embedded in them, so a
+// dialer inside a CRM or a calling window is covered whatever its address.
+// (inject.js has its own copy of this list.)
+const SAYIT_BUILT_IN = ["aloware.com", "gohighlevel.com", "leadconnectorhq.com", "hubspot.com"];
 
-// Whether a built-in dialer pattern already covers this https origin.
-function sayitBuiltIn(origin) {
-  const host = new URL(origin).hostname;
-  return SAYIT_DIALERS.some((p) => {
-    const domain = p.slice("https://*.".length, -"/*".length);
-    return host === domain || host.endsWith(`.${domain}`);
-  });
+function sayitHost(origin) {
+  try {
+    return new URL(origin).hostname;
+  } catch {
+    return "";
+  }
 }
 
-// "https://app.example.com/*" → "app.example.com"
-const sayitSiteName = (pattern) => pattern.replace(/^https:\/\//, "").replace(/\/\*$/, "");
+const sayitBuiltIn = (origin) => {
+  const h = sayitHost(origin);
+  return SAYIT_BUILT_IN.some((d) => h === d || h.endsWith(`.${d}`));
+};
+
+// This frame and the frames it's embedded in, innermost first.
+const sayitFrameOrigins = () => [location.origin, ...Array.from(location.ancestorOrigins || [])];
+
+// Whether SayIt's microphone runs in a frame with these origins.
+const sayitCovers = (origins, s) =>
+  !!s.everywhere || origins.some((o) => sayitBuiltIn(o) || (s.sites || []).includes(o));
 
 const sayitHotkeyMatches = (e, h) =>
   !!h &&

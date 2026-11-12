@@ -28,6 +28,7 @@
       <button id="allowMic" class="wide" hidden>Allow microphone access…</button>
       <p class="error" id="error"></p>
       <p class="tabstate" id="tabState" hidden></p>
+      <p class="warnline" id="reloadState" hidden>Reload this tab once so SayIt works here, and close and reopen any calling window.</p>
       <audio id="player"></audio>
     </section>
 
@@ -39,7 +40,7 @@
           <button id="changeHotkey">Change</button>
           <button id="resetHotkey">Reset</button>
         </div>
-        <p class="hint" id="hotkeyHint">Press it while the dialer tab is in front: plays instantly, press again to stop.</p>
+        <p class="hint" id="hotkeyHint">Works on any web page in Chrome — the message plays on your call wherever it is. Press again to stop.</p>
       </div>
 
       <label class="check">
@@ -53,16 +54,20 @@
       </label>
 
       <div class="field">
-        <label>From any Chrome tab (optional)</label>
-        <p class="hint">Chrome can also start it while another tab is in front — <a href="#" id="shortcuts">set a key for that</a>.</p>
+        <label>Calls it plays into</label>
+        <p class="hint">Aloware · GoHighLevel · HubSpot — and anything they embed, like the dialer in a HubSpot calling window.</p>
+        <ul class="sites" id="siteList"></ul>
+        <button id="addSite" class="wide" hidden>+ Add this site</button>
+        <p class="hint" id="siteHint">Another dialer (a white-label GHL, a mic-test site)? Open it, then add it here.</p>
+        <label class="check">
+          <input type="checkbox" id="everywhere" />
+          Every website
+        </label>
       </div>
 
       <div class="field">
-        <label>Works on</label>
-        <p class="hint">Aloware · GoHighLevel (gohighlevel.com, leadconnectorhq.com)</p>
-        <ul class="sites" id="siteList"></ul>
-        <button id="addSite" class="wide" hidden>+ Add this site</button>
-        <p class="hint" id="siteHint">Dialer on another address (a white-label GHL, or a CRM that embeds it)? Open it, then add it here.</p>
+        <label>Extra key (optional)</label>
+        <p class="hint">Also works on Chrome's own pages, or outside Chrome — <a href="#" id="shortcuts">set a key for that</a>.</p>
       </div>
 
       <button id="openTest" class="wide">Test it (hear what a call would hear)</button>
