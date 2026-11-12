@@ -95,6 +95,24 @@
         "backgroundColor": "#000000"
       },
       {
+        "label": "live",
+        "title": "Live Transcript",
+        "url": "live.html",
+        "width": 440,
+        "height": 300,
+        "minWidth": 240,
+        "minHeight": 120,
+        "resizable": true,
+        "visible": false,
+        "focus": false,
+        "skipTaskbar": true,
+        "decorations": false,
+        "transparent": true,
+        "shadow": false,
+        "alwaysOnTop": true,
+        "center": true
+      },
+      {
         "label": "sayit",
         "title": "SayIt",
         "url": "sayit.html",

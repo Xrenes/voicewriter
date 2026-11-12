@@ -37,6 +37,9 @@ const MAX_MEMORY_SECONDS: u64 = 240;
 const MAX_FILE_SECONDS: u64 = 4 * 60 * 60;
 /// How often file-mode capture moves queued samples into the WAV file.
 const DRAIN_INTERVAL: Duration = Duration::from_millis(250);
+/// Same, while live transcription is listening: shorter, so speech reaches
+/// it sooner.
+const LIVE_DRAIN_INTERVAL: Duration = Duration::from_millis(100);
 /// Rewrite the WAV header this often so a crash still leaves a playable file.
 const FLUSH_INTERVAL: Duration = Duration::from_secs(5);
 /// Loopback packets can arrive this late from ordinary scheduling jitter
@@ -57,6 +60,9 @@ pub enum Source {
 pub struct FileTarget {
     pub path: PathBuf,
     pub origin: Instant,
+    /// Optional live copy of the 16 kHz mono samples as they're written
+    /// (live transcription). Dropped when the capture stops.
+    pub tap: Option<Sender<Vec<f32>>>,
 }
 
 enum Cmd {
@@ -262,7 +268,13 @@ type WavFile = hound::WavWriter<std::io::BufWriter<std::fs::File>>;
 
 enum Output {
     Memory,
-    File { writer: WavFile, resampler: StreamResampler, written: u64, last_flush: Instant },
+    File {
+        writer: WavFile,
+        resampler: StreamResampler,
+        written: u64,
+        last_flush: Instant,
+        tap: Option<Sender<Vec<f32>>>,
+    },
 }
 
 struct Active {
@@ -279,6 +291,7 @@ impl Active {
             (Some(t), Source::Mic) => (GapFill::Leading, MAX_FILE_SECONDS, t.origin),
             (Some(t), Source::Loopback) => (GapFill::Full, MAX_FILE_SECONDS, t.origin),
         };
+        let tap = file.as_ref().and_then(|t| t.tap.clone());
         let writer = match &file {
             Some(t) => {
                 let spec = hound::WavSpec {
@@ -304,6 +317,7 @@ impl Active {
                 resampler: StreamResampler::new(rate, TARGET_SR)?,
                 written: 0,
                 last_flush: Instant::now(),
+                tap,
             },
             None => Output::Memory,
         };
@@ -311,7 +325,7 @@ impl Active {
     }
 
     fn drain_to_file(&mut self) -> Result<()> {
-        let Output::File { writer, resampler, written, last_flush } = &mut self.output else {
+        let Output::File { writer, resampler, written, last_flush, tap } = &mut self.output else {
             return Ok(());
         };
         let queued = std::mem::take(&mut self.sink.queue.lock().samples);
@@ -320,6 +334,9 @@ impl Active {
             resampler.push(&queued, &mut out)?;
             write_samples(writer, &out)?;
             *written += out.len() as u64;
+            if !out.is_empty() && tap.as_ref().is_some_and(|t| t.send(out).is_err()) {
+                *tap = None;
+            }
         }
         if last_flush.elapsed() >= FLUSH_INTERVAL {
             writer.flush().context("flush recording file")?;
@@ -343,11 +360,14 @@ impl Active {
         }
         match output {
             Output::Memory => Ok(Captured::Samples(resample(&q.samples, rate, TARGET_SR)?)),
-            Output::File { mut writer, mut resampler, written, .. } => {
+            Output::File { mut writer, mut resampler, written, tap, .. } => {
                 let mut out = Vec::with_capacity(q.samples.len() / 2 + RESAMPLE_CHUNK);
                 resampler.push(&q.samples, &mut out)?;
                 resampler.flush(&mut out)?;
                 write_samples(&mut writer, &out)?;
+                if let Some(t) = tap {
+                    let _ = t.send(out.clone());
+                }
                 writer.finalize().context("finalize recording file")?;
                 Ok(Captured::File { samples: written + out.len() as u64 })
             }
@@ -367,9 +387,13 @@ fn write_samples(writer: &mut WavFile, samples: &[f32]) -> Result<()> {
 fn audio_thread(rx: Receiver<Cmd>, source: Source) {
     let mut active: Option<Active> = None;
     loop {
-        let writing = matches!(active.as_ref().map(|a| &a.output), Some(Output::File { .. }));
-        let cmd = if writing {
-            match rx.recv_timeout(DRAIN_INTERVAL) {
+        let drain_every = match active.as_ref().map(|a| &a.output) {
+            Some(Output::File { tap: Some(_), .. }) => Some(LIVE_DRAIN_INTERVAL),
+            Some(Output::File { .. }) => Some(DRAIN_INTERVAL),
+            _ => None,
+        };
+        let cmd = if let Some(interval) = drain_every {
+            match rx.recv_timeout(interval) {
                 Ok(cmd) => cmd,
                 Err(RecvTimeoutError::Timeout) => {
                     if let Some(a) = active.as_mut() {

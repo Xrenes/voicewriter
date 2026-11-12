@@ -22,12 +22,19 @@ No window — speech is transcribed by Groq's Whisper using your own free Groq A
     and colleagues on WhatsApp, LinkedIn or email, without inventing or dropping details.
   - `Alt+H` **Humanize**: rewrites stiff or AI-sounding text so it reads naturally.
 
-  All three hotkeys can be changed in Settings. The wheel's Refine wedge offers the same three
-  modes as a preview that is copied to the clipboard. On Linux/Wayland, bind
+  All three hotkeys can be changed in Settings. On Linux/Wayland, bind
   `voicewriter --refine`, `--professional` or `--humanize` to a desktop shortcut.
+- **Wheel** (`Shift+Alt+C`): Live, Record, SayIt (Play / Message), Web and AI. Whatever is
+  running reads Stop.
 - **Call recording** (wheel → Record): records your mic and the PC's audio output as two
   time-aligned tracks, saves the mixed audio, and transcribes each track separately into a
   timestamped transcript labeled You / Device.
+- **Live transcript** (wheel → Live, or `voicewriter --live`): records like Record, and a
+  see-through black window shows the conversation as it's spoken, your words in white and the
+  other side in yellow. Drag it anywhere and resize it from any edge. Text appears about a
+  second after it's said, and each line settles when the speaker pauses. Uses the Groq key;
+  when Groq rate-limits the key, the in-progress preview slows down while finished lines keep
+  priority.
 - **Platforms**: the 0.5.4 release is Windows-only. The source also builds on Linux (X11);
   see the notes below.
 

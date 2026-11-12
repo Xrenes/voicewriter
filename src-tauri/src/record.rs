@@ -1,5 +1,5 @@
-//! Call recording, started and stopped from the wheel's "Record" wedge (or
-//! `voicewriter --record`). The microphone and the PC's own audio output
+//! Call recording, started and stopped from the wheel's "Record" or "Live"
+//! wedge (or `voicewriter --record` / `--live`). The microphone and the PC's own audio output
 //! ("device" — e.g. the other side of a call) are captured as two separate,
 //! time-aligned 16 kHz WAV tracks (see `audio.rs`). On stop they're mixed into
 //! one playable file for preview and saving. On save, each track is
@@ -492,7 +492,7 @@ fn keep_segment(seg: &Segment, energy: &Energy) -> bool {
 }
 
 /// Phrases Whisper is notorious for inventing over noise or near-silence.
-fn is_stock_phrase(text: &str) -> bool {
+pub(crate) fn is_stock_phrase(text: &str) -> bool {
     const STOCK: &[&str] = &[
         "thank you",
         "thanks",
@@ -538,7 +538,7 @@ fn lcs(a: &[String], b: &[String]) -> usize {
 
 /// A mic segment that repeats, at the same moment, what the device track
 /// was playing — the call's audio leaking from the speakers into the mic.
-fn is_echo(you: &Segment, device: &[Segment]) -> bool {
+pub(crate) fn is_echo(you: &Segment, device: &[Segment]) -> bool {
     let mine = words(&you.text);
     if mine.is_empty() {
         return true;
@@ -590,7 +590,7 @@ fn merge_lines(you: Vec<Segment>, device: Vec<Segment>) -> Vec<Line> {
 /// Whisper sometimes loops, repeating a clause or a whole passage back to
 /// back. Drop any run of clauses (4+ words in total) that exactly repeats
 /// the run right before it; short real repeats ("yes, yes") are kept.
-fn collapse_repeats(text: &str) -> String {
+pub(crate) fn collapse_repeats(text: &str) -> String {
     let mut clauses: Vec<&str> = Vec::new();
     let mut start = 0;
     for (i, c) in text.char_indices() {

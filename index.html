@@ -37,7 +37,8 @@
               <span class="mono">voicewriter --wheel</span>,
               <span class="mono">voicewriter --speak</span>,
               <span class="mono">voicewriter --web</span>,
-              <span class="mono">voicewriter --record</span>.
+              <span class="mono">voicewriter --record</span>,
+              <span class="mono">voicewriter --live</span>.
               For text insertion into native Wayland apps, install <span class="mono">wtype</span> or <span class="mono">ydotool</span>.
             </p>
           </div>
@@ -119,9 +120,9 @@
               </div>
             </div>
             <p class="hint dim">
-              Press this key for a quick menu: Refine (choose Refine, Professional or Humanize; the
-              result is previewed and copied to the clipboard), Record, Web and AI. Text selection
-              is only needed for Refine. Clear the hotkey to disable it.
+              Press this key for a quick menu: Live (record a call with a live transcript), Record,
+              SayIt (play your message, or record a new one), Web and AI. Clear the hotkey to
+              disable it.
             </p>
 
             <div class="row">
@@ -337,8 +338,8 @@
               </select>
             </div>
             <p class="hint dim">
-              The wheel's "Record" captures what this output plays (e.g. the other side of a
-              call) as its own track next to your mic, so the transcript can label who said what.
+              The wheel's "Live" and "Record" capture what this output plays (e.g. the other side of
+              a call) as its own track next to your mic, so the transcript can label who said what.
               Pick your headset here if calls play through it rather than the default output.
             </p>
             <div class="row">
@@ -461,12 +462,24 @@
           </div>
 
           <div class="card guide-card">
-            <h3>Wheel (Refine / Record / Web / AI)</h3>
+            <h3>Wheel (Live / Record / SayIt / Web / AI)</h3>
             <ol>
               <li>Press <strong>Shift+Alt+C</strong> to open the wheel.</li>
-              <li><strong>Refine</strong> opens three choices: Refine, Professional and Humanize. The rewritten selection is shown as a preview and copied to the clipboard instead of replacing it. Press Esc to go back.</li>
-              <li><strong>Record</strong> and <strong>Web</strong> have their own guides below.</li>
+              <li><strong>Live</strong>, <strong>Record</strong> and <strong>Web</strong> have their own guides below. While a recording runs, its wedge reads <strong>Stop</strong>.</li>
+              <li><strong>SayIt</strong> opens two choices: <strong>Play</strong> sends your saved message into the call (it reads Stop while playing), and <strong>Message</strong> opens the SayIt window to record or change it. Press Esc to go back.</li>
               <li><strong>AI</strong> opens a chat window — needs its own Groq key, see below.</li>
+              <li>Refine, Professional and Humanize stay on their hotkeys (Alt+R, Alt+P, Alt+H).</li>
+            </ol>
+          </div>
+
+          <div class="card guide-card">
+            <h3>Live (a call, transcribed as you talk)</h3>
+            <ol>
+              <li>Open the wheel (Shift+Alt+C) and click <strong>Live</strong>. It records like Record, and a see-through window shows the conversation as it's spoken: your words in <strong>white</strong>, the other side in <strong>yellow</strong>.</li>
+              <li>Words appear about a second after they're said, dimmed while the person is still talking, and settle when they pause.</li>
+              <li>Drag the window by its top bar, resize it from any edge, and use A−/A+ for the text size. Copy puts the whole conversation on the clipboard; ✕ hides the window while recording continues.</li>
+              <li>Click <strong>Live</strong> again (it reads Stop) or the small floating button to stop. The conversation stays in the window, and you can save the recording as usual.</li>
+              <li>Uses your Dictation Groq key. If Groq limits the key, the window says so and new lines may lag a few seconds; none are lost.</li>
             </ol>
           </div>
 

@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Live Transcript</title>
+    <link rel="stylesheet" href="/src/live.css" />
+  </head>
+  <body>
+    <div class="panel">
+      <header class="bar" data-tauri-drag-region>
+        <span class="state" id="state" data-tauri-drag-region><i class="dot"></i><span id="stateText">Live</span></span>
+        <span class="legend" data-tauri-drag-region>
+          <span class="you">You</span>
+          <span class="them">Them</span>
+        </span>
+        <span class="tools">
+          <button id="smaller" title="Smaller text">A−</button>
+          <button id="bigger" title="Bigger text">A+</button>
+          <button id="copy" title="Copy the conversation">Copy</button>
+          <button id="close" title="Hide (recording continues)">✕</button>
+        </span>
+      </header>
+      <div class="notice" id="notice" hidden></div>
+      <main class="feed" id="feed">
+        <p class="empty" id="empty">Listening… start talking.</p>
+      </main>
+    </div>
+    <div class="resize-edge e" data-dir="East"></div>
+    <div class="resize-edge w" data-dir="West"></div>
+    <div class="resize-edge s" data-dir="South"></div>
+    <div class="resize-edge n" data-dir="North"></div>
+    <div class="resize-edge se" data-dir="SouthEast"></div>
+    <div class="resize-edge sw" data-dir="SouthWest"></div>
+    <div class="resize-edge ne" data-dir="NorthEast"></div>
+    <div class="resize-edge nw" data-dir="NorthWest"></div>
+    <script type="module" src="/src/live.ts"></script>
+  </body>
+</html>

@@ -26,7 +26,7 @@ pub struct Settings {
     /// Hotkey that rewrites the selected text so it reads naturally, as if
     /// a person wrote it. Empty = disabled.
     pub humanize_hotkey: String,
-    /// Hotkey that opens the wheel menu (Refine / Record / Web / AI). Empty =
+    /// Hotkey that opens the wheel menu (Live / Record / SayIt / Web / AI). Empty =
     /// disabled.
     pub wheel_hotkey: String,
     /// Toggle hotkey for the "Web" browser window (open if hidden, hide if

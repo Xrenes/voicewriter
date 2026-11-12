@@ -8,8 +8,8 @@
 //! - **Humanize** (Alt+H): a natural, human-sounding rewrite with stiff or
 //!   AI-sounding phrasing removed.
 //!
-//! The hotkeys rewrite the selection in place; the wheel's Refine submenu
-//! shows a preview instead. Every mode uses the same Groq key as dictation.
+//! The hotkeys rewrite the selection in place. Every mode uses the same Groq
+//! key as dictation.
 
 use anyhow::{anyhow, Result};
 use std::time::Duration;
@@ -103,17 +103,6 @@ pub enum Style {
 }
 
 impl Style {
-    /// Parse a mode name sent by the wheel ("refine", "professional",
-    /// "humanize"). An empty name means the plain Refine mode.
-    pub fn parse(name: &str) -> Option<Self> {
-        match name.trim().to_ascii_lowercase().as_str() {
-            "" | "refine" | "standard" => Some(Style::Standard),
-            "professional" => Some(Style::Professional),
-            "humanize" => Some(Style::Humanize),
-            _ => None,
-        }
-    }
-
     /// Short name for usage and error logs.
     pub fn name(self) -> &'static str {
         match self {
@@ -386,15 +375,6 @@ had a chance to look at the proposal yet or not";
         let essay = "Photosynthesis is the process by which green plants use sunlight, water and \
 carbon dioxide to produce glucose and oxygen. It takes place in the chloroplasts.";
         assert!(!looks_faithful("can u explain photosynthesis pls", essay, Style::Professional));
-    }
-
-    #[test]
-    fn parses_mode_names() {
-        assert_eq!(Style::parse("refine"), Some(Style::Standard));
-        assert_eq!(Style::parse(""), Some(Style::Standard));
-        assert_eq!(Style::parse("Professional"), Some(Style::Professional));
-        assert_eq!(Style::parse(" humanize "), Some(Style::Humanize));
-        assert_eq!(Style::parse("pirate"), None);
     }
 
     #[test]

@@ -60,11 +60,6 @@ svg#wheelSvg {
   pointer-events: none;
 }
 
-.wheel.loading .wedge-path {
-  pointer-events: none;
-  opacity: 0.45;
-}
-
 /* Center hub: shows the AudioWriter mark by default, swaps to the hovered
    wedge's label. */
 .hub {
@@ -160,37 +155,9 @@ svg#wheelSvg {
   pointer-events: none;
 }
 
-/* Text-preview panel: replaces the ring after a wedge is picked. Plain
-   rectangle, same transparent-black / white-text look as the wheel, no
-   chrome (no title, no buttons, no footer) — just the result text. Hidden
-   until JS reveals it (never visible before a wedge is clicked). */
-.preview[hidden] {
-  display: none;
-}
-
-.preview {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  background: rgba(0, 0, 0, 0.72);
-  border: 1.5px solid rgba(255, 255, 255, 0.3);
-  border-radius: 10px;
-  padding: 14px 16px;
-  filter: drop-shadow(0 4px 14px rgba(0, 0, 0, 0.35));
-}
-
-.preview-body {
-  flex: 1;
-  overflow-y: auto;
-  color: #ffffff;
-  font-size: 13px;
-  line-height: 1.5;
-  white-space: pre-wrap;
-  word-break: break-word;
-}
-
-/* One-time capture-permission prompt: same panel treatment as .preview,
-   shown instead of the ring the first time a Find/AI capture is attempted. */
+/* One-time capture-permission prompt: a plain transparent-black panel with
+   white text, shown instead of the ring the first time a Find/AI capture is
+   attempted. */
 .permission[hidden] {
   display: none;
 }

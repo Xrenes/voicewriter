@@ -1,5 +1,4 @@
 import { invoke } from "@tauri-apps/api/core";
-import { getCurrentWindow } from "@tauri-apps/api/window";
 import { listen } from "@tauri-apps/api/event";
 
 interface WedgeDef {
@@ -9,34 +8,42 @@ interface WedgeDef {
   icon: string;
 }
 
+/** What's running, from the backend, so those wedges read "Stop". */
+interface WheelState {
+  call: "live" | "record" | null;
+  sayitPlaying: boolean;
+}
+
 // 24x24 line icons (Feather/Lucide-style grid), one per action. currentColor
 // picks up the wedge-icon's white color automatically.
 
-// A magic wand with sparkles — represents "refine" as a polish/cleanup wand.
-const ICON_REFINE =
-  '<path d="M4.5 19.5 15 9" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>' +
-  '<path d="M13.2 6.8 15 5l1.8 1.8L18.6 5l1.8 1.8-1.8 1.8L20.4 10.4 18.6 12.2l-1.8-1.8-1.8 1.8-1.8-1.8 1.8-1.8z" ' +
-  'fill="currentColor"/>' +
-  '<path d="M6 4v3M4.5 5.5h3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>' +
-  '<path d="M19 16v2.5M17.75 17.25h2.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>';
-
-// A briefcase — "Professional" rewrite.
-const ICON_PROFESSIONAL =
-  '<rect x="3.5" y="7.5" width="17" height="12" rx="2" fill="none" stroke="currentColor" stroke-width="1.6"/>' +
-  '<path d="M9 7.5V6a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v1.5M3.5 12.5h17" fill="none" stroke="currentColor" ' +
-  'stroke-width="1.6" stroke-linecap="round"/>';
-
-// A smiling face — "Humanize" rewrite.
-const ICON_HUMANIZE =
-  '<circle cx="12" cy="12" r="8.5" fill="none" stroke="currentColor" stroke-width="1.6"/>' +
-  '<path d="M8.5 14a4 4 0 0 0 7 0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>' +
-  '<circle cx="9.3" cy="10" r="1" fill="currentColor"/>' +
-  '<circle cx="14.7" cy="10" r="1" fill="currentColor"/>';
+// A caption box with lines of text — "Live" transcript.
+const ICON_LIVE =
+  '<rect x="3" y="5" width="18" height="14" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.6"/>' +
+  '<path d="M7 10.5h5M14.5 10.5H17M7 14.5h2.5M12 14.5h5" fill="none" stroke="currentColor" stroke-width="1.6" ' +
+  'stroke-linecap="round"/>';
 
 // A solid red-tinted dot inside a ring — a record button.
 const ICON_RECORD =
   '<circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.6"/>' +
   '<circle cx="12" cy="12" r="5" fill="currentColor"/>';
+
+// The voicemail symbol (two reels joined) — "SayIt", the voicemail player.
+const ICON_SAYIT =
+  '<circle cx="6.5" cy="12" r="3.5" fill="none" stroke="currentColor" stroke-width="1.6"/>' +
+  '<circle cx="17.5" cy="12" r="3.5" fill="none" stroke="currentColor" stroke-width="1.6"/>' +
+  '<path d="M6.5 15.5h11" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>';
+
+const ICON_PLAY =
+  '<path d="M8 5.5v13l10.5-6.5z" fill="currentColor" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/>';
+
+const ICON_STOP = '<rect x="6.5" y="6.5" width="11" height="11" rx="2" fill="currentColor"/>';
+
+// A microphone — record or change the SayIt message.
+const ICON_MESSAGE =
+  '<rect x="9" y="3.5" width="6" height="10.5" rx="3" fill="none" stroke="currentColor" stroke-width="1.6"/>' +
+  '<path d="M6 11a6 6 0 0 0 12 0M12 17v3.5M9 20.5h6" fill="none" stroke="currentColor" stroke-width="1.6" ' +
+  'stroke-linecap="round"/>';
 
 // A magnifying glass — "Find" (capture a screenshot/photo).
 const ICON_FIND =
@@ -73,23 +80,32 @@ const ICON_WEB =
   '<circle cx="6" cy="6.5" r="0.6" fill="currentColor"/>' +
   '<circle cx="8" cy="6.5" r="0.6" fill="currentColor"/>';
 
-// Fixed 4-slot ring, starting at 12 o'clock, going clockwise.
-const TOTAL_SLOTS = 4;
+// Fixed 5-slot ring, starting at 12 o'clock, going clockwise.
+const TOTAL_SLOTS = 5;
 
-const MAIN_WEDGES: WedgeDef[] = [
-  { action: "__refine", label: "Refine", icon: ICON_REFINE },
-  { action: "__record", label: "Record", icon: ICON_RECORD },
-  { action: "__web", label: "Web", icon: ICON_WEB },
-  { action: "__ai", label: "AI", icon: ICON_AI },
-];
+let state: WheelState = { call: null, sayitPlaying: false };
 
-// Second-level menu shown after clicking "Refine": pick a rewrite mode. The
-// part after "refine:" is the mode name the backend's `wheel_refine` takes.
-const REFINE_WEDGES: WedgeDef[] = [
-  { action: "refine:refine", label: "Refine", icon: ICON_REFINE },
-  { action: "refine:professional", label: "Professional", icon: ICON_PROFESSIONAL },
-  { action: "refine:humanize", label: "Humanize", icon: ICON_HUMANIZE },
-];
+// Main ring. Whatever is running reads "Stop" (clicking it stops it).
+function mainWedges(): WedgeDef[] {
+  const live = state.call === "live";
+  const recording = state.call === "record";
+  return [
+    { action: "__live", label: live ? "Stop live" : "Live", icon: live ? ICON_STOP : ICON_LIVE },
+    { action: "__record", label: recording ? "Stop" : "Record", icon: recording ? ICON_STOP : ICON_RECORD },
+    { action: "__sayit", label: "SayIt", icon: ICON_SAYIT },
+    { action: "__web", label: "Web", icon: ICON_WEB },
+    { action: "__ai", label: "AI", icon: ICON_AI },
+  ];
+}
+
+// Second-level menu shown after clicking "SayIt".
+function sayitWedges(): WedgeDef[] {
+  const playing = state.sayitPlaying;
+  return [
+    { action: "__sayit:play", label: playing ? "Stop" : "Play", icon: playing ? ICON_STOP : ICON_PLAY },
+    { action: "__sayit:message", label: "Message", icon: ICON_MESSAGE },
+  ];
+}
 
 // Second-level menu shown after clicking "Find": pick a capture source.
 const FIND_WEDGES: WedgeDef[] = [
@@ -98,7 +114,7 @@ const FIND_WEDGES: WedgeDef[] = [
   { action: "__find:area", label: "Select area", icon: ICON_SELECT_AREA },
 ];
 
-let currentWedges = MAIN_WEDGES;
+let onMainRing = true;
 
 const CENTER = 120;
 const OUTER_R = 116;
@@ -110,13 +126,10 @@ const svg = document.getElementById("wheelSvg") as unknown as SVGSVGElement;
 const hub = document.getElementById("hub") as HTMLDivElement;
 const hubLabel = document.getElementById("hubLabel") as HTMLSpanElement;
 const labelsLayer = document.getElementById("labels") as HTMLDivElement;
-const preview = document.getElementById("preview") as HTMLDivElement;
-const previewText = document.getElementById("previewText") as HTMLDivElement;
 const permission = document.getElementById("permission") as HTMLDivElement;
 const permissionAllow = document.getElementById("permissionAllow") as HTMLButtonElement;
 const permissionDeny = document.getElementById("permissionDeny") as HTMLButtonElement;
 
-const win = getCurrentWindow();
 
 // Set right before showing the permission panel, so Allow knows which
 // capture source to actually run once consent is granted.
@@ -144,8 +157,8 @@ function donutWedgePath(startDeg: number, endDeg: number): string {
   ].join(" ");
 }
 
-function buildWheel(wedges: WedgeDef[]) {
-  currentWedges = wedges;
+function buildWheel(wedges: WedgeDef[], main = false) {
+  onMainRing = main;
   svg.innerHTML = "";
   labelsLayer.innerHTML = "";
   hubLabel.textContent = "";
@@ -206,43 +219,51 @@ function buildWheel(wedges: WedgeDef[]) {
   }
 }
 
+function showMainRing() {
+  buildWheel(mainWedges(), true);
+}
+
+/** Run a backend command and close the wheel. Failures are shown by the
+ * backend's own toast, since the wheel is already gone by then. */
+function runAndClose(command: string) {
+  invoke(command).catch((e) => showError(String(e)));
+  invoke("wheel_cancel").catch(() => {});
+}
+
 function onWedgeClick(action: string) {
-  if (action === "__record") {
-    // Fire-and-forget: closes the whole wheel immediately (recording has its
-    // own floating widget, not the wheel's preview panel). Toggles: starts
-    // if idle, stops (and transcribes/saves) if already recording.
-    invoke("wheel_record_toggle").catch((e) => showError(String(e)));
-    invoke("wheel_cancel").catch(() => {});
-    return;
-  }
-  if (action === "__find") {
-    // Swap the ring to the capture-source wedges rather than opening a
-    // separate window.
-    buildWheel(FIND_WEDGES);
-    return;
+  switch (action) {
+    // Both toggle: start if idle, stop (and open the save dialog) if this
+    // kind of recording is already running. Each has its own floating widget
+    // or window, so the wheel just closes.
+    case "__live":
+      runAndClose("wheel_live_toggle");
+      return;
+    case "__record":
+      runAndClose("wheel_record_toggle");
+      return;
+    case "__sayit":
+      buildWheel(sayitWedges());
+      return;
+    case "__sayit:play":
+      runAndClose("sayit_play_toggle");
+      return;
+    case "__sayit:message":
+      runAndClose("open_sayit_window");
+      return;
+    case "__web":
+      runAndClose("open_web_window");
+      return;
+    case "__ai":
+      runAndClose("open_ai_chat_window");
+      return;
+    case "__find":
+      // Swap the ring to the capture-source wedges rather than opening a
+      // separate window.
+      buildWheel(FIND_WEDGES);
+      return;
   }
   if (action.startsWith("__find:")) {
-    const source = action.slice("__find:".length);
-    runCapture(source);
-    return;
-  }
-  if (action === "__ai") {
-    invoke("open_ai_chat_window").catch((e) => showError(String(e)));
-    invoke("wheel_cancel").catch(() => {});
-    return;
-  }
-  if (action === "__web") {
-    invoke("open_web_window").catch((e) => showError(String(e)));
-    invoke("wheel_cancel").catch(() => {});
-    return;
-  }
-  if (action === "__refine") {
-    // Swap the ring to the rewrite-mode wedges.
-    buildWheel(REFINE_WEDGES);
-    return;
-  }
-  if (action.startsWith("refine:")) {
-    runRefine(action.slice("refine:".length));
+    runCapture(action.slice("__find:".length));
   }
 }
 
@@ -270,8 +291,7 @@ function fireCapture(source: string) {
   // "area" hands off to the region-select overlay window, which does its own
   // capture+save once the user finishes dragging — everything else captures
   // immediately. Either way the wheel just needs to get out of the way.
-  invoke(command).catch((e) => showError(String(e)));
-  invoke("wheel_cancel").catch(() => {});
+  runAndClose(command);
 }
 
 function showPermissionPrompt() {
@@ -293,10 +313,6 @@ permissionDeny.addEventListener("click", () => {
   invoke("wheel_cancel").catch(() => {});
 });
 
-function setLoading(on: boolean) {
-  wheel.classList.toggle("loading", on);
-}
-
 function showError(message: string) {
   const toast = document.createElement("div");
   toast.className = "error-toast";
@@ -305,42 +321,30 @@ function showError(message: string) {
   setTimeout(() => toast.remove(), 2500);
 }
 
-function showPreview(text: string) {
-  wheel.hidden = true;
-  previewText.textContent = text;
-  preview.hidden = false;
-}
-
-async function runRefine(style: string) {
-  setLoading(true);
-  try {
-    const result = await invoke<string>("wheel_refine", { style });
-    setLoading(false);
-    showPreview(result);
-  } catch (e) {
-    showError(String(e));
-    setLoading(false);
-  }
-}
-
-buildWheel(MAIN_WEDGES);
+showMainRing();
+// In development the page reloads on every open, which can drop the reset
+// event below, so also ask for the current state directly.
+invoke<WheelState>("wheel_state")
+  .then((s) => {
+    state = s;
+    if (onMainRing) showMainRing();
+  })
+  .catch(() => {});
 
 // Escape steps back to the main menu from a submenu, or cancels the whole
 // wheel if already on the main menu.
 window.addEventListener("keydown", (ev) => {
   if (ev.key === "Escape") {
-    if (currentWedges !== MAIN_WEDGES) {
-      buildWheel(MAIN_WEDGES);
+    if (!onMainRing) {
+      showMainRing();
     } else {
       invoke("wheel_cancel").catch(() => {});
     }
   }
 });
 
-// Clicking anywhere that isn't a wedge dismisses — including the preview
-// panel itself, since it has no buttons of its own (click it to dismiss
-// once you've read/copied the result). The permission panel DOES have its
-// own buttons, so clicks inside it are excluded — otherwise this handler
+// Clicking anywhere that isn't a wedge dismisses. The permission panel has
+// its own buttons, so clicks inside it are excluded — otherwise this handler
 // would race Allow/Not now's own click handler and cancel the wheel first.
 document.body.addEventListener("click", (ev) => {
   const target = ev.target as HTMLElement;
@@ -348,19 +352,14 @@ document.body.addEventListener("click", (ev) => {
   invoke("wheel_cancel").catch(() => {});
 });
 
-// The backend emits this right before showing the ring again, so a window
-// left on the preview panel, a submenu, or mid-loading from a
+// The backend emits this right before showing the ring again, with what's
+// running, so a window left on a submenu or the permission panel from a
 // previous run starts clean — the window is only ever hidden between uses,
 // never reloaded.
-listen("wheel-reset", () => {
-  setLoading(false);
-  preview.hidden = true;
+listen<WheelState>("wheel-reset", (e) => {
+  state = e.payload;
   permission.hidden = true;
   pendingCaptureSource = null;
   wheel.hidden = false;
-  buildWheel(MAIN_WEDGES);
-});
-
-win.onCloseRequested(() => {
-  setLoading(false);
+  showMainRing();
 });

@@ -19,6 +19,7 @@ mod hotkey_guard;
 mod keychain;
 #[cfg(target_os = "linux")]
 mod linux;
+mod live;
 mod model;
 mod record;
 mod refine;
@@ -140,6 +141,8 @@ struct CallSession {
     /// Why system-audio capture couldn't start, if it didn't — the recording
     /// then continues mic-only rather than failing outright.
     device_error: Option<String>,
+    /// Started from the wheel's "Live" wedge: transcribed live as it records.
+    live: bool,
 }
 
 /// A stopped recording waiting in the confirm window for a name and folder.
@@ -204,8 +207,6 @@ pub struct AppState {
     refining: AtomicBool,
     /// Bumped per toast so an older toast's hide timer can't hide a newer one.
     toast_gen: AtomicU64,
-    /// Text captured for the refine wheel.
-    wheel_text: Mutex<String>,
     /// The just-stopped recording awaiting a name/folder in the confirm window.
     pending_recording: Mutex<Option<PendingRecording>>,
     transcription_job: Mutex<Option<TranscriptionJob>>,
@@ -241,7 +242,6 @@ impl AppState {
             speaker: Arc::new(speak::Speaker::new()),
             refining: AtomicBool::new(false),
             toast_gen: AtomicU64::new(0),
-            wheel_text: Mutex::new(String::new()),
             pending_recording: Mutex::new(None),
             transcription_job: Mutex::new(None),
             transcription_gen: AtomicU64::new(0),
@@ -423,7 +423,10 @@ fn run_cli_action(app: &AppHandle<Wry>, args: &[String]) -> bool {
         "--speak" => on_speak_toggle(app),
         "--web" => on_web_toggle(app),
         "--record" => {
-            let _ = wheel_record_toggle(app.clone());
+            let _ = toggle_call(app, false);
+        }
+        "--live" => {
+            let _ = toggle_call(app, true);
         }
         "--settings" => show_settings(app),
         "--sayit" => on_sayit_toggle(app),
@@ -784,33 +787,38 @@ fn hide_without_focus(win: &tauri::WebviewWindow<Wry>) {
 }
 
 // ---------------------------------------------------------------------------
-// Wheel — press the hotkey for a small radial menu: Refine (preview, copied
-// to the clipboard), Record, Web, AI.
+// Wheel — press the hotkey for a small radial menu: Live (call recording
+// with a live transcript), Record, SayIt, Web, AI.
 // ---------------------------------------------------------------------------
 
 fn on_wheel_open(app: &AppHandle<Wry>) {
-    let app2 = app.clone();
-    std::thread::spawn(move || {
-        let app = app2;
-        // The wheel always opens, whether or not anything is selected — only
-        // the Refine wedge needs selected text, and it validates at
-        // click-time in `wheel_refine` instead.
-        let text = speak::capture_selection(&app).unwrap_or_default();
-
-        let state: State<AppState> = app.state();
-        *state.wheel_text.lock() = text;
-        drop(state);
-
-        show_wheel(&app);
-    });
+    let app = app.clone();
+    std::thread::spawn(move || show_wheel(&app));
 }
 
 /// Must match the wheel window's declared size in tauri.conf.json.
 const WHEEL_SIZE: i32 = 280;
-/// Size of the text-preview panel the wheel window resizes to after an
-/// action runs — wide/tall enough for a few lines of refined text.
-const PREVIEW_WIDTH: i32 = 420;
-const PREVIEW_HEIGHT: i32 = 160;
+
+/// What's running, so the wheel can label those wedges "Stop".
+#[derive(Clone, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+struct WheelState {
+    /// "live" or "record" while a call recording is running.
+    call: Option<&'static str>,
+    sayit_playing: bool,
+}
+
+fn wheel_state_for(app: &AppHandle<Wry>) -> WheelState {
+    let state: State<AppState> = app.state();
+    let call = state.call.lock().as_ref().map(|s| if s.live { "live" } else { "record" });
+    let sayit_playing = state.sayit.remaining_secs().is_some();
+    WheelState { call, sayit_playing }
+}
+
+#[tauri::command]
+fn wheel_state(app: AppHandle<Wry>) -> WheelState {
+    wheel_state_for(&app)
+}
 
 /// Dev-only: every popup/utility window here is hidden and reused rather
 /// than destroyed, so once shown once it keeps running whatever JS/CSS was
@@ -832,26 +840,12 @@ fn show_wheel(app: &AppHandle<Wry>) {
     let (x, y) = typer::cursor_pos();
     // Center the ring popup on the cursor.
     let _ = win.set_position(tauri::PhysicalPosition::new(x - WHEEL_SIZE / 2, y - WHEEL_SIZE / 2));
-    // Tell the page to reset to ring view in case a previous run left it on
-    // the preview panel (the window is only ever hidden between uses, never
-    // reloaded, so its DOM state persists).
-    let _ = win.emit("wheel-reset", ());
+    // Tell the page to reset to the main ring (the window is only ever
+    // hidden between uses, never reloaded, so a submenu would otherwise
+    // persist), along with what's running so those wedges read "Stop".
+    let _ = win.emit("wheel-reset", wheel_state_for(app));
     let _ = win.show();
     let _ = win.set_focus();
-}
-
-/// Grow the wheel window into a text-preview panel, keeping it centered on
-/// the same point the ring was centered on.
-fn resize_wheel_for_preview(app: &AppHandle<Wry>) {
-    let Some(win) = app.get_webview_window("wheel") else { return };
-    let Ok(pos) = win.outer_position() else { return };
-    let cx = pos.x + WHEEL_SIZE / 2;
-    let cy = pos.y + WHEEL_SIZE / 2;
-    let _ = win.set_size(tauri::PhysicalSize::new(PREVIEW_WIDTH as u32, PREVIEW_HEIGHT as u32));
-    let _ = win.set_position(tauri::PhysicalPosition::new(
-        cx - PREVIEW_WIDTH / 2,
-        cy - PREVIEW_HEIGHT / 2,
-    ));
 }
 
 fn hide_wheel(app: &AppHandle<Wry>) {
@@ -863,43 +857,6 @@ fn hide_wheel(app: &AppHandle<Wry>) {
 #[tauri::command]
 fn wheel_cancel(app: AppHandle<Wry>) {
     hide_wheel(&app);
-    // Reset back to the ring's footprint so the next open starts clean,
-    // regardless of whether this cancel happened from the ring or the
-    // preview panel.
-    if let Some(win) = app.get_webview_window("wheel") {
-        let _ = win.set_size(tauri::PhysicalSize::new(WHEEL_SIZE as u32, WHEEL_SIZE as u32));
-    }
-}
-
-/// The wheel's Refine submenu: rewrite the selection captured when the wheel
-/// opened in the chosen mode ("refine", "professional" or "humanize"), copy
-/// the result to the clipboard, and return it for the wheel's preview panel.
-/// Unlike the hotkeys, nothing is pasted automatically — the user reviews it
-/// and pastes it themselves.
-#[tauri::command]
-async fn wheel_refine(app: AppHandle<Wry>, style: Option<String>) -> Result<String, String> {
-    let mode = style.unwrap_or_default();
-    let Some(style) = refine::Style::parse(&mode) else {
-        return Err(format!("unknown refine mode '{mode}'"));
-    };
-
-    let state: State<AppState> = app.state();
-    let text = state.wheel_text.lock().clone();
-    drop(state);
-
-    let Some(key) = keychain::get(keychain::Purpose::Dictation) else {
-        return Err("Groq API key required — set it in Settings".to_string());
-    };
-
-    let result = tauri::async_runtime::spawn_blocking(move || refine::run(&text, &key, style))
-        .await
-        .map_err(|e| e.to_string())?
-        .map_err(|e| e.to_string())?;
-    usage::record_ok(&app, usage::Purpose::Dictation, 0.0);
-
-    let _ = app.clipboard().write_text(result.clone());
-    resize_wheel_for_preview(&app);
-    Ok(result)
 }
 
 /// Must match the recorder widget window's declared width in tauri.conf.json.
@@ -927,58 +884,106 @@ fn hide_recorder_widget(app: &AppHandle<Wry>) {
     }
 }
 
-/// Toggle call recording from the wheel's "Record" wedge (or `--record`):
-/// the first call starts recording the microphone AND the PC's own audio
-/// output ("device" — e.g. the other party on a call) as two time-aligned
-/// tracks and shows the floating recorder widget; the next call (the
-/// widget's stop button, or Record again) stops it and opens the confirm
-/// window.
+/// The wheel's "Record" wedge (or `--record`): start or stop a call recording.
 #[tauri::command]
 fn wheel_record_toggle(app: AppHandle<Wry>) -> Result<(), String> {
+    toggle_call(&app, false)
+}
+
+/// The wheel's "Live" wedge (or `--live`): start or stop a call recording
+/// with the live-transcript overlay.
+#[tauri::command]
+fn wheel_live_toggle(app: AppHandle<Wry>) -> Result<(), String> {
+    toggle_call(&app, true)
+}
+
+/// Start or stop a call recording. Starting records the microphone AND the
+/// PC's own audio output ("device" — e.g. the other party on a call) as two
+/// time-aligned tracks and shows the floating recorder widget; with `live`,
+/// the live-transcript overlay also shows the conversation as it's spoken.
+/// The same wedge again (or the widget's stop button) stops it and opens the
+/// confirm window. The other wedge doesn't stop it, so a misclick can't end a
+/// recording.
+fn toggle_call(app: &AppHandle<Wry>, live: bool) -> Result<(), String> {
     let state: State<AppState> = app.state();
     let mut call = state.call.lock();
-    if let Some(session) = call.take() {
+    if let Some(running_live) = call.as_ref().map(|s| s.live) {
+        if running_live != live {
+            drop(call);
+            drop(state);
+            let message = if running_live {
+                "Live transcript is running. Click Live to stop it."
+            } else {
+                "A recording is running. Click Record to stop it."
+            };
+            show_toast(app, ToastKind::Error, message, Some(Duration::from_secs(4)));
+            return Err(message.to_string());
+        }
+        let session = call.take();
         drop(call);
         drop(state);
-        return finish_call(&app, session);
+        return match session {
+            Some(session) => finish_call(app, session),
+            None => Ok(()),
+        };
     }
     if state.pending_recording.lock().is_some() {
         drop(call);
         drop(state);
-        show_recorder_confirm(&app);
+        show_recorder_confirm(app);
         let message = "Save or discard your last recording first.";
-        show_toast(&app, ToastKind::Error, message, Some(Duration::from_secs(4)));
+        show_toast(app, ToastKind::Error, message, Some(Duration::from_secs(4)));
         return Err(message.to_string());
     }
+    let live_key = if live {
+        let Some(key) = keychain::get(keychain::Purpose::Dictation) else {
+            drop(call);
+            drop(state);
+            let message = "Live transcript needs your Groq API key. Add it in Settings → API Keys.";
+            show_toast(app, ToastKind::Error, message, Some(Duration::from_secs(5)));
+            return Err(message.to_string());
+        };
+        Some(key)
+    } else {
+        None
+    };
 
-    let cfg = settings::load(&app);
+    let cfg = settings::load(app);
     let dir = record::new_session_dir().map_err(|e| e.to_string())?;
     let origin = Instant::now();
     let mic_path = dir.join("mic.wav");
     let device_path = dir.join("device.wav");
-    let mic = audio::FileTarget { path: mic_path.clone(), origin };
+    let (mic_tap, mic_live) = live_tap(live);
+    let mic = audio::FileTarget { path: mic_path.clone(), origin, tap: mic_tap };
     if let Err(e) = state.call_mic.start_to_file(&cfg.mic_device, mic) {
         drop(call);
         drop(state);
         let _ = std::fs::remove_dir_all(&dir);
         let message = mic_hint(&e.to_string());
         eprintln!("recording: mic start failed: {e}");
-        show_toast(&app, ToastKind::Error, &format!("Can't record: {message}"), Some(Duration::from_secs(5)));
+        show_toast(app, ToastKind::Error, &format!("Can't record: {message}"), Some(Duration::from_secs(5)));
         return Err(message);
     }
     // Device audio is best-effort: without it the recording continues
     // mic-only rather than failing outright.
-    let device = audio::FileTarget { path: device_path.clone(), origin };
+    let (device_tap, device_live) = live_tap(live);
+    let device = audio::FileTarget { path: device_path.clone(), origin, tap: device_tap };
     let device_error = state
         .call_device
         .start_to_file(&cfg.loopback_device, device)
         .err()
         .map(|e| e.to_string());
-    *call = Some(CallSession { dir, mic_path, device_path, device_error: device_error.clone() });
+    *call = Some(CallSession { dir, mic_path, device_path, device_error: device_error.clone(), live });
     drop(call);
     drop(state);
 
-    show_recorder_widget(&app);
+    if let (Some(key), Some(mic_rx)) = (live_key, mic_live) {
+        // A failed device start dropped its sender, so that worker just ends.
+        live::start(app, mic_rx, device_live, key, cfg.language.clone());
+        show_live_window(app);
+    }
+
+    show_recorder_widget(app);
     if let Some(e) = device_error {
         eprintln!("recording: device audio unavailable: {e}");
         show_toast(
@@ -989,6 +994,18 @@ fn wheel_record_toggle(app: AppHandle<Wry>) -> Result<(), String> {
         );
     }
     Ok(())
+}
+
+type LiveTap = (Option<std::sync::mpsc::Sender<Vec<f32>>>, Option<std::sync::mpsc::Receiver<Vec<f32>>>);
+
+/// A channel that hands a track's samples to live transcription as they're
+/// recorded, or none for a plain recording.
+fn live_tap(live: bool) -> LiveTap {
+    if !live {
+        return (None, None);
+    }
+    let (tx, rx) = std::sync::mpsc::channel();
+    (Some(tx), Some(rx))
 }
 
 /// Flash an error message on the recorder widget, then hide it after a
@@ -1327,6 +1344,55 @@ fn set_transcript(app: &AppHandle<Wry>, gen: u64, view: TranscriptView) {
     drop(state);
     if let Some(win) = app.get_webview_window("transcript") {
         let _ = win.emit("transcript-update", view);
+    }
+}
+
+/// Show the live-transcript overlay without taking focus from the call app.
+/// The first time, it goes to the right-hand side of the screen the cursor
+/// is on; after that it stays wherever the user moved it.
+fn show_live_window(app: &AppHandle<Wry>) {
+    static PLACED: AtomicBool = AtomicBool::new(false);
+    let Some(win) = app.get_webview_window("live") else { return };
+    dev_reload(&win);
+    let (cx, cy) = typer::cursor_pos();
+    let monitor = win
+        .available_monitors()
+        .ok()
+        .and_then(|ms| {
+            ms.into_iter().find(|m| {
+                let (p, s) = (m.position(), m.size());
+                cx >= p.x && cx < p.x + s.width as i32 && cy >= p.y && cy < p.y + s.height as i32
+            })
+        })
+        .or_else(|| win.primary_monitor().ok().flatten());
+    let (x, y) = match (PLACED.swap(true, Ordering::SeqCst), monitor, win.outer_position()) {
+        (false, Some(m), _) => {
+            let (p, s) = (m.position(), m.size());
+            let w = win.outer_size().map(|s| s.width as i32).unwrap_or(440);
+            let margin = (24.0 * m.scale_factor()) as i32;
+            (p.x + s.width as i32 - w - margin, p.y + s.height as i32 / 6)
+        }
+        (_, _, Ok(pos)) => (pos.x, pos.y),
+        _ => (cx, cy),
+    };
+    show_without_focus(&win, x, y);
+    let _ = win.emit("live-update", live::snapshot());
+}
+
+#[tauri::command]
+fn live_snapshot() -> live::Snapshot {
+    live::snapshot()
+}
+
+#[tauri::command]
+fn live_copy(app: AppHandle<Wry>) -> Result<(), String> {
+    app.clipboard().write_text(live::as_text()).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn live_close(app: AppHandle<Wry>) {
+    if let Some(win) = app.get_webview_window("live") {
+        hide_without_focus(&win);
     }
 }
 
@@ -2007,6 +2073,23 @@ fn toggle_sayit_window(app: &AppHandle<Wry>) {
         let _ = win.hide();
         return;
     }
+    show_sayit_window(app);
+}
+
+/// The wheel's SayIt → Message wedge: open the SayIt window to record,
+/// listen to or delete the message.
+#[tauri::command]
+fn open_sayit_window(app: AppHandle<Wry>) {
+    show_sayit_window(&app);
+}
+
+/// Show the SayIt window near the cursor (or just focus it if it's open).
+fn show_sayit_window(app: &AppHandle<Wry>) {
+    let Some(win) = app.get_webview_window("sayit") else { return };
+    if win.is_visible().unwrap_or(false) {
+        let _ = win.set_focus();
+        return;
+    }
     dev_reload(&win);
     let (x, y) = typer::cursor_pos();
     let size = win.outer_size().map(|s| (s.width as i32, s.height as i32)).unwrap_or((340, 260));
@@ -2504,6 +2587,9 @@ pub fn run() {
         )
         .manage(AppState::new())
         .invoke_handler(tauri::generate_handler![
+            live_snapshot,
+            live_copy,
+            live_close,
             get_settings,
             update_settings,
             set_hotkey,
@@ -2536,7 +2622,9 @@ pub fn run() {
             set_humanize_hotkey,
             set_wheel_hotkey,
             set_web_hotkey,
-            wheel_refine,
+            wheel_live_toggle,
+            wheel_state,
+            open_sayit_window,
             wheel_cancel,
             wheel_record_toggle,
             stop_recording,

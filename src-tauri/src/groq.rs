@@ -171,6 +171,34 @@ impl TranscribeError {
 /// a slow connection, not a stuck call.
 const SEGMENTS_TIMEOUT: Duration = Duration::from_secs(300);
 
+/// One HTTP client for segment transcription, so its connection to Groq
+/// (TCP + TLS) is reused between requests instead of being set up again
+/// for every clip. Live transcription sends a request every second or so,
+/// where that handshake would be a large share of each line's delay.
+fn shared_client() -> &'static reqwest::blocking::Client {
+    static CLIENT: std::sync::OnceLock<reqwest::blocking::Client> = std::sync::OnceLock::new();
+    CLIENT.get_or_init(|| {
+        reqwest::blocking::Client::builder()
+            .timeout(None) // set per request
+            .pool_idle_timeout(Duration::from_secs(300))
+            .tcp_keepalive(Duration::from_secs(30))
+            .tcp_nodelay(true)
+            .build()
+            .unwrap_or_else(|_| reqwest::blocking::Client::new())
+    })
+}
+
+/// Open the shared connection to Groq ahead of time (a cheap authenticated
+/// GET), so the first real request doesn't pay for the handshake.
+pub fn warm_up(api_key: &str) {
+    let _ = shared_client()
+        .get("https://api.groq.com/openai/v1/models")
+        .bearer_auth(api_key)
+        .timeout(Duration::from_secs(10))
+        .send()
+        .and_then(|r| r.bytes());
+}
+
 /// Like `transcribe`, but with Groq's `verbose_json` format for per-segment
 /// timestamps and confidence. `prompt` is optional context (e.g. the end of
 /// the previous chunk) that helps Whisper stay consistent across chunks.
@@ -181,10 +209,19 @@ pub fn transcribe_segments(
     language: &str,
     prompt: Option<&str>,
 ) -> std::result::Result<Vec<Segment>, TranscribeError> {
-    let client = reqwest::blocking::Client::builder()
-        .timeout(SEGMENTS_TIMEOUT)
-        .build()
-        .map_err(|e| TranscribeError::other(e.to_string()))?;
+    transcribe_segments_within(wav, api_key, model, language, prompt, SEGMENTS_TIMEOUT)
+}
+
+/// `transcribe_segments` with its own time limit for the whole request.
+pub fn transcribe_segments_within(
+    wav: Vec<u8>,
+    api_key: &str,
+    model: &str,
+    language: &str,
+    prompt: Option<&str>,
+    timeout: Duration,
+) -> std::result::Result<Vec<Segment>, TranscribeError> {
+    let client = shared_client();
 
     let part = reqwest::blocking::multipart::Part::bytes(wav)
         .file_name("clip.wav")
@@ -206,6 +243,7 @@ pub fn transcribe_segments(
     let resp = client
         .post(ENDPOINT)
         .bearer_auth(api_key)
+        .timeout(timeout)
         .multipart(form)
         .send()
         .map_err(|e| TranscribeError::other(format!("couldn't reach Groq: {e}")))?;
