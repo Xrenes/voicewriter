@@ -16,6 +16,34 @@
   const calls = new Set(); // { micGain, dest } per microphone stream handed out
   let ctx = null;
   let clip = null; // decoded AudioBuffer, ready to play
+  let span = [0, 0]; // [start, length] in seconds: the voice, without silence around it
+
+  // Where the voice actually starts and ends (5 ms frames at least 6% as loud
+  // as the loudest one), so the first word comes out the instant the hotkey
+  // is pressed — room noise or a pause before you spoke is skipped.
+  function voiceSpan(buf) {
+    const d = buf.getChannelData(0);
+    const rate = buf.sampleRate;
+    const frame = Math.max(1, Math.round(rate * 0.005));
+    const rms = [];
+    let loudest = 0;
+    for (let i = 0; i < d.length; i += frame) {
+      let acc = 0;
+      const end = Math.min(d.length, i + frame);
+      for (let j = i; j < end; j++) acc += d[j] * d[j];
+      const r = Math.sqrt(acc / (end - i));
+      rms.push(r);
+      if (r > loudest) loudest = r;
+    }
+    if (!loudest) return [0, buf.duration];
+    const voiced = (r) => r >= loudest * 0.06;
+    const first = Math.max(0, rms.findIndex(voiced));
+    let last = rms.length - 1;
+    while (last > first && !voiced(rms[last])) last--;
+    const start = Math.max(0, first * frame - Math.round(rate * 0.01)); // keep the first 10 ms of the onset
+    const end = Math.min(d.length, (last + 1) * frame + Math.round(rate * 0.06));
+    return [start / rate, (end - start) / rate];
+  }
   let current = null; // { sources } while the message plays
   let hotkey = { code: "KeyL", alt: true, ctrl: false, shift: false, meta: false };
   let muteMic = true;
@@ -34,8 +62,57 @@
 
   // Read by the SayIt popup for its "This tab" line.
   Object.defineProperty(window, "__sayitStatus", {
-    value: () => ({ call: calls.size > 0, playing: !!current, ready: !!clip }),
+    value: () => ({ call: calls.size > 0, playing: !!current, ready: !!clip, altKeysClaimed }),
   });
+
+  // While a call is up, keep the audio output awake with an inaudible signal
+  // (-120 dB). Chrome parks a silent output after 30 s, and waking it up
+  // would delay the preview you hear when you press the hotkey.
+  let keepAwake = null;
+  function updateKeepAwake() {
+    const want = calls.size > 0 && hearIt;
+    if (want && !keepAwake) {
+      keepAwake = audioCtx().createConstantSource();
+      keepAwake.offset.value = 1e-6;
+      keepAwake.connect(ctx.destination);
+      keepAwake.start();
+    } else if (!want && keepAwake) {
+      keepAwake.stop();
+      keepAwake.disconnect();
+      keepAwake = null;
+    }
+  }
+
+  // No Windows "ding": when Alt+<letter> isn't used by the page as an access
+  // key, Chrome passes it on to Windows, which beeps. So for an Alt+letter
+  // hotkey SayIt keeps a hidden access-key target, and swallows the click
+  // that Chrome then sends it, so the page never sees a thing.
+  let accessTarget = null;
+  let altKeysClaimed = 0;
+  function claimAltKey() {
+    if (!hotkey.alt || hotkey.ctrl || hotkey.meta) return;
+    const ch = String(hotkey.key || "").toLowerCase();
+    if (ch.length !== 1 || !document.documentElement) return;
+    if (!accessTarget) {
+      accessTarget = document.createElement("sayit-key");
+      accessTarget.hidden = true;
+    }
+    if (!accessTarget.isConnected) document.documentElement.appendChild(accessTarget);
+    accessTarget.removeAttribute("accesskey"); // so Chrome re-reads it
+    accessTarget.setAttribute("accesskey", ch);
+  }
+  for (const type of ["click", "mousedown", "mouseup", "pointerdown", "pointerup"]) {
+    window.addEventListener(
+      type,
+      (e) => {
+        if (!accessTarget || e.target !== accessTarget) return;
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        if (type === "click") altKeysClaimed++;
+      },
+      true,
+    );
+  }
 
   // Play your preview on the same output the dialer plays the call on (its
   // chosen headset); until it picks one, Windows' default output.
@@ -80,10 +157,12 @@
         source.connect(micGain).connect(dest);
         const call = { micGain, dest, muted: false };
         calls.add(call);
+        updateKeepAwake();
         const track = dest.stream.getAudioTracks()[0];
         mirror(track, mic, call, () => {
           source.disconnect();
           calls.delete(call);
+          updateKeepAwake();
         });
         return new MediaStream([track, ...stream.getVideoTracks()]);
       } catch (e) {
@@ -158,7 +237,7 @@
       const s = ac.createBufferSource();
       s.buffer = clip;
       s.connect(c.dest);
-      s.start();
+      s.start(0, span[0], span[1]);
       sources.push(s);
     });
     if (hearIt) {
@@ -168,7 +247,7 @@
       g.gain.value = 0.6;
       s.buffer = clip;
       s.connect(g).connect(ac.destination);
-      s.start();
+      s.start(0, span[0], span[1]);
       sources.push(s);
     }
     current = { sources };
@@ -227,13 +306,28 @@
     e.shiftKey === !!hotkey.shift &&
     e.metaKey === !!hotkey.meta;
 
+  // The whole keystroke is SayIt's: the page (and its keypad tones) never
+  // sees the key going down or coming back up.
+  let heldCode = null;
   window.addEventListener(
     "keydown",
     (e) => {
       if (!hotkey || !hotkey.code || !sameCombo(e)) return;
       e.preventDefault();
       e.stopImmediatePropagation();
+      heldCode = e.code;
+      claimAltKey();
       if (!e.repeat) toggleInCallFrame();
+    },
+    true,
+  );
+  window.addEventListener(
+    "keyup",
+    (e) => {
+      if (!heldCode || e.code !== heldCode) return;
+      heldCode = null;
+      e.preventDefault();
+      e.stopImmediatePropagation();
     },
     true,
   );
@@ -264,12 +358,16 @@
       if (d.hotkey) hotkey = d.hotkey;
       if (typeof d.muteMic === "boolean") muteMic = d.muteMic;
       if (typeof d.hearIt === "boolean") hearIt = d.hearIt;
+      if (ctx) updateKeepAwake();
     } else if (kind === "clip") {
       // Decode ahead of time (offline, so no audio permission is needed) —
       // the hotkey then only has to start it.
       new OfflineAudioContext(1, 1, 48000)
         .decodeAudioData(d.bytes)
-        .then((buf) => (clip = buf))
+        .then((buf) => {
+          span = voiceSpan(buf);
+          clip = buf;
+        })
         .catch((err) => {
           clip = null;
           console.warn("SayIt: couldn't read the saved message", err);

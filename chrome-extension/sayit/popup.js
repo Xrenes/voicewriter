@@ -166,7 +166,7 @@ function trimAndLevel(s, rate) {
   const first = rms.findIndex(voiced);
   let last = rms.length - 1;
   while (last > 0 && !voiced(rms[last])) last--;
-  const pad = Math.ceil((rate * 0.12) / frame);
+  const pad = Math.ceil((rate * 0.02) / frame);
   const start = Math.max(0, first - pad) * frame;
   const end = Math.min(s.length, (last + 1 + pad) * frame);
   const out = s.slice(start, end);
@@ -234,12 +234,24 @@ changeHotkey.addEventListener("click", () => {
   changeHotkey.disabled = true;
 });
 
+// No Windows "ding" for Alt+<letter> here either: claim it as an access key
+// (Chrome otherwise passes it on to Windows; see inject.js).
+const accessTarget = document.createElement("span");
+accessTarget.hidden = true;
+document.body.appendChild(accessTarget);
+function claimAltKey(e) {
+  if (!e.altKey || e.ctrlKey || e.metaKey || e.key.length !== 1) return;
+  accessTarget.removeAttribute("accesskey");
+  accessTarget.setAttribute("accesskey", e.key.toLowerCase());
+}
+
 document.addEventListener(
   "keydown",
   (e) => {
     if (!capturing) return;
     e.preventDefault();
     e.stopPropagation();
+    claimAltKey(e);
     if (["Control", "Alt", "Shift", "Meta"].includes(e.key)) return;
     capturing = false;
     changeHotkey.disabled = false;
@@ -263,6 +275,14 @@ document.addEventListener(
   },
   true,
 );
+
+// The hotkey works with this popup open too.
+document.addEventListener("keydown", (e) => {
+  if (capturing || e.defaultPrevented || !sayitHotkeyMatches(e, settings.hotkey)) return;
+  e.preventDefault();
+  claimAltKey(e);
+  if (!e.repeat) chrome.runtime.sendMessage({ sayit: "toggle-calls" }).catch(() => {});
+});
 
 $("resetHotkey").addEventListener("click", () => saveSettings({ hotkey: SAYIT_DEFAULTS.hotkey }));
 $("muteMic").addEventListener("change", (e) => saveSettings({ muteMic: e.target.checked }));

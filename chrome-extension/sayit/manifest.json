@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "SayIt",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Record your voicemail once, then play it into web dialer calls (Aloware, GHL) with one hotkey — instantly, with nothing on screen.",
   "permissions": ["storage", "unlimitedStorage", "scripting", "activeTab"],
   "host_permissions": [

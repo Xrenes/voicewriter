@@ -19,8 +19,10 @@ while it plays.
   time, click **Allow microphone access…**: a tab opens where Chrome asks for
   the microphone. Allow it, then record from the SayIt button again.
 - **During a call:** with the dialer tab in front, press **Alt+L** when the
-  voicemail beeps. Your microphone is muted while the message plays and comes
-  back when it ends. Press Alt+L again to stop early.
+  voicemail beeps. The message goes into the call and you hear it in your own
+  headset at the same moment, so you know exactly when it starts and ends.
+  Your microphone is muted while it plays and comes back when it ends. Press
+  Alt+L again to stop early.
 - **Test it:** Settings → **Test it** plays your message into a fake call and
   lets you hear exactly what the other side gets.
 
@@ -28,6 +30,8 @@ while it plays.
 
 - **Hotkey:** Change / Reset. It needs Ctrl, Alt or Win (or an F-key).
 - **Mute my microphone while the message plays:** on by default.
+- **Let me hear the message too:** on by default. It plays on the output the
+  dialer uses for the call (or Windows' default output).
 - **From any Chrome tab (optional):** a second key, set in Chrome's own
   shortcuts page, that works whichever tab is in front.
 - **Works on:** the built-in dialers, plus **+ Add** for the tab you're on
@@ -41,7 +45,12 @@ mic. The hotkey is handled inside the page and starts the pre-decoded message
 on that stream straight away: about 28 ms from key press to call audio,
 which is the same as Chrome's own audio path without SayIt. If the call is in
 another frame or tab, the key press is passed on to it. The message plays
-even if you're muted in the dialer.
+even if you're muted in the dialer. Silence before the first word is skipped,
+so the voice starts right away.
+
+SayIt makes no sounds of its own. Normally Windows plays its "Default Beep"
+when Alt+<letter> reaches a window that doesn't use it; SayIt claims the
+whole Alt+L keystroke, so that never happens. The dialer never sees the key.
 
 ## Good to know
 

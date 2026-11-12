@@ -23,6 +23,15 @@ function sayitBuiltIn(origin) {
 // "https://app.example.com/*" → "app.example.com"
 const sayitSiteName = (pattern) => pattern.replace(/^https:\/\//, "").replace(/\/\*$/, "");
 
+const sayitHotkeyMatches = (e, h) =>
+  !!h &&
+  !!h.code &&
+  e.code === h.code &&
+  e.altKey === !!h.alt &&
+  e.ctrlKey === !!h.ctrl &&
+  e.shiftKey === !!h.shift &&
+  e.metaKey === !!h.meta;
+
 function sayitHotkeyLabel(h) {
   if (!h || !h.code) return "not set";
   const parts = [];
