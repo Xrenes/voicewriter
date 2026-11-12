@@ -14,7 +14,7 @@ function sayitToExtension(msg) {
 
 async function sayitSendConfig() {
   const s = await sayitSettings();
-  sayitToPage({ __sayit: "config", hotkey: s.hotkey, muteMic: s.muteMic });
+  sayitToPage({ __sayit: "config", hotkey: s.hotkey, muteMic: s.muteMic, hearIt: s.hearIt });
 }
 
 async function sayitSendMessage() {

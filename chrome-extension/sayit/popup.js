@@ -218,6 +218,7 @@ let capturing = false;
 function renderSettings() {
   hotkeyLabel.textContent = sayitHotkeyLabel(settings.hotkey);
   $("muteMic").checked = settings.muteMic;
+  $("hearIt").checked = settings.hearIt;
 }
 
 async function saveSettings(patch) {
@@ -265,6 +266,7 @@ document.addEventListener(
 
 $("resetHotkey").addEventListener("click", () => saveSettings({ hotkey: SAYIT_DEFAULTS.hotkey }));
 $("muteMic").addEventListener("change", (e) => saveSettings({ muteMic: e.target.checked }));
+$("hearIt").addEventListener("change", (e) => saveSettings({ hearIt: e.target.checked }));
 $("shortcuts").addEventListener("click", (e) => {
   e.preventDefault();
   chrome.tabs.create({ url: "chrome://extensions/shortcuts" });

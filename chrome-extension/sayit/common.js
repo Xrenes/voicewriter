@@ -2,6 +2,7 @@
 const SAYIT_DEFAULTS = {
   hotkey: { code: "KeyL", key: "L", alt: true, ctrl: false, shift: false, meta: false },
   muteMic: true,
+  hearIt: true, // also play the message quietly in your own headset
 };
 
 const SAYIT_DIALERS = [

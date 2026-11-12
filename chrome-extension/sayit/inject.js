@@ -19,6 +19,7 @@
   let current = null; // { sources } while the message plays
   let hotkey = { code: "KeyL", alt: true, ctrl: false, shift: false, meta: false };
   let muteMic = true;
+  let hearIt = true; // also play it quietly in your own headset
   let asked = null; // a toggle passed to the other frames, until one of them takes it
 
   const audioCtx = () => (ctx ||= new AudioContext({ latencyHint: "interactive" }));
@@ -136,6 +137,16 @@
       s.start();
       sources.push(s);
     });
+    if (hearIt) {
+      // So you hear exactly when it starts and ends (only you; not the call).
+      const s = ac.createBufferSource();
+      const g = ac.createGain();
+      g.gain.value = 0.6;
+      s.buffer = clip;
+      s.connect(g).connect(ac.destination);
+      s.start();
+      sources.push(s);
+    }
     current = { sources };
     calls.forEach(setMicGain);
     sources[0].onended = () => {
@@ -228,6 +239,7 @@
     else if (kind === "config") {
       if (d.hotkey) hotkey = d.hotkey;
       if (typeof d.muteMic === "boolean") muteMic = d.muteMic;
+      if (typeof d.hearIt === "boolean") hearIt = d.hearIt;
     } else if (kind === "clip") {
       // Decode ahead of time (offline, so no audio permission is needed) —
       // the hotkey then only has to start it.
