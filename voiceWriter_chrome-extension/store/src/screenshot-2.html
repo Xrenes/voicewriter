@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <link rel="stylesheet" href="shared.css" />
+    <style>
+      .compose {
+        border: 1px solid #d7d7dc;
+        border-radius: 10px;
+        overflow: hidden;
+      }
+      .compose .to {
+        padding: 10px 14px;
+        border-bottom: 1px solid #e6e6ea;
+        color: #6b6b72;
+        font-size: 14px;
+      }
+      .compose .body {
+        padding: 14px;
+        min-height: 210px;
+        font-size: 15.5px;
+        line-height: 1.6;
+      }
+      .caret {
+        display: inline-block;
+        width: 2px;
+        height: 19px;
+        background: #1f2328;
+        vertical-align: -3px;
+        margin-left: 1px;
+      }
+      .send {
+        margin: 0 14px 14px;
+        display: inline-block;
+        background: #2f6fde;
+        color: #fff;
+        font-weight: 600;
+        font-size: 14px;
+        padding: 8px 18px;
+        border-radius: 18px;
+      }
+      .listen {
+        position: absolute;
+        left: 230px;
+        top: 236px;
+      }
+      .listen svg {
+        color: #f87171;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="copy">
+      <div class="brand"><img src="../../icons/icon128.png" alt="" />VoiceWriter</div>
+      <h1>Hold <kbd>Alt+C</kbd>.<br />Speak.<br /><em>It's typed.</em></h1>
+      <p class="lead">Dictate straight into the text field you're using on email, chat and social sites. Groq's Whisper turns your speech into text in about a second.</p>
+      <div class="pills">
+        <span class="pill">Auto-detects the language</span>
+        <span class="pill">Optional AI clean-up</span>
+      </div>
+    </div>
+    <div class="browser">
+      <div class="bar"><i></i><i></i><i></i><span class="url">mail.example.com/compose</span><img class="ext" src="../../icons/icon32.png" alt="" /></div>
+      <div class="content">
+        <div class="compose">
+          <div class="to">To: Sarah Chen</div>
+          <div class="body">Hi Sarah,<br /><br />Thanks for sending the proposal over. I've gone through it and the timeline looks good to me<span class="caret"></span></div>
+          <span class="send">Send</span>
+        </div>
+        <div class="toast listen">
+          <svg viewBox="0 0 200 200" aria-hidden="true">
+            <rect x="22" y="100" width="28" height="66" rx="14" fill="currentColor" />
+            <rect x="58" y="72" width="28" height="94" rx="14" fill="currentColor" />
+            <path d="M108 38V139" fill="none" stroke="currentColor" stroke-width="28" stroke-linecap="round" />
+            <path d="M108 132V139Q108 166 137 166H172" fill="none" stroke="currentColor" stroke-width="28" stroke-linecap="round" />
+          </svg>
+          Listening… release Alt+C to insert
+        </div>
+      </div>
+    </div>
+  </body>
+</html>

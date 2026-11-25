@@ -1,0 +1,60 @@
+{
+  "manifest_version": 3,
+  "name": "VoiceWriter",
+  "short_name": "VoiceWriter",
+  "version": "1.5.1",
+  "description": "Voicemail drop for web dialers (Alt+L), dictation, a copy board, read aloud and one-key rewrites on any site. Uses Groq.",
+  "homepage_url": "https://xrenes.github.io/voicewriter/",
+  "minimum_chrome_version": "119",
+  "icons": {
+    "16": "icons/icon16.png",
+    "32": "icons/icon32.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "action": {
+    "default_title": "VoiceWriter",
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "24": "icons/icon24.png",
+      "32": "icons/icon32.png"
+    }
+  },
+  "options_ui": {
+    "page": "popup.html",
+    "open_in_tab": true
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "permissions": ["storage", "unlimitedStorage", "contextMenus", "offscreen", "scripting"],
+  "host_permissions": ["https://api.groq.com/*", "http://*/*", "https://*/*"],
+  "commands": {
+    "live-toggle": {
+      "suggested_key": { "default": "Alt+A" },
+      "description": "Board: show or hide it"
+    },
+    "sayit-toggle": {
+      "suggested_key": { "default": "Alt+L" },
+      "description": "SayIt: play or stop your voicemail on the call"
+    }
+  },
+  "content_scripts": [
+    {
+      "matches": ["http://*/*", "https://*/*"],
+      "js": ["sayit-inject.js"],
+      "run_at": "document_start",
+      "world": "MAIN",
+      "all_frames": true,
+      "match_origin_as_fallback": true
+    },
+    {
+      "matches": ["<all_urls>"],
+      "js": ["common.js", "sayit-relay.js", "content.js"],
+      "run_at": "document_start",
+      "all_frames": true,
+      "match_origin_as_fallback": true
+    }
+  ]
+}

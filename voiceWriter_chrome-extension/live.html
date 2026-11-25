@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Board · VoiceWriter</title>
+    <link rel="icon" href="icons/icon32.png" />
+    <style>
+      :root {
+        color-scheme: dark;
+        --scale: 1;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: #0b0b0c;
+        color: #fff;
+        font: 13px/1.4 "Segoe UI", system-ui, -apple-system, Roboto, sans-serif;
+        overflow: hidden;
+      }
+      .live {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        flex-direction: column;
+      }
+      .bar {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 6px 6px 6px 12px;
+        flex: none;
+        border-bottom: 1px solid #1c1c1e;
+      }
+      .state {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 11px;
+        font-weight: 600;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: rgba(255, 255, 255, 0.85);
+        flex: 1;
+      }
+      .dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: #ff4d4d;
+        animation: pulse 1.4s ease-in-out infinite;
+      }
+      .state.static .dot { background: #d6486c; animation: none; }
+      .state.ended .dot {
+        background: #8a8a8a;
+        animation: none;
+      }
+      @keyframes pulse {
+        50% {
+          opacity: 0.3;
+        }
+      }
+      .tools {
+        display: inline-flex;
+        gap: 2px;
+      }
+      .tools button {
+        background: transparent;
+        border: 0;
+        color: rgba(255, 255, 255, 0.8);
+        font: 12px/1 "Segoe UI", system-ui, sans-serif;
+        padding: 5px 8px;
+        border-radius: 6px;
+        cursor: pointer;
+      }
+      .tools button:hover {
+        background: rgba(255, 255, 255, 0.14);
+        color: #fff;
+      }
+      .notice {
+        margin: 6px 10px 0;
+        padding: 4px 8px;
+        font-size: 12px;
+        border-radius: 6px;
+        background: rgba(255, 120, 80, 0.22);
+        color: #ffd2c4;
+        flex: none;
+      }
+      .notice[hidden] {
+        display: none;
+      }
+      .feed {
+        flex: 1;
+        overflow-y: auto;
+        padding: 8px 14px 12px;
+        font-size: calc(18px * var(--scale));
+        line-height: 1.4;
+        scrollbar-width: thin;
+        scrollbar-color: rgba(255, 255, 255, 0.25) transparent;
+      }
+      .feed p {
+        margin: 0 0 0.45em;
+        overflow-wrap: anywhere;
+      }
+      .feed span.partial {
+        opacity: 0.6;
+      }
+      .feed .empty {
+        color: rgba(255, 255, 255, 0.6);
+        font-size: 0.8em;
+        font-style: italic;
+      }
+      .feed .empty[hidden] {
+        display: none;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="live" role="log" aria-label="VoiceWriter board">
+      <div class="bar">
+        <span class="state" id="state"><i class="dot"></i><span id="stateText">Live</span></span>
+        <span class="tools">
+          <button id="smaller" title="Smaller text">A−</button>
+          <button id="bigger" title="Bigger text">A+</button>
+          <button id="clear" title="Clear the text">Clear</button>
+          <button id="copy" title="Copy the text">Copy</button>
+          <button id="close" title="Stop">✕</button>
+        </span>
+      </div>
+      <div class="notice" id="notice" hidden></div>
+      <div class="feed" id="feed"><p class="empty" id="empty">Listening… start talking.</p></div>
+    </div>
+    <script src="common.js"></script>
+    <script src="live.js"></script>
+  </body>
+</html>

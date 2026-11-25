@@ -1,0 +1,433 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>VoiceWriter</title>
+    <link rel="stylesheet" href="popup.css" />
+  </head>
+  <body>
+    <div class="page">
+      <div class="titlebar">
+        <svg class="logo" viewBox="0 0 200 200" aria-hidden="true">
+          <rect x="22" y="100" width="28" height="66" rx="14" fill="currentColor" />
+          <rect x="58" y="72" width="28" height="94" rx="14" fill="currentColor" />
+          <path d="M108 38V139" fill="none" stroke="currentColor" stroke-width="28" stroke-linecap="round" />
+          <path d="M108 132V139Q108 166 137 166H172" fill="none" stroke="currentColor" stroke-width="28" stroke-linecap="round" />
+        </svg>
+        <span class="titlebar-name">VoiceWriter</span>
+      </div>
+
+      <main class="app">
+        <header class="head">
+          <div class="brand">
+            <span class="dot" id="statusDot"></span>
+            <h1>VoiceWriter</h1>
+          </div>
+          <p class="status" id="statusText">Idle</p>
+        </header>
+
+        <div class="card notice" id="setupNotice" hidden>
+          <p><strong>Add your free Groq API key to get started.</strong> It powers dictation, Read aloud and the rewrite modes.</p>
+          <div class="row key-actions">
+            <button class="primary" id="setupAddKey">Add API key</button>
+            <a href="https://console.groq.com/keys" target="_blank" rel="noopener">Get a free key</a>
+          </div>
+        </div>
+
+        <!-- SayIt: first thing in the window -->
+        <section class="card feature" aria-labelledby="sayitTitle">
+          <div class="feature-head">
+            <div class="feature-title" id="sayitTitle">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <circle cx="6.5" cy="12" r="3.7" fill="none" stroke="currentColor" stroke-width="1.9" />
+                <circle cx="17.5" cy="12" r="3.7" fill="none" stroke="currentColor" stroke-width="1.9" />
+                <path d="M6.5 15.7h11" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" />
+              </svg>
+              SayIt
+              <span class="feature-sub">voicemail</span>
+            </div>
+            <kbd id="sayitKey" title="Plays your message on the call. Press again to stop.">Alt+L</kbd>
+          </div>
+          <p class="sayit-state" id="sayitState">Loading…</p>
+          <div class="row key-actions wrap">
+            <button class="primary" id="sayitRecord">● Record</button>
+            <button class="ghost" id="sayitListen" hidden>▶ Play</button>
+            <button class="primary" id="sayitSave" hidden>Save</button>
+            <button class="ghost" id="sayitDiscard" hidden>Discard</button>
+            <button class="ghost danger" id="sayitRemove" hidden>Delete</button>
+          </div>
+          <button class="ghost wide" id="sayitPlayCall" hidden>Play into the call now</button>
+          <p class="callstate" id="sayitCall" hidden></p>
+          <p class="hint" id="sayitHint"></p>
+          <button class="primary wide" id="sayitAllowMic" hidden>Allow microphone access…</button>
+          <p class="hint err" id="sayitError" hidden></p>
+          <audio id="sayitPlayer"></audio>
+        </section>
+
+        <!-- Read aloud -->
+        <section class="card feature sayit" aria-labelledby="sayTitle">
+          <div class="feature-head">
+            <div class="feature-title" id="sayTitle">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M4 9.5v5h3.5L12 19V5L7.5 9.5H4z" fill="currentColor" />
+                <path d="M15.5 8.5a5 5 0 0 1 0 7M18 6a8.5 8.5 0 0 1 0 12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+              </svg>
+              Read aloud
+            </div>
+            <select id="voice" aria-label="Voice"></select>
+          </div>
+          <textarea id="sayText" spellcheck="true" placeholder="Type or paste text to hear it read aloud, or select text on the page and open VoiceWriter."></textarea>
+          <div class="progress" id="sayProgress" hidden><div class="progress-bar" id="sayProgressBar"></div></div>
+          <div class="sayit-actions">
+            <button class="ghost" id="useSelection" title="Copy the text selected on the current page into the box">Use selection</button>
+            <span class="grow" id="sayHint"></span>
+            <button class="primary say" id="sayBtn">
+              <svg viewBox="0 0 12 12" aria-hidden="true" id="sayIcon"><path d="M2 1l9 5-9 5z" fill="currentColor" /></svg>
+              <span id="sayLabel">Read aloud</span>
+            </button>
+          </div>
+          <p class="hint dim" id="sayFoot">English voices via Groq. On any page, select text (or click a spreadsheet cell, or a text box) and press <span id="sayKeyName">Control+Alt+C</span>.</p>
+        </section>
+
+        <!-- Board -->
+        <section class="card feature" aria-labelledby="liveTitle">
+          <div class="feature-head">
+            <div class="feature-title" id="liveTitle">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <rect x="2.5" y="5" width="19" height="14" rx="3" fill="none" stroke="currentColor" stroke-width="1.8" />
+                <path d="M6.5 11h5M13.5 11h4M6.5 14.5h3M11.5 14.5h6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+              </svg>
+              Board
+            </div>
+            <button class="primary" id="liveBtn">Open</button>
+          </div>
+          <p class="hint">A see-through board that doesn't listen on its own. <kbd id="liveKey">Alt+A</kbd> opens or closes it. While it's open, hold <kbd>Alt+C</kbd> and speak: your words go on the board (and to the clipboard) instead of the page, ready to paste into any app.</p>
+          <p class="hint err" id="liveError" hidden></p>
+        </section>
+
+        <div class="settings-label">Settings</div>
+
+        <details class="section" id="secHotkeys">
+          <summary>Hotkeys</summary>
+          <div class="section-body">
+            <div class="card">
+              <div class="row">
+                <label>SayIt voicemail</label>
+                <div class="hotkey">
+                  <input type="text" readonly id="sayitHotkey" />
+                  <button class="ghost" data-change="sayit">Change</button>
+                </div>
+              </div>
+              <p class="hint dim">During a call, press it on any page in Chrome: your saved message plays on the call wherever it is. Press again to stop.</p>
+
+              <div class="row">
+                <label>Dictate</label>
+                <div class="hotkey">
+                  <input type="text" readonly data-hotkey="dictate" />
+                  <button class="ghost" data-change="dictate">Change</button>
+                </div>
+              </div>
+              <p class="hint">Hold to talk. Release to insert the text into the focused field.</p>
+
+              <div class="row">
+                <label>Board</label>
+                <div class="hotkey">
+                  <input type="text" readonly data-hotkey="live" />
+                  <button class="ghost" data-change="live">Change</button>
+                </div>
+              </div>
+              <p class="hint dim">Opens or closes the see-through board. While it's open, what you dictate goes on the board instead of the page.</p>
+
+              <div class="row">
+                <label>Read aloud</label>
+                <div class="hotkey">
+                  <input type="text" readonly data-hotkey="speak" />
+                  <button class="ghost" data-change="speak">Change</button>
+                </div>
+              </div>
+              <p class="hint dim">Press this key to hear what's selected read aloud (English only, via Groq): selected text, a clicked cell or range in Google Sheets or Excel for the web, text selected in Google Docs, or the whole text box you clicked into. Press again to stop.</p>
+
+              <div class="row">
+                <label>Refine selection</label>
+                <div class="hotkey">
+                  <input type="text" readonly data-hotkey="refine" />
+                  <button class="ghost" data-change="refine">Change</button>
+                </div>
+              </div>
+              <p class="hint dim">Spelling, grammar and sentence structure are corrected and the text is polished, then it replaces your selection.</p>
+
+              <div class="row">
+                <label>Professional reply</label>
+                <div class="hotkey">
+                  <input type="text" readonly data-hotkey="professional" />
+                  <button class="ghost" data-change="professional">Change</button>
+                </div>
+              </div>
+              <p class="hint dim">A draft message is rewritten as a polished, courteous, ready-to-send reply for clients and colleagues. Names, numbers, prices and dates are kept exactly; nothing is invented.</p>
+
+              <div class="row">
+                <label>Humanize</label>
+                <div class="hotkey">
+                  <input type="text" readonly data-hotkey="humanize" />
+                  <button class="ghost" data-change="humanize">Change</button>
+                </div>
+              </div>
+              <p class="hint dim">Stiff or AI-sounding wording is rewritten so it reads naturally, like a person wrote it.</p>
+
+              <p class="hint" id="hotkeyMsg">Click Change, then press the new keys. Esc cancels, Backspace turns the shortcut off.</p>
+              <div class="row key-actions">
+                <button class="ghost" id="hotkeysReset">Reset to defaults</button>
+              </div>
+            </div>
+            <div class="card">
+              <div class="row">
+                <label>Chrome shortcuts</label>
+                <button class="ghost" id="openShortcuts">Change</button>
+              </div>
+              <p class="hint dim">These also work on Chrome's own pages and in tabs VoiceWriter can't reach: Board <span class="mono" id="cmdLive">Alt+A</span>, SayIt <span class="mono" id="cmdSayit">Alt+L</span>.</p>
+            </div>
+          </div>
+        </details>
+
+        <details class="section" id="secSayit">
+          <summary>SayIt</summary>
+          <div class="section-body">
+            <div class="card">
+              <label class="check"><input type="checkbox" id="sayitMute" /> Mute my microphone while the message plays</label>
+              <label class="check"><input type="checkbox" id="sayitHear" /> Let me hear the message too (in my headset)</label>
+              <label class="check"><input type="checkbox" id="sayitOwnNc" /> My headset already cancels noise</label>
+              <p class="hint dim">Turns off Chrome's own noise removal on your dialer calls. Two noise removals on top of each other make a voice sound metallic or underwater. Takes effect from the next call.</p>
+            </div>
+            <div class="card">
+              <div class="row"><label>Calls it plays into</label></div>
+              <p class="hint">Aloware · GoHighLevel · HubSpot, and anything they embed, like the dialer in a HubSpot calling window.</p>
+              <ul class="sites" id="sayitSites"></ul>
+              <div class="row key-actions">
+                <button class="ghost" id="sayitAddSite" hidden>+ Add this site</button>
+              </div>
+              <p class="hint dim" id="sayitSiteHint">Another dialer (a white-label GHL, a mic-test site)? Open it, then add it here.</p>
+              <label class="check"><input type="checkbox" id="sayitEverywhere" /> Every website</label>
+            </div>
+            <div class="row key-actions">
+              <button class="ghost" id="sayitTest">Test it (hear what a call would hear)</button>
+            </div>
+            <p class="hint dim">Check your local rules on prerecorded voicemail (in the US, the TCPA) before using it.</p>
+          </div>
+        </details>
+
+        <details class="section" id="secLive">
+          <summary>Board</summary>
+          <div class="section-body">
+            <div class="card">
+              <div class="row">
+                <label for="liveTransparency">Transparency</label>
+                <span class="keyval" id="liveTransparencyVal">60%</span>
+              </div>
+              <input type="range" id="liveTransparency" min="0" max="90" step="5" aria-describedby="liveTransparencyHint" />
+              <p class="hint dim" id="liveTransparencyHint">How see-through the black board is. Drag it by its top bar and resize it from its corner; it remembers where you put it.</p>
+            </div>
+            <p class="hint dim">The board doesn't listen by itself. Hold the dictation key while it's open and your words go on it (and to the clipboard), ready to paste into any app. It keeps its text until you clear it or close Chrome.</p>
+          </div>
+        </details>
+
+        <details class="section" id="secKeys">
+          <summary>API Keys &amp; Usage</summary>
+          <div class="section-body">
+            <div class="card" id="mainKeyCard">
+              <div class="row">
+                <label>Groq API key</label>
+                <span class="keyval" id="apiKeyStatus">Not set</span>
+              </div>
+              <div class="row key-actions">
+                <button class="ghost" id="apiKeyReplace">Add key</button>
+                <button class="ghost" id="apiKeyTest">Test</button>
+                <button class="ghost danger" id="apiKeyClear" hidden>Remove</button>
+              </div>
+              <div class="row key-edit" id="apiKeyEditRow" hidden>
+                <input id="apiKeyInput" type="password" placeholder="gsk_..." spellcheck="false" autocomplete="off" />
+                <button class="primary" id="apiKeySave">Save</button>
+              </div>
+              <p class="hint" id="apiKeyHint">Used for dictation and the Refine, Professional and Humanize rewrites. Get one free at <a href="https://console.groq.com/keys" target="_blank" rel="noopener">console.groq.com/keys</a>.</p>
+              <div class="usage-nums">
+                <div><span id="dictToday">0</span><em>requests today</em></div>
+                <div><span id="dictRpm">0</span><em>requests / min</em></div>
+              </div>
+              <div class="meter">
+                <div class="meter-head"><span>Daily usage (est.)</span><span id="dictPct">0%</span></div>
+                <div class="meter-track"><div class="meter-fill" id="dictFill"></div></div>
+              </div>
+              <p class="hint dim">Approximate against Groq's free-tier Whisper limits. Not account billing.</p>
+            </div>
+
+            <div class="card" id="speakKeyCard">
+              <div class="row">
+                <label>Read aloud API key</label>
+                <span class="keyval" id="speakKeyStatus">Uses main key</span>
+              </div>
+              <div class="row key-actions">
+                <button class="ghost" id="speakKeyReplace">Add key</button>
+                <button class="ghost" id="speakKeyTest">Test</button>
+                <button class="ghost danger" id="speakKeyClear" hidden>Remove</button>
+              </div>
+              <div class="row key-edit" id="speakKeyEditRow" hidden>
+                <input id="speakKeyInput" type="password" placeholder="gsk_..." spellcheck="false" autocomplete="off" />
+                <button class="primary" id="speakKeySave">Save</button>
+              </div>
+              <p class="hint" id="speakKeyHint">Optional. A separate Groq key just for Read aloud, since Groq gives each key its own limits. Leave it empty to use the main key.</p>
+              <div class="usage-nums">
+                <div><span id="speakToday">0</span><em>requests today</em></div>
+                <div><span id="speakRpm">0</span><em>requests / min</em></div>
+              </div>
+              <div class="meter">
+                <div class="meter-head"><span>Daily usage (est.)</span><span id="speakPct">0%</span></div>
+                <div class="meter-track"><div class="meter-fill" id="speakFill"></div></div>
+              </div>
+              <p class="hint dim">Approximate against Groq's Orpheus TTS limit (much lower than Whisper's). Not account billing.</p>
+            </div>
+          </div>
+        </details>
+
+        <details class="section" id="secEngine">
+          <summary>Transcription</summary>
+          <div class="section-body">
+            <div class="card">
+              <div class="row">
+                <label for="sttModel">Groq model</label>
+                <select id="sttModel">
+                  <option value="whisper-large-v3-turbo">large-v3-turbo — fast</option>
+                  <option value="whisper-large-v3">large-v3 — most accurate</option>
+                </select>
+              </div>
+              <div class="row">
+                <label for="language">Language</label>
+                <input id="language" type="text" spellcheck="false" placeholder="auto" />
+              </div>
+              <p class="hint dim">"auto" detects the language. Or enter a code such as en, bn, hi, ur, ar, es, fr or de for better accuracy.</p>
+              <div class="row">
+                <label for="micDevice">Microphone</label>
+                <select id="micDevice">
+                  <option value="">System default</option>
+                </select>
+              </div>
+              <div class="row">
+                <label>Microphone access</label>
+                <span class="keyval" id="micStatus">Checking…</span>
+              </div>
+              <div class="row key-actions" id="micAllowRow" hidden>
+                <button class="primary" id="micAllow">Allow microphone</button>
+              </div>
+              <p class="hint dim">Chrome asks once in a VoiceWriter tab. After that, dictation works on every site without asking again.</p>
+            </div>
+          </div>
+        </details>
+
+        <details class="section" id="secInsert">
+          <summary>Text Insertion</summary>
+          <div class="section-body">
+            <div class="card">
+              <div class="row">
+                <label for="insertion">Insert text</label>
+                <select id="insertion">
+                  <option value="type">Type into the field (recommended)</option>
+                  <option value="both">Type and keep on clipboard</option>
+                  <option value="clipboard">Clipboard only</option>
+                </select>
+              </div>
+              <p class="hint">Click the text field first. Hold the hotkey to speak, then release and keep the cursor there until the text appears.</p>
+              <p class="hint dim">If no text field is focused, the text is copied to the clipboard instead so you can paste it.</p>
+            </div>
+          </div>
+        </details>
+
+        <details class="section" id="secGeneral">
+          <summary>General</summary>
+          <div class="section-body">
+            <div class="card">
+              <label class="check"><input type="checkbox" id="polish" /> Clean up with AI</label>
+              <p class="hint dim">Fixes punctuation, capitalization and filler words in dictated text via Groq before it is inserted.</p>
+            </div>
+            <div class="card">
+              <div class="row">
+                <label>Right-click menu</label>
+                <span class="hint">Select text → right-click → VoiceWriter</span>
+              </div>
+              <p class="hint dim">Read aloud, Refine, Professional and Humanize are also in the right-click menu for selected text.</p>
+            </div>
+          </div>
+        </details>
+
+        <details class="section" id="secGuide">
+          <summary>Guide</summary>
+          <div class="section-body">
+            <div class="card guide-card">
+              <h3>Get started</h3>
+              <ol>
+                <li>Open <a href="https://console.groq.com/keys" target="_blank" rel="noopener">console.groq.com/keys</a> and sign up (free, no card required).</li>
+                <li>Click "Create API Key", give it any name, and copy the key (starts with <span class="mono">gsk_</span>).</li>
+                <li>Paste it into <strong>API Keys &amp; Usage → Groq API key</strong> above, then Save.</li>
+              </ol>
+            </div>
+            <div class="card guide-card">
+              <h3>SayIt (voicemail drop)</h3>
+              <ol>
+                <li>In the SayIt card at the top, click <strong>Record</strong>, say your voicemail, click <strong>Stop</strong>, listen with <strong>Play</strong>, then <strong>Save</strong>.</li>
+                <li>During a call on Aloware, GoHighLevel or HubSpot, when the voicemail beeps, press <kbd id="guideSayitKey">Alt+L</kbd> on any page in Chrome. Your message plays on the call, and you hear it in your headset too.</li>
+                <li>Press it again to stop early. Your microphone is muted while it plays.</li>
+                <li>Another dialer? Open it, then <strong>Settings → SayIt → + Add this site</strong>.</li>
+              </ol>
+            </div>
+            <div class="card guide-card">
+              <h3>Board</h3>
+              <ol>
+                <li>Press <kbd data-key="live">Alt+A</kbd> on any tab. A see-through black board appears. It doesn't listen by itself.</li>
+                <li>Hold <kbd data-key="dictate">Alt+C</kbd> and speak: your words go on the board instead of the page, and the whole board is copied, ready to paste into any app.</li>
+                <li>It follows you from tab to tab. Drag it, resize it, make the text bigger with A+, and Copy or Clear it. Press <kbd data-key="live">Alt+A</kbd> again, or ✕, to close it.</li>
+              </ol>
+            </div>
+            <div class="card guide-card">
+              <h3>Dictation (hold-to-talk)</h3>
+              <ol>
+                <li>Click a text field on any website.</li>
+                <li>Hold <kbd data-key="dictate">Alt+C</kbd>, speak, then release. The text is typed where your cursor is.</li>
+                <li>The first time, Chrome asks for microphone access in a VoiceWriter tab. Allow it once.</li>
+              </ol>
+            </div>
+            <div class="card guide-card">
+              <h3>Read aloud</h3>
+              <ol>
+                <li>Select text on a page and press <kbd data-key="speak">Control+Alt+C</kbd>. Press again to stop.</li>
+                <li>In Google Sheets or Excel for the web, just click a cell (or select a range) and press it: no need to double-click into the cell. Ranges are read cell by cell. In Google Docs, select the text as usual.</li>
+                <li>Clicked into a text box without selecting anything? The whole box is read.</li>
+                <li>Or type or paste text into the Read aloud box at the top of this window.</li>
+              </ol>
+            </div>
+            <div class="card guide-card">
+              <h3>Rewrite selected text</h3>
+              <ul>
+                <li><kbd data-key="refine">Alt+R</kbd> <strong>Refine:</strong> spelling, grammar and structure are corrected, keeping your meaning and tone.</li>
+                <li><kbd data-key="professional">Alt+P</kbd> <strong>Professional:</strong> a casual draft becomes a polished, courteous reply.</li>
+                <li><kbd data-key="humanize">Alt+H</kbd> <strong>Humanize:</strong> stiff or AI-sounding text is rewritten to read naturally.</li>
+                <li>The result replaces your selection; Ctrl+Z undoes it. Clicked into a text field without selecting? The whole field is rewritten.</li>
+                <li>On a clicked cell in Google Sheets or Excel for the web (or text in Google Docs), the result is copied: press Ctrl+V to put it in place. In other text you can't edit, it's copied to the clipboard too.</li>
+              </ul>
+            </div>
+            <div class="row key-actions">
+              <button class="ghost" id="openWelcome">Open the setup page</button>
+            </div>
+          </div>
+        </details>
+
+        <footer class="foot">
+          <span class="build" id="version">v1.1.0</span>
+          <span class="foot-links">
+            <a href="https://xrenes.github.io/voicewriter/" target="_blank" rel="noopener">Website</a>
+            <a href="https://xrenes.github.io/voicewriter/privacy.html" target="_blank" rel="noopener">Privacy</a>
+          </span>
+        </footer>
+      </main>
+    </div>
+    <script src="common.js"></script>
+    <script src="popup.js"></script>
+  </body>
+</html>

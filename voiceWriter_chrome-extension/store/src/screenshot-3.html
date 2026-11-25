@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <link rel="stylesheet" href="shared.css" />
+    <style>
+      .modes {
+        width: 600px;
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+        flex: none;
+      }
+      .mode {
+        background: rgba(12, 12, 14, 0.92);
+        border: 1px solid #222226;
+        border-radius: 14px;
+        padding: 18px 20px;
+        box-shadow: 0 18px 50px rgba(0, 0, 0, 0.45);
+      }
+      .mode h3 {
+        margin: 0 0 12px;
+        font-size: 18px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+      .mode h3 kbd {
+        font-size: 13px;
+      }
+      .before {
+        color: #8d8d94;
+        font-size: 15px;
+        text-decoration: line-through;
+        text-decoration-color: rgba(214, 72, 108, 0.6);
+        margin-bottom: 6px;
+      }
+      .after {
+        font-size: 16px;
+        line-height: 1.45;
+      }
+      .after::before {
+        content: "→ ";
+        color: var(--brand);
+        font-weight: 700;
+      }
+      .done {
+        align-self: flex-end;
+        margin-top: 2px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="copy">
+      <div class="brand"><img src="../../icons/icon128.png" alt="" />VoiceWriter</div>
+      <h1>Select text.<br /><em>Make it better.</em></h1>
+      <p class="lead">Refine, make it professional or humanize it with one shortcut. The result replaces your selection, and <kbd>Ctrl+Z</kbd> undoes it.</p>
+      <div class="pills">
+        <span class="pill">Keeps names, numbers and links</span>
+        <span class="pill">Right-click menu too</span>
+      </div>
+    </div>
+    <div class="modes">
+      <div class="mode">
+        <h3><kbd>Alt+R</kbd> Refine</h3>
+        <div class="before">their going to review it tomorow, then we can decide what to do next</div>
+        <div class="after">They're going to review it tomorrow; then we can decide what to do next.</div>
+      </div>
+      <div class="mode">
+        <h3><kbd>Alt+P</kbd> Professional</h3>
+        <div class="before">hey can u send me the file tmrw pls, need it for the meeting</div>
+        <div class="after">Hi, could you please send me the file tomorrow? I need it for the meeting.</div>
+      </div>
+      <div class="mode">
+        <h3><kbd>Alt+H</kbd> Humanize</h3>
+        <div class="before">We leverage seamless solutions to delve into your needs.</div>
+        <div class="after">We take the time to understand what you actually need.</div>
+      </div>
+      <div class="toast done"><span class="dot"></span>Professional tone applied · Ctrl+Z to undo</div>
+    </div>
+  </body>
+</html>

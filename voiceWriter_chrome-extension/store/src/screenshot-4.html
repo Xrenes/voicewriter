@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <link rel="stylesheet" href="shared.css" />
+    <style>
+      .browser .content {
+        height: 430px;
+        padding: 0;
+        overflow: hidden;
+        background: #f6f7fb;
+      }
+      .doc {
+        padding: 26px 30px;
+        color: #2b2f36;
+      }
+      .doc h3 {
+        margin: 0 0 10px;
+        font: 600 20px "Segoe UI", sans-serif;
+      }
+      .doc p {
+        margin: 0 0 10px;
+        color: #4a4f57;
+        font-size: 14.5px;
+        line-height: 1.6;
+      }
+      .doc .bar {
+        height: 10px;
+        border-radius: 5px;
+        background: #e3e6ee;
+        margin: 10px 0;
+      }
+      /* The real board style from content.js, at 60% transparency */
+      .live {
+        position: absolute;
+        left: 50px;
+        right: 50px;
+        bottom: 22px;
+        height: 170px;
+        display: flex;
+        flex-direction: column;
+        background: rgba(0, 0, 0, 0.4);
+        color: #fff;
+        border: 1px solid rgba(255, 255, 255, 0.16);
+        border-radius: 10px;
+        overflow: hidden;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+        backdrop-filter: blur(2px);
+        font: 13px/1.4 "Segoe UI", system-ui, sans-serif;
+      }
+      .live .lbar {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 6px 6px 6px 12px;
+      }
+      .live .state {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 11px;
+        font-weight: 600;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: rgba(255, 255, 255, 0.9);
+        text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
+        flex: 1;
+      }
+      .live .dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: #d6486c;
+      }
+      .live .tools {
+        display: inline-flex;
+        gap: 2px;
+      }
+      .live .tools span {
+        background: rgba(0, 0, 0, 0.25);
+        color: rgba(255, 255, 255, 0.85);
+        font-size: 12px;
+        padding: 5px 8px;
+        border-radius: 6px;
+      }
+      .live .feed {
+        padding: 2px 14px 12px;
+        font-size: 18px;
+        line-height: 1.4;
+      }
+      .live .feed p {
+        margin: 0 0 0.45em;
+        text-shadow: 0 1px 2px rgba(0, 0, 0, 0.95), 0 0 6px rgba(0, 0, 0, 0.6);
+      }
+      .copied {
+        position: absolute;
+        right: 64px;
+        bottom: 204px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="copy">
+      <div class="brand"><img src="../../icons/icon128.png" alt="" />VoiceWriter</div>
+      <h1>Press <kbd>Alt+A</kbd>.<br /><em>Say it,</em> then<br />paste it anywhere.</h1>
+      <p class="lead">Open the see-through board on any tab and hold <kbd>Alt+C</kbd> to talk. Your words go on the board and are copied, ready to paste into email, chat, your CRM or any desktop app.</p>
+      <div class="pills">
+        <span class="pill">Follows you between tabs</span>
+        <span class="pill">Drag · resize · copy</span>
+      </div>
+    </div>
+    <div class="browser">
+      <div class="bar"><i></i><i></i><i></i><span class="url">crm.example.com/contacts/sarah-chen</span><img class="ext" src="../../icons/icon32.png" alt="" /></div>
+      <div class="content">
+        <div class="doc">
+          <h3>Sarah Chen · Brightline Freight</h3>
+          <p>Last contact: proposal sent on Tuesday. Follow up about the Q3 rollout and the pricing tiers.</p>
+          <div class="bar" style="width: 92%"></div>
+          <div class="bar" style="width: 78%"></div>
+          <div class="bar" style="width: 85%"></div>
+          <div class="bar" style="width: 60%"></div>
+        </div>
+        <div class="toast copied">
+          <svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="7.5" fill="#3ecf8e" /><path d="M4.6 8.3l2.2 2.2 4.6-4.8" fill="none" stroke="#06140d" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" /></svg>
+          Added to the board and copied
+        </div>
+        <div class="live">
+          <div class="lbar">
+            <span class="state"><i class="dot"></i>Board</span>
+            <span class="tools"><span>A−</span><span>A+</span><span>Clear</span><span>Copy</span><span>✕</span></span>
+          </div>
+          <div class="feed">
+            <p>Called Sarah: she's happy with the proposal and wants the Q3 rollout to start in July.</p>
+            <p>Send her the pricing tiers for 40 seats by Thursday.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>

@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>SayIt test · VoiceWriter</title>
+    <link rel="icon" href="icons/icon32.png" />
+    <link rel="stylesheet" href="popup.css" />
+    <link rel="stylesheet" href="welcome.css" />
+    <!-- The same in-page engine the dialers get, so this page behaves like a call. -->
+    <script src="sayit-inject.js"></script>
+  </head>
+  <body class="welcome">
+    <main class="wrap">
+      <header class="hero">
+        <img class="hero-logo" src="icons/icon128.png" alt="" width="64" height="64" />
+        <h1>SayIt test</h1>
+        <p>This page acts like a call, so you can hear exactly what the other side would get.</p>
+      </header>
+
+      <section class="card step">
+        <div class="step-head"><span class="num">1</span><h2>Start a test call</h2></div>
+        <p class="small">Press <strong>Start test</strong>, say something, then press <kbd id="hotkey">Alt+L</kbd> to play your saved message (press it again to stop early). Then press <strong>Stop test</strong>.</p>
+        <div class="row key-actions">
+          <button class="primary" id="testStart">Start test</button>
+          <button class="ghost" id="testStop" hidden>Stop test</button>
+        </div>
+        <p class="hint" id="testState"></p>
+      </section>
+
+      <section class="card step">
+        <div class="step-head"><span class="num">2</span><h2>Listen</h2></div>
+        <p class="small">After you stop, this is exactly what the call heard: your voice, then your message, with your microphone muted while it played (if that's on in Settings).</p>
+        <audio id="testPlayer" controls hidden></audio>
+      </section>
+
+      <section class="card step">
+        <div class="step-head"><span class="num">i</span><h2>Good to know</h2></div>
+        <ul class="small">
+          <li>The SayIt key works on any web page in Chrome: the message plays on your connected call, wherever it is (another tab, a calling window). Nothing shows on screen.</li>
+          <li>During a call, the VoiceWriter window's SayIt card shows where the call was found.</li>
+          <li>Another dialer (a white-label GHL, a mic-test site)? Open it, then VoiceWriter → Settings → SayIt → <strong>+ Add</strong> it.</li>
+          <li>If the separate SayIt extension or VoiceWriter's desktop SayIt also uses the same key, remove one or change its key.</li>
+        </ul>
+      </section>
+      <p class="hint err" id="error" hidden></p>
+    </main>
+    <script src="common.js"></script>
+    <script src="sayit-relay.js"></script>
+    <script src="sayit-test.js"></script>
+  </body>
+</html>

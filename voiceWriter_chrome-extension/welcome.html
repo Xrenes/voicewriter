@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Welcome to VoiceWriter</title>
+    <link rel="icon" href="icons/icon32.png" />
+    <link rel="stylesheet" href="popup.css" />
+    <link rel="stylesheet" href="welcome.css" />
+  </head>
+  <body class="welcome">
+    <main class="wrap">
+      <header class="hero">
+        <img class="hero-logo" src="icons/icon128.png" alt="" width="72" height="72" />
+        <h1>Welcome to VoiceWriter</h1>
+        <p>Drop your voicemail into calls, dictate, listen and polish your writing on any website. The speech and writing tools use your own free Groq API key.</p>
+      </header>
+
+      <section class="card step" id="stepKey">
+        <div class="step-head"><span class="num">1</span><h2>Add your Groq API key</h2><span class="keyval" id="keyState">Not set</span></div>
+        <ol class="small">
+          <li>Open <a href="https://console.groq.com/keys" target="_blank" rel="noopener">console.groq.com/keys</a> and sign up (free, no card required).</li>
+          <li>Click "Create API Key", give it any name, and copy the key (it starts with <span class="mono">gsk_</span>).</li>
+          <li>Paste it here and click Save.</li>
+        </ol>
+        <div class="row key-edit">
+          <input id="keyInput" type="password" placeholder="gsk_..." spellcheck="false" autocomplete="off" />
+          <button class="primary" id="keySave">Save</button>
+        </div>
+        <p class="hint" id="keyHint">Your key is stored only in this browser and is sent only to Groq.</p>
+      </section>
+
+      <section class="card step" id="stepMic">
+        <div class="step-head"><span class="num">2</span><h2>Allow the microphone</h2><span class="keyval" id="micState">Checking…</span></div>
+        <p class="small">Chrome asks once. After that, dictation and SayIt recording work everywhere without asking again.</p>
+        <div class="row key-actions">
+          <button class="primary" id="micBtn">Allow microphone</button>
+          <button class="ghost" id="micSettings" hidden>Open microphone settings</button>
+        </div>
+        <p class="hint" id="micHint"></p>
+      </section>
+
+      <section class="card step" id="stepTry">
+        <div class="step-head"><span class="num">3</span><h2>Try it here</h2></div>
+        <textarea id="practice" placeholder="Click here, hold the dictation key and say something. Then select some text and try the other shortcuts."></textarea>
+        <table class="keys">
+          <tr><td><kbd data-key="dictate">Alt+C</kbd></td><td><strong>Dictate.</strong> Hold while you speak, release to type it.</td></tr>
+          <tr><td><kbd data-key="live">Alt+A</kbd></td><td><strong>Board.</strong> Opens a see-through board. While it's open, what you dictate goes on the board (and to the clipboard) instead of the page, ready to paste into any app. Press again to close.</td></tr>
+          <tr><td><kbd data-key="speak">Control+Alt+C</kbd></td><td><strong>Read aloud.</strong> Reads the selected text, a clicked cell in Google Sheets or Excel, or the text box you're in. Press again to stop.</td></tr>
+          <tr><td><kbd data-key="refine">Alt+R</kbd></td><td><strong>Refine.</strong> Fixes spelling, grammar and structure.</td></tr>
+          <tr><td><kbd data-key="professional">Alt+P</kbd></td><td><strong>Professional.</strong> Turns a draft into a polished reply.</td></tr>
+          <tr><td><kbd data-key="humanize">Alt+H</kbd></td><td><strong>Humanize.</strong> Makes stiff text read naturally.</td></tr>
+        </table>
+        <p class="hint dim">Change any shortcut in the VoiceWriter window → Hotkeys.</p>
+      </section>
+
+      <section class="card step" id="stepSayit">
+        <div class="step-head"><span class="num">4</span><h2>SayIt: your voicemail on one key</h2></div>
+        <ol class="small">
+          <li>Click the VoiceWriter icon in the toolbar. In the <strong>SayIt</strong> card at the top, click <strong>Record</strong>, say your voicemail, click <strong>Stop</strong>, listen with <strong>Play</strong>, then <strong>Save</strong>.</li>
+          <li>During a call on Aloware, GoHighLevel or HubSpot, when the voicemail beeps, press <kbd id="sayitKey">Alt+L</kbd> on any page in Chrome. Your message plays on the call, and you hear it in your headset too. Press it again to stop.</li>
+          <li>Another dialer? Open it, then VoiceWriter → Settings → SayIt → <strong>+ Add</strong> it.</li>
+        </ol>
+      </section>
+
+      <section class="card step" id="stepPin">
+        <div class="step-head"><span class="num">5</span><h2>Keep it handy</h2></div>
+        <ul class="small">
+          <li>Click the puzzle-piece icon in Chrome's toolbar and pin <strong>VoiceWriter</strong>. Click it any time for SayIt, Read aloud and Settings.</li>
+          <li>VoiceWriter starts working in the tabs you already have open, with no reload. A call that was already going when you installed it gets SayIt from the next call on.</li>
+          <li>Chrome doesn't let extensions into its own pages (such as <span class="mono">chrome://</span> pages and the new tab page) or the Chrome Web Store. There, <kbd data-key="live">Alt+A</kbd> opens the board in a small window instead.</li>
+        </ul>
+      </section>
+
+      <footer class="foot">
+        <span class="build" id="version"></span>
+        <span class="foot-links">
+          <a href="https://xrenes.github.io/voicewriter/" target="_blank" rel="noopener">Website</a>
+          <a href="https://xrenes.github.io/voicewriter/privacy.html" target="_blank" rel="noopener">Privacy</a>
+        </span>
+      </footer>
+    </main>
+    <script src="common.js"></script>
+    <script src="welcome.js"></script>
+    <script src="content.js"></script>
+  </body>
+</html>

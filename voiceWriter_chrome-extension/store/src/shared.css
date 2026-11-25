@@ -1,0 +1,161 @@
+/* Shared styles for the Chrome Web Store images (rendered by build-assets.mjs). */
+:root {
+  --brand: #d6486c;
+  --accent: #b23859;
+  --text: #f2f2f3;
+  --muted: #9a9aa0;
+}
+* {
+  box-sizing: border-box;
+}
+html,
+body {
+  margin: 0;
+  padding: 0;
+}
+body {
+  width: 1280px;
+  height: 800px;
+  overflow: hidden;
+  background:
+    radial-gradient(900px 600px at 85% 20%, rgba(214, 72, 108, 0.22), transparent 60%),
+    radial-gradient(700px 500px at 0% 100%, rgba(178, 56, 89, 0.18), transparent 60%),
+    #050506;
+  color: var(--text);
+  font-family: "Segoe UI", system-ui, -apple-system, Roboto, sans-serif;
+  display: flex;
+  align-items: center;
+  padding: 0 80px;
+  gap: 70px;
+}
+.copy {
+  flex: 1;
+  min-width: 0;
+}
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 20px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  margin-bottom: 34px;
+}
+.brand img {
+  width: 44px;
+  height: 44px;
+}
+h1 {
+  font-size: 54px;
+  line-height: 1.08;
+  margin: 0 0 22px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+h1 em {
+  font-style: normal;
+  color: var(--brand);
+}
+p.lead {
+  font-size: 21px;
+  line-height: 1.5;
+  color: var(--muted);
+  margin: 0;
+  max-width: 560px;
+}
+kbd {
+  font-family: "Cascadia Code", Consolas, ui-monospace, monospace;
+  font-size: 0.82em;
+  padding: 2px 8px;
+  border-radius: 6px;
+  border: 1px solid #3a3a40;
+  border-bottom-width: 3px;
+  background: #121214;
+  color: var(--text);
+  white-space: nowrap;
+}
+.pills {
+  display: flex;
+  gap: 10px;
+  margin-top: 30px;
+  flex-wrap: wrap;
+}
+.pill {
+  font-size: 15px;
+  padding: 7px 14px;
+  border-radius: 999px;
+  border: 1px solid #2c2c31;
+  background: rgba(255, 255, 255, 0.03);
+  color: #d8d8dc;
+}
+
+/* The real on-page toast style from content.js */
+.toast {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 12px;
+  border-radius: 12px;
+  background: rgba(0, 0, 0, 0.86);
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
+  font: 12.5px/1.35 "Segoe UI", system-ui, sans-serif;
+  white-space: nowrap;
+}
+.toast .dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #3ecf8e;
+  flex: none;
+}
+.toast svg {
+  width: 15px;
+  height: 15px;
+  flex: none;
+}
+
+/* A simple light browser window for page mock-ups */
+.browser {
+  width: 640px;
+  border-radius: 14px;
+  overflow: hidden;
+  background: #fff;
+  color: #1f2328;
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(255, 255, 255, 0.06);
+  flex: none;
+}
+.browser .bar {
+  height: 40px;
+  background: #ececef;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 14px;
+}
+.browser .bar i {
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  background: #cfcfd4;
+}
+.browser .bar .url {
+  margin-left: 12px;
+  flex: 1;
+  height: 24px;
+  border-radius: 12px;
+  background: #fff;
+  font: 12px/24px "Segoe UI", sans-serif;
+  color: #8a8a90;
+  padding: 0 12px;
+}
+.browser .bar .ext {
+  width: 22px;
+  height: 22px;
+}
+.browser .content {
+  padding: 26px 28px 30px;
+  position: relative;
+  font: 15px/1.5 "Segoe UI", sans-serif;
+}
