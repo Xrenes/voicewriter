@@ -84,7 +84,7 @@
   function status(force) {
     if (!covered) return;
     const live = liveCalls().length;
-    const st = { calls: calls.size, live, playing: !!current, ready: !!clip, newestCallAt, liveAt, where };
+    const st = { calls: calls.size, live, playing: !!current, ready: !!clip, clipSecs: clip ? span[1] : 0, newestCallAt, liveAt, where };
     const key = JSON.stringify(st);
     if (!force && key === lastStatus) return;
     lastStatus = key;
@@ -518,7 +518,7 @@
 
   // For tests and troubleshooting.
   Object.defineProperty(window, "__vwSayitStatus", {
-    value: () => ({ covered, call: calls.size > 0, live: liveCalls().length > 0, playing: !!current, ready: !!clip, ownNoiseCancel, altKeysClaimed, sink: ctx ? ctx.sinkId : sinkId }),
+    value: () => ({ covered, call: calls.size > 0, live: liveCalls().length > 0, playing: !!current, ready: !!clip, clipSecs: clip ? span[1] : 0, ownNoiseCancel, altKeysClaimed, sink: ctx ? ctx.sinkId : sinkId }),
   });
 
   report("ready");

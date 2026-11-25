@@ -49,15 +49,24 @@
             </div>
             <kbd id="sayitKey" title="Plays your message on the call. Press again to stop.">Alt+L</kbd>
           </div>
-          <p class="sayit-state" id="sayitState">Loading…</p>
+          <ul class="msglist" id="sayitList" aria-label="Saved messages"></ul>
+          <p class="hint" id="sayitEmpty" hidden>No messages yet. Record one, or upload voicemail files (MP3, WAV, WebM, OGG, M4A), one per project if you like.</p>
           <div class="row key-actions wrap">
             <button class="primary" id="sayitRecord">● Record</button>
-            <button class="ghost" id="sayitListen" hidden>▶ Play</button>
-            <button class="primary" id="sayitSave" hidden>Save</button>
-            <button class="ghost" id="sayitDiscard" hidden>Discard</button>
-            <button class="ghost danger" id="sayitRemove" hidden>Delete</button>
+            <button class="ghost" id="sayitUpload">Upload audio…</button>
+            <input type="file" id="sayitFile" multiple hidden accept="audio/*,.mp3,.wav,.webm,.ogg,.oga,.opus,.m4a,.aac,.flac" />
           </div>
-          <button class="ghost wide" id="sayitPlayCall" hidden>Play into the call now</button>
+          <div class="take" id="sayitTake" hidden>
+            <p class="sayit-state" id="sayitState"></p>
+            <div class="row takerow" id="sayitTakeRow">
+              <input type="text" id="sayitTakeName" maxlength="60" spellcheck="false" aria-label="Name for the new recording" />
+              <button class="ghost" id="sayitListen" title="Listen">▶</button>
+              <button class="primary" id="sayitSave">Save</button>
+              <button class="ghost" id="sayitDiscard">Discard</button>
+            </div>
+          </div>
+          <button class="ghost wide oneline" id="sayitPlayCall" hidden>Play into the call now</button>
+          <p class="hint ok" id="sayitNote" hidden></p>
           <p class="callstate" id="sayitCall" hidden></p>
           <p class="hint" id="sayitHint"></p>
           <button class="primary wide" id="sayitAllowMic" hidden>Allow microphone access…</button>
@@ -119,7 +128,7 @@
                   <button class="ghost" data-change="sayit">Change</button>
                 </div>
               </div>
-              <p class="hint dim">During a call, press it on any page in Chrome: your saved message plays on the call wherever it is. Press again to stop.</p>
+              <p class="hint dim">During a call, press it on any page in Chrome: the selected message plays on the call wherever it is. Press again to stop.</p>
 
               <div class="row">
                 <label>Dictate</label>

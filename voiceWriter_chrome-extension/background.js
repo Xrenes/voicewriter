@@ -868,6 +868,8 @@ chrome.runtime.onInstalled.addListener(({ reason }) => {
   if (reason === "install" || reason === "update") injectIntoOpenTabs();
   // The voice enhancer (1.3–1.4) was removed: drop its saved settings.
   if (reason === "update") chrome.storage.local.remove("voiceFx").catch(() => {});
+  // Up to 1.5 SayIt kept one message; it now keeps a list ("My message" first).
+  VW.SAYIT.migrate().catch(() => {});
   if (reason === "install") chrome.tabs.create({ url: chrome.runtime.getURL("welcome.html") });
 });
 

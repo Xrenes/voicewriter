@@ -15,9 +15,13 @@
   let stream = null;
   $("testStart").onclick = async () => {
     showError("");
-    const { sayitMessage } = await chrome.storage.local.get("sayitMessage");
-    if (!sayitMessage) {
-      showError("Record and save a message in the VoiceWriter window's SayIt card first.");
+    const lib = await VW.SAYIT.library();
+    if (!lib.activeId) {
+      showError(
+        lib.messages.length
+          ? "Pick the message calls get in the VoiceWriter window's SayIt card first."
+          : "Record or upload a message in the VoiceWriter window's SayIt card first.",
+      );
       return;
     }
     try {
@@ -53,7 +57,7 @@
     playing: "Playing your message…",
     done: "Message finished.",
     stopped: "Message stopped.",
-    "no-message": "No message saved yet.",
+    "no-message": "No message to play. Record, upload or pick one in the SayIt card.",
     "no-call": "Press Start test first.",
   };
   window.addEventListener("message", (e) => {

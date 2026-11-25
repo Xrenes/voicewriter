@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "VoiceWriter",
   "short_name": "VoiceWriter",
-  "version": "1.5.1",
+  "version": "1.6.0",
   "description": "Voicemail drop for web dialers (Alt+L), dictation, a copy board, read aloud and one-key rewrites on any site. Uses Groq.",
   "homepage_url": "https://xrenes.github.io/voicewriter/",
   "minimum_chrome_version": "119",

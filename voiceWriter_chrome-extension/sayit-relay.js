@@ -39,19 +39,24 @@
   async function sendClip() {
     if (!alive()) return;
     clipSent = true;
-    const { sayitMessage } = await chrome.storage.local.get("sayitMessage");
-    if (!sayitMessage) return toPage({ __vwsayit: "clear" });
-    const bytes = S.base64ToBuffer(sayitMessage.data);
+    activeId = (await S.library()).activeId;
+    const message = await S.audioOf(activeId);
+    if (!message) return toPage({ __vwsayit: "clear" });
+    const bytes = S.base64ToBuffer(message.data);
     toPage({ __vwsayit: "clip", bytes }, [bytes]);
   }
+  let activeId = ""; // the message this page has
 
   // Only pages where the microphone runs follow changes live (the saved
   // message is large); the others re-read the settings when you come back.
   let watching = false;
-  function onStorage(changes, area) {
+  async function onStorage(changes, area) {
     if (area !== "local" || !alive()) return;
     if (changes.sayit) loadSettings();
-    if (changes.sayitMessage) sendClip();
+    // Another message picked, or the picked one replaced / moved over.
+    if (changes.sayitActiveId || changes.sayitMessage || (activeId && changes[S.audioKey(activeId)])) return sendClip();
+    // A changed list can change which one plays (a lone message always does).
+    if (changes.sayitMessages && (await S.library()).activeId !== activeId) sendClip();
   }
   function watchStorage() {
     if (watching) return;

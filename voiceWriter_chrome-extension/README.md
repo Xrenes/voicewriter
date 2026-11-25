@@ -4,7 +4,7 @@ The browser version of VoiceWriter, with **SayIt** built in. It needs Chrome 119
 
 | Feature | Default shortcut |
 |---|---|
-| **SayIt**: play your recorded voicemail into a web-dialer call (Aloware, GoHighLevel, HubSpot, sites you add). Press again to stop. The recording (raw mic, no Chrome noise removal) is cleaned up after you stop it: rumble and boom out, the room turned down between words only (never inside your voice, which is what sounds metallic), a little clarity, 48 kHz. Settings → SayIt → **My headset already cancels noise** also turns Chrome's noise removal off on dialer calls. | `Alt+L` |
+| **SayIt**: keep several voicemails (one per project, say), recorded here or uploaded as MP3, WAV, WebM, OGG or M4A files (several at once), click the one calls should get, and play it into a web-dialer call (Aloware, GoHighLevel, HubSpot, sites you add). Press again to stop. The recording (raw mic, no Chrome noise removal) is cleaned up after you stop it: rumble and boom out, the room turned down between words only (never inside your voice, which is what sounds metallic), a little clarity, 48 kHz. Settings → SayIt → **My headset already cancels noise** also turns Chrome's noise removal off on dialer calls. | `Alt+L` |
 | **Dictate**: hold, speak, release, and the text is typed into the focused field | Hold `Alt+C` |
 | **Board**: a see-through black board (60% transparent by default). While it's open, what you dictate goes on the board and to the clipboard instead of the page, ready to paste into any app. Press again to close. | `Alt+A` |
 | **Read aloud**: read what's selected aloud (press again to stop) | `Control+Alt+C` |
@@ -31,7 +31,7 @@ VoiceWriter adds itself to tabs that are already open when it's installed or upd
 1. Open `chrome://extensions` and turn on **Developer mode**.
 2. Click **Load unpacked** and pick this `chrome-extension` folder.
 3. The welcome page opens. Paste a Groq API key ([console.groq.com/keys](https://console.groq.com/keys)) and click **Allow microphone**.
-4. For SayIt, click the VoiceWriter icon. In the SayIt card, click **Record**, say your voicemail, click **Stop**, then **Save**. Settings → SayIt → **Test it** plays it into a pretend call so you can hear what the other side gets.
+4. For SayIt, click the VoiceWriter icon. In the SayIt card, click **Record**, say your voicemail, click **Stop**, name it and click **Save**, or click **Upload audio…** to add voicemail files. Click a message to make it the one that plays; ▶ listens, ✎ renames, ✕ deletes (click twice). Updating from 1.5 keeps your message as **My message**. (On Mac and Linux, Upload first opens the window in a tab, because Chrome closes the popup when a file picker opens.) Settings → SayIt → **Test it** plays it into a pretend call so you can hear what the other side gets.
 
 After editing the code, click the reload icon on the extension's card in `chrome://extensions`. Open tabs pick up the new version by themselves (dialer tabs need one reload for SayIt's call microphone).
 

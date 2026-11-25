@@ -227,6 +227,111 @@ a:hover {
 .row.wrap {
   flex-wrap: wrap;
 }
+/* SayIt's saved messages */
+.msglist {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 210px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: #3a3a40 transparent;
+}
+.msglist:empty {
+  display: none;
+}
+.msg {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 3px 3px 3px 8px;
+  border: 1px solid var(--card-border);
+  border-radius: 8px;
+  cursor: pointer;
+}
+.msg:hover {
+  border-color: #2c2c30;
+}
+.msg.on {
+  border-color: var(--accent);
+  background: #160a0e;
+}
+.msg button.pick {
+  flex: none;
+  width: 14px;
+  height: 14px;
+  min-width: 0;
+  margin-right: 6px;
+  padding: 0;
+  border-radius: 50%;
+  border: 1.5px solid #5a5a60;
+  background: none;
+}
+.msg.on button.pick {
+  border-color: var(--accent);
+  background: radial-gradient(circle, var(--accent) 0 3px, transparent 3.5px);
+}
+.msg .name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.msg.on .name {
+  font-weight: 600;
+}
+.msg .dur {
+  flex: none;
+  margin: 0 3px;
+  font-size: 11.5px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.msg button.icon {
+  flex: none;
+  min-width: 24px;
+  padding: 2px 5px;
+  border-radius: 6px;
+  background: none;
+  border: 1px solid transparent;
+  color: var(--muted);
+}
+.msg button.icon:hover {
+  color: var(--text);
+  border-color: #2c2c30;
+}
+.msg button.icon.armed {
+  color: var(--rec);
+  border-color: #6b2235;
+}
+.msg input.rename,
+.takerow input[type="text"] {
+  flex: 1;
+  min-width: 0;
+}
+.take {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px;
+  border: 1px dashed #2c2c30;
+  border-radius: 8px;
+}
+.takerow {
+  flex-wrap: nowrap;
+}
+button.oneline {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.hint.ok {
+  color: var(--ok);
+}
 button.wide {
   width: 100%;
 }

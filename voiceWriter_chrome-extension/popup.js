@@ -78,50 +78,364 @@ function renderStatus() {
 }
 
 // ---------------------------------------------------------------- SayIt
+// Several saved messages (one per project, say), recorded here or uploaded;
+// the selected one is what the hotkey plays.
 
-let saved = null; // { data (base64 WAV), type, secs }
+let lib = { messages: [], activeId: "" };
 let take = null; // { wav: Uint8Array, secs }: recorded, not saved yet
 let recorder = null;
 let recStartedAt = 0;
 let recTick = 0;
+let listening = null; // what the player plays: a message id, or "take"
+let takeUrl = null;
+let renaming = null; // the message whose name is being edited
+let armedDelete = null; // the message whose delete button asks "Delete?"
+let armTimer = 0;
+let uploading = false;
+let rebuilding = false; // the list is being rebuilt (that blurs a rename box)
+let callPlaying = false;
+let platform = "win";
 
+const MAX_NAME = 60;
 const clock = (s) => {
-  const t = Math.round(s);
+  const t = Math.max(0, Math.round(s));
   return `${Math.floor(t / 60)}:${String(t % 60).padStart(2, "0")}`;
 };
-const sayitError = (e) => showMsg($("sayitError"), e ? String(e) : "");
+const errText = (e) => (e && e.message ? e.message : String(e));
+const sayitError = (e) => showMsg($("sayitError"), e ? errText(e) : "");
+const sayitNote = (t) => showMsg($("sayitNote"), t || "");
+const activeEntry = () => lib.messages.find((m) => m.id === lib.activeId);
+
+async function reloadLibrary() {
+  lib = await S.library();
+  renderSayit();
+}
+
+// ---- Names ----
+const cleanName = (raw) =>
+  String(raw || "")
+    .replace(/[\u0000-\u001f\u007f]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, MAX_NAME)
+    .trim();
+const nameTaken = (list, name, exceptId) => list.some((m) => m.id !== exceptId && m.name.toLowerCase() === name.toLowerCase());
+function defaultName(list) {
+  for (let n = list.length + 1; ; n++) if (!nameTaken(list, `Message ${n}`)) return `Message ${n}`;
+}
+function uniqueName(list, raw, exceptId) {
+  const base = cleanName(raw);
+  if (!base) return defaultName(list);
+  if (!nameTaken(list, base, exceptId)) return base;
+  for (let i = 2; ; i++) if (!nameTaken(list, `${base} (${i})`, exceptId)) return `${base} (${i})`;
+}
+
+// ---- Changes to the list, one at a time ----
+let queue = Promise.resolve();
+function change(fn) {
+  const run = queue.then(async () => {
+    await S.migrate();
+    return fn(await S.library());
+  });
+  queue = run.catch(() => {});
+  return run;
+}
+const newId = (list) => {
+  for (;;) {
+    const id = `m${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
+    if (!list.some((m) => m.id === id)) return id;
+  }
+};
+// A new message plays only if none was picked.
+const addMessage = (name, t) =>
+  change(async (l) => {
+    const id = newId(l.messages);
+    const entry = { id, name: uniqueName(l.messages, name), secs: t.secs, added: Date.now() };
+    await chrome.storage.local.set({
+      [S.audioKey(id)]: { data: bytesToBase64(t.wav), type: "audio/wav" },
+      sayitMessages: [...l.messages, entry],
+      sayitActiveId: l.activeId || id,
+    });
+    return entry;
+  });
+const selectMessage = (id) =>
+  change(async (l) => {
+    if (!l.messages.some((m) => m.id === id)) throw new Error("that message no longer exists");
+    await chrome.storage.local.set({ sayitActiveId: id });
+  });
+const renameMessage = (id, raw) =>
+  change(async (l) => {
+    if (!cleanName(raw)) throw new Error("give the message a name");
+    const name = uniqueName(l.messages, raw, id);
+    await chrome.storage.local.set({ sayitMessages: l.messages.map((m) => (m.id === id ? { ...m, name } : m)) });
+  });
+// Deleting the one that plays leaves none picked (so a call never gets a
+// message you didn't choose), unless a single message is left.
+const deleteMessage = (id) =>
+  change(async (l) => {
+    const list = l.messages.filter((m) => m.id !== id);
+    if (list.length === l.messages.length) return;
+    let active = l.activeId === id ? "" : l.activeId;
+    if (!active && list.length === 1) active = list[0].id;
+    await chrome.storage.local.set({ sayitMessages: list, sayitActiveId: active });
+    await chrome.storage.local.remove(S.audioKey(id));
+  });
+
+// ---- The list ----
+function el(tag, className, text) {
+  const node = document.createElement(tag);
+  node.className = className;
+  if (text != null) node.textContent = text;
+  return node;
+}
+function iconButton(text, title, onClick) {
+  const b = el("button", "icon", text);
+  b.title = title;
+  b.setAttribute("aria-label", title);
+  b.addEventListener("click", (e) => {
+    e.stopPropagation();
+    onClick();
+  });
+  return b;
+}
+
+function messageRow(m, active) {
+  const li = el("li", active ? "msg on" : "msg");
+  li.title = active ? "Calls get this message" : "Click to use this message for calls";
+  li.addEventListener("click", () => pick(m.id));
+  const dot = el("button", "pick");
+  dot.setAttribute("aria-pressed", String(active));
+  dot.setAttribute("aria-label", `Use “${m.name}” for calls`);
+  dot.addEventListener("click", (e) => {
+    e.stopPropagation();
+    pick(m.id);
+  });
+  let label;
+  if (renaming === m.id) {
+    label = el("input", "rename");
+    label.type = "text";
+    label.value = m.name;
+    label.maxLength = MAX_NAME;
+    label.spellcheck = false;
+    label.dataset.id = m.id;
+    label.addEventListener("click", (e) => e.stopPropagation());
+    label.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") commitRename(m.id, label.value);
+      else if (e.key === "Escape") {
+        renaming = null;
+        renderSayit();
+      }
+    });
+    label.addEventListener("blur", () => {
+      if (!rebuilding) commitRename(m.id, label.value);
+    });
+  } else {
+    label = el("span", "name", m.name);
+  }
+  const on = listening === m.id;
+  const armed = armedDelete === m.id;
+  const del = iconButton(armed ? "Delete?" : "✕", armed ? "Click again to delete" : "Delete", () => removeMessage(m.id));
+  if (armed) del.classList.add("armed");
+  li.append(
+    dot,
+    label,
+    el("span", "dur", clock(m.secs || 0)),
+    iconButton(on ? "■" : "▶", on ? "Stop" : "Listen", () => toggleListen(m.id)),
+    iconButton("✎", "Rename", () => {
+      renaming = m.id;
+      armedDelete = null;
+      renderSayit();
+    }),
+    del,
+  );
+  return li;
+}
+
+function renderList() {
+  const list = $("sayitList");
+  const open = list.querySelector("input.rename");
+  const typed = open && open.dataset.id === renaming ? { v: open.value, s: open.selectionStart, e: open.selectionEnd } : null;
+  if (renaming && !lib.messages.some((m) => m.id === renaming)) renaming = null;
+  rebuilding = true;
+  try {
+    list.replaceChildren(...lib.messages.map((m) => messageRow(m, m.id === lib.activeId)));
+  } finally {
+    rebuilding = false;
+  }
+  const input = list.querySelector("input.rename");
+  if (input) {
+    if (typed) {
+      input.value = typed.v;
+      input.setSelectionRange(typed.s, typed.e);
+    } else input.select();
+    input.focus();
+  }
+}
+
+function renderClock() {
+  $("sayitState").textContent = `● Recording ${clock((Date.now() - recStartedAt) / 1000)}: say your message`;
+}
 
 function renderSayit() {
+  renderList();
   const recording = !!recorder;
-  const state = $("sayitState");
-  if (recording) state.textContent = `● Recording ${clock((Date.now() - recStartedAt) / 1000)}: say your message`;
-  else if (take) state.textContent = `New recording · ${clock(take.secs)} · not saved yet`;
-  else if (saved) state.textContent = `Saved message · ${clock(saved.secs || 0)}`;
-  else state.textContent = "No message yet. Press Record and say your voicemail.";
-  state.classList.toggle("live", recording);
+  const active = activeEntry();
+  $("sayitEmpty").hidden = lib.messages.length > 0 || recording || !!take;
+  $("sayitTake").hidden = !recording && !take;
+  $("sayitTakeRow").hidden = recording;
+  if (recording) renderClock();
+  else if (take) $("sayitState").textContent = `New recording · ${clock(take.secs)} · name it and save`;
+  $("sayitState").classList.toggle("live", recording);
+  $("sayitListen").textContent = listening === "take" ? "■" : "▶";
 
-  $("sayitRecord").textContent = recording ? "■ Stop" : saved || take ? "● Re-record" : "● Record";
-  $("sayitRecord").className = recording || !(saved || take) ? "primary" : "ghost";
-  $("sayitListen").hidden = recording || (!take && !saved);
-  $("sayitSave").hidden = $("sayitDiscard").hidden = recording || !take;
-  $("sayitRemove").hidden = recording || !!take || !saved;
-  $("sayitPlayCall").hidden = recording || !!take || !saved;
+  $("sayitRecord").textContent = recording ? "■ Stop" : take ? "● Re-record" : "● Record";
+  $("sayitRecord").className = recording || !lib.messages.length ? "primary" : "ghost";
+  $("sayitRecord").disabled = uploading;
+  $("sayitUpload").disabled = uploading || recording;
+  $("sayitUpload").textContent = uploading ? "Adding…" : "Upload audio…";
+
+  $("sayitPlayCall").hidden = recording || (!active && !callPlaying);
+  $("sayitPlayCall").textContent = callPlaying ? "■ Stop playing" : `▶ Play “${active ? active.name : ""}” into the call now`;
   const key = S.combo(sayit.hotkey);
-  $("sayitHint").textContent = saved
-    ? key
-      ? `During a call press ${key} on any page. Press again to stop.`
-      : "Set a SayIt hotkey in Settings → Hotkeys."
-    : "";
+  $("sayitHint").textContent = !lib.messages.length
+    ? ""
+    : !active
+      ? "Click the message calls should get."
+      : key
+        ? `During a call press ${key} on any page to play it. Press again to stop. Click another message to switch.`
+        : "Set a SayIt hotkey in Settings → Hotkeys.";
+}
+
+async function pick(id) {
+  if (id === lib.activeId) return;
+  sayitError("");
+  try {
+    await selectMessage(id);
+  } catch (e) {
+    sayitError(e);
+  }
+  await reloadLibrary();
+}
+
+async function commitRename(id, value) {
+  if (renaming !== id) return; // Enter, then the blur that follows
+  renaming = null;
+  const current = lib.messages.find((m) => m.id === id);
+  if (!current || !value.trim() || value.trim() === current.name) return renderSayit();
+  try {
+    await renameMessage(id, value);
+  } catch (e) {
+    sayitError(e);
+  }
+  await reloadLibrary();
+}
+
+async function removeMessage(id) {
+  if (armedDelete !== id) {
+    armedDelete = id;
+    clearTimeout(armTimer);
+    armTimer = setTimeout(() => {
+      armedDelete = null;
+      renderSayit();
+    }, 3000);
+    return renderSayit();
+  }
+  armedDelete = null;
+  clearTimeout(armTimer);
+  if (listening === id) stopListening();
+  try {
+    await deleteMessage(id);
+  } catch (e) {
+    sayitError(e);
+  }
+  await reloadLibrary();
 }
 
 function stopListening() {
   $("sayitPlayer").pause();
-  $("sayitListen").textContent = "▶ Play";
+  const was = listening;
+  listening = null;
+  if (was) renderSayit();
+}
+
+async function toggleListen(id) {
+  const key = id || "take";
+  if (listening === key) return stopListening();
+  stopListening();
+  const player = $("sayitPlayer");
+  try {
+    if (id) {
+      const audio = await S.audioOf(id);
+      if (!audio) throw new Error("that message's audio is missing. Record or upload it again.");
+      player.src = `data:${audio.type || "audio/wav"};base64,${audio.data}`;
+    } else {
+      if (takeUrl) URL.revokeObjectURL(takeUrl);
+      takeUrl = URL.createObjectURL(new Blob([take.wav], { type: "audio/wav" }));
+      player.src = takeUrl;
+    }
+    await player.play();
+    listening = key;
+    renderSayit();
+  } catch (e) {
+    sayitError(e);
+  }
+}
+
+// An uploaded voicemail (MP3, WAV, WebM, OGG, M4A, FLAC: whatever Chrome
+// plays). It's already produced, so it's only trimmed, faded and leveled,
+// not cleaned up like a recording. 48 kHz mono WAV.
+async function processFile(file) {
+  const RATE = 48000;
+  if (file.size > 50 * 1024 * 1024) throw new Error("it's over 50 MB");
+  let decoded;
+  try {
+    decoded = await new OfflineAudioContext(1, 1, RATE).decodeAudioData(await file.arrayBuffer());
+  } catch {
+    throw new Error("it isn't an audio file SayIt can read (try MP3, WAV, WebM, OGG or M4A)");
+  }
+  if (decoded.duration > 600) throw new Error(`it's ${Math.ceil(decoded.duration / 60)} minutes long; a message can be up to 10`);
+  const mono = new Float32Array(decoded.length);
+  for (let c = 0; c < decoded.numberOfChannels; c++) {
+    const d = decoded.getChannelData(c);
+    for (let i = 0; i < mono.length; i++) mono[i] += d[i] / decoded.numberOfChannels;
+  }
+  const out = trimAndLevel(mono, RATE);
+  let peak = 0;
+  for (const v of out) peak = Math.max(peak, Math.abs(v));
+  if (out.length < RATE * 0.3 || peak < 1e-3) throw new Error("there's no sound in it");
+  return { wav: encodeWav(out, RATE), secs: out.length / RATE };
+}
+
+async function uploadFiles(files) {
+  if (!files.length) return;
+  stopListening();
+  sayitError("");
+  uploading = true;
+  renderSayit();
+  const added = [];
+  const failed = [];
+  for (let i = 0; i < files.length; i++) {
+    const f = files[i];
+    sayitNote(files.length > 1 ? `Adding ${i + 1} of ${files.length}: ${f.name}…` : `Adding ${f.name}…`);
+    try {
+      const entry = await addMessage(f.name.replace(/\.[^.\\/]+$/, ""), await processFile(f));
+      added.push(`“${entry.name}”`);
+    } catch (e) {
+      failed.push(`${f.name} (${errText(e)})`);
+    }
+  }
+  uploading = false;
+  sayitNote(added.length ? `Added ${added.join(", ")}.` : "");
+  sayitError(failed.length ? `Couldn't add ${failed.join("; ")}.` : "");
+  await reloadLibrary();
 }
 
 function bindSayit() {
+  chrome.runtime.getPlatformInfo().then((p) => (platform = p.os), () => {});
+
   $("sayitRecord").onclick = async () => {
     sayitError("");
+    sayitNote("");
     stopListening();
     if (recorder) {
       recorder.stop();
@@ -161,65 +475,68 @@ function bindSayit() {
         take = await processTake(new Blob(chunks, { type }));
       } catch (e) {
         take = null;
-        sayitError(`Couldn't use that recording: ${e.message || e}`);
+        sayitError(`Couldn't use that recording: ${errText(e)}`);
       }
       renderSayit();
+      if (take) {
+        $("sayitTakeName").value = defaultName(lib.messages);
+        $("sayitTakeName").focus();
+        $("sayitTakeName").select();
+      }
     };
     take = null;
     recStartedAt = Date.now();
     recorder.start();
-    recTick = setInterval(renderSayit, 500);
+    recTick = setInterval(renderClock, 500);
     renderSayit();
   };
 
-  $("sayitListen").onclick = () => {
-    const player = $("sayitPlayer");
-    if (!player.paused) {
-      stopListening();
-      return;
-    }
-    player.src = take ? URL.createObjectURL(new Blob([take.wav], { type: "audio/wav" })) : `data:audio/wav;base64,${saved.data}`;
-    player.play();
-    $("sayitListen").textContent = "■ Stop";
-  };
+  $("sayitListen").onclick = () => toggleListen(null);
   $("sayitPlayer").addEventListener("ended", stopListening);
 
-  $("sayitSave").onclick = async () => {
+  const saveTake = async () => {
+    if (!take) return;
     stopListening();
-    saved = { data: bytesToBase64(take.wav), type: "audio/wav", secs: take.secs };
-    await chrome.storage.local.set({ sayitMessage: saved });
-    take = null;
-    renderSayit();
+    try {
+      const entry = await addMessage($("sayitTakeName").value, take);
+      take = null;
+      sayitNote(`Saved “${entry.name}”.`);
+    } catch (e) {
+      sayitError(e);
+    }
+    await reloadLibrary();
   };
-
+  $("sayitSave").onclick = saveTake;
+  $("sayitTakeName").addEventListener("keydown", (e) => {
+    if (e.key === "Enter") saveTake();
+  });
   $("sayitDiscard").onclick = () => {
     stopListening();
     take = null;
     renderSayit();
   };
 
-  let removeArmed = false;
-  $("sayitRemove").onclick = async () => {
-    const btn = $("sayitRemove");
-    if (!removeArmed) {
-      removeArmed = true;
-      btn.textContent = "Sure? Delete";
-      setTimeout(() => {
-        removeArmed = false;
-        btn.textContent = "Delete";
-      }, 3000);
-      return;
-    }
-    removeArmed = false;
-    btn.textContent = "Delete";
-    stopListening();
-    await chrome.storage.local.remove("sayitMessage");
-    saved = null;
-    renderSayit();
+  // On Windows the file picker opens over the popup. Elsewhere Chrome closes
+  // the popup when a picker opens, so the same window opens in a tab first.
+  $("sayitUpload").onclick = () => {
+    sayitError("");
+    sayitNote("");
+    if (inTab || platform === "win") $("sayitFile").click();
+    else chrome.tabs.create({ url: chrome.runtime.getURL("popup.html#sayit-upload") });
+  };
+  $("sayitFile").onchange = () => {
+    const files = Array.from($("sayitFile").files || []);
+    $("sayitFile").value = ""; // picking the same file again still counts
+    uploadFiles(files);
   };
 
   $("sayitPlayCall").onclick = () => chrome.runtime.sendMessage({ sayit: "toggle-calls" }).catch(() => {});
   $("sayitAllowMic").onclick = () => chrome.tabs.create({ url: chrome.runtime.getURL("welcome.html#microphone") });
+
+  // Changes from another VoiceWriter window.
+  chrome.storage.onChanged.addListener((changes, area) => {
+    if (area === "local" && (changes.sayitMessages || changes.sayitActiveId || changes.sayitMessage)) reloadLibrary();
+  });
 }
 
 // Mono, cleaned up (cleanTake), trimmed of the silence around it (so it
@@ -396,14 +713,20 @@ async function renderCall() {
   const live = list.find((f) => f.live > 0);
   let text = "";
   let ok = false;
-  if (playing) [text, ok] = [`Playing your message · ${placeOf(playing.where)}`, true];
+  const active = activeEntry();
+  const what = active ? `“${active.name}”` : "your message";
+  if (playing) [text, ok] = [`Playing ${what} · ${placeOf(playing.where)}`, true];
   else if (live) [text, ok] = [`Live call found: ${key} plays it · ${placeOf(live.where)}`, true];
   else if (list.length) text = `Microphone found, no connected call yet · ${placeOf(list[0].where)}`;
-  else if (saved) text = "No call found yet. Start a call, then look here.";
-  const el = $("sayitCall");
-  el.textContent = text;
-  el.className = `callstate${ok ? " ok" : ""}`;
-  el.hidden = !text;
+  else if (lib.messages.length) text = "No call found yet. Start a call, then look here.";
+  const line = $("sayitCall");
+  line.textContent = text;
+  line.className = `callstate${ok ? " ok" : ""}`;
+  line.hidden = !text;
+  if (!!playing !== callPlaying) {
+    callPlaying = !!playing;
+    renderSayit();
+  }
 }
 
 // ---- SayIt settings ----
@@ -941,7 +1264,8 @@ async function init() {
   document.documentElement.classList.toggle("in-tab", inTab);
   settings = await VW.loadSettings();
   sayit = await S.settings();
-  ({ sayitMessage: saved = null } = await chrome.storage.local.get("sayitMessage"));
+  await S.migrate().catch(() => {});
+  lib = await S.library();
   status = (await chrome.storage.session.get("vwStatus")).vwStatus || { mode: "idle" };
   liveState = (await chrome.storage.session.get("vwLive")).vwLive || { active: false };
   $("version").textContent = `v${chrome.runtime.getManifest().version}`;
