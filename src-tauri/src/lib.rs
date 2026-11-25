@@ -24,6 +24,7 @@ mod model;
 mod record;
 mod refine;
 mod sayit;
+mod sayit_library;
 mod settings;
 mod speak;
 mod transcribe;
@@ -224,6 +225,8 @@ pub struct AppState {
     sayit_mic: audio::Recorder,
     /// A recorded but not yet saved SayIt take (16 kHz mono).
     sayit_take: Mutex<Option<Vec<f32>>>,
+    /// Held while SayIt's message list changes, so changes don't overlap.
+    sayit_lock: Mutex<()>,
 }
 
 impl AppState {
@@ -250,6 +253,7 @@ impl AppState {
             sayit: sayit::SayIt::spawn(),
             sayit_mic: audio::Recorder::spawn(audio::Source::Mic),
             sayit_take: Mutex::new(None),
+            sayit_lock: Mutex::new(()),
         }
     }
 
@@ -1991,28 +1995,37 @@ fn set_sayit_recorder_hotkey(app: AppHandle<Wry>, hotkey: String) -> bool {
 }
 
 // ---------------------------------------------------------------------------
-// SayIt — record a message once, then play it into calls with a hotkey
+// SayIt — save messages (recorded or uploaded, one per project, say), pick
+// one, and play it into calls with a hotkey
 // ---------------------------------------------------------------------------
 
+/// Recordings are taken at the dictation rate.
 const SAYIT_RATE: u32 = audio::TARGET_SR;
+/// Longest message that can be uploaded.
+const SAYIT_MAX_UPLOAD_SECS: f64 = 10.0 * 60.0;
 
-fn sayit_file(app: &AppHandle<Wry>) -> anyhow::Result<PathBuf> {
-    let dir = app.path().app_data_dir()?.join("sayit");
-    std::fs::create_dir_all(&dir)?;
-    Ok(dir.join("message.wav"))
+fn sayit_store(app: &AppHandle<Wry>) -> anyhow::Result<sayit_library::Store> {
+    sayit_library::Store::open(app.path().app_data_dir()?.join("sayit"))
 }
 
-fn read_sayit_message(app: &AppHandle<Wry>) -> anyhow::Result<Option<Vec<f32>>> {
-    let path = sayit_file(app)?;
-    if !path.exists() {
-        return Ok(None);
+/// How to reach the SayIt window, for hints: its hotkey, or the wheel.
+fn sayit_window_hint(cfg: &Settings) -> String {
+    if cfg.sayit_recorder_hotkey.trim().is_empty() {
+        "open SayIt from the wheel".to_string()
+    } else {
+        format!("press {}", cfg.sayit_recorder_hotkey)
     }
-    let mut reader = hound::WavReader::open(&path)?;
-    let samples = reader
-        .samples::<i16>()
-        .map(|s| s.map(|v| v as f32 / i16::MAX as f32))
-        .collect::<Result<Vec<f32>, _>>()?;
-    Ok(Some(samples))
+}
+
+/// A message's name for a toast: quoted, and cut short when it's long.
+fn sayit_toast_name(name: &str) -> String {
+    const MAX: usize = 32;
+    if name.chars().count() <= MAX {
+        format!("“{name}”")
+    } else {
+        let short: String = name.chars().take(MAX).collect();
+        format!("“{}…”", short.trim_end())
+    }
 }
 
 /// Connect SayIt to the virtual cable the call app listens to (the one in
@@ -2036,8 +2049,14 @@ fn apply_sayit_route(app: &AppHandle<Wry>) -> sayit::Route {
 #[derive(Clone, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
 struct SayItStatus {
-    saved_secs: Option<f64>,
+    /// Saved messages, in the order they were added.
+    messages: Vec<sayit_library::Entry>,
+    /// The message the hotkey plays.
+    active: Option<String>,
+    /// A new recording that isn't saved yet.
     take_secs: Option<f64>,
+    /// Suggested name for that recording.
+    take_name: String,
     recording: bool,
     playing: bool,
     route: sayit::Route,
@@ -2045,21 +2064,41 @@ struct SayItStatus {
 }
 
 fn sayit_status_for(app: &AppHandle<Wry>) -> SayItStatus {
-    let saved_secs = read_sayit_message(app)
-        .ok()
-        .flatten()
-        .map(|s| s.len() as f64 / SAYIT_RATE as f64);
+    let library = match sayit_store(app) {
+        Ok(store) => store.load(),
+        Err(e) => {
+            eprintln!("sayit: {e:#}");
+            sayit_library::Library::default()
+        }
+    };
     let state: State<AppState> = app.state();
     let take_secs = state.sayit_take.lock().as_ref().map(|s| s.len() as f64 / SAYIT_RATE as f64);
-    let status = SayItStatus {
-        saved_secs,
+    SayItStatus {
+        take_name: library.next_default_name(),
+        active: library.active.clone(),
+        messages: library.messages,
         take_secs,
         recording: state.sayit_mic.is_recording(),
         playing: state.sayit.remaining_secs().is_some(),
         route: state.sayit.route(),
         play_hotkey: settings::load(app).sayit_hotkey,
-    };
-    status
+    }
+}
+
+/// Change the message list (one change at a time), then update the window.
+fn sayit_change(
+    app: &AppHandle<Wry>,
+    change: impl FnOnce(&sayit_library::Store) -> anyhow::Result<()>,
+) -> Result<SayItStatus, String> {
+    {
+        let state: State<AppState> = app.state();
+        let _one_at_a_time = state.sayit_lock.lock();
+        let store = sayit_store(app).map_err(|e| format!("{e:#}"))?;
+        change(&store).map_err(|e| format!("{e:#}"))?;
+    }
+    let status = sayit_status_for(app);
+    let _ = app.emit("sayit-status", status.clone());
+    Ok(status)
 }
 
 fn emit_sayit_status(app: &AppHandle<Wry>) {
@@ -2076,8 +2115,8 @@ fn toggle_sayit_window(app: &AppHandle<Wry>) {
     show_sayit_window(app);
 }
 
-/// The wheel's SayIt → Message wedge: open the SayIt window to record,
-/// listen to or delete the message.
+/// The wheel's SayIt → Messages wedge: open the SayIt window to record or
+/// upload messages and pick the one calls get.
 #[tauri::command]
 fn open_sayit_window(app: AppHandle<Wry>) {
     show_sayit_window(&app);
@@ -2092,7 +2131,7 @@ fn show_sayit_window(app: &AppHandle<Wry>) {
     }
     dev_reload(&win);
     let (x, y) = typer::cursor_pos();
-    let size = win.outer_size().map(|s| (s.width as i32, s.height as i32)).unwrap_or((340, 260));
+    let size = win.outer_size().map(|s| (s.width as i32, s.height as i32)).unwrap_or((380, 480));
     let (sx, sy, sw, sh) = virtual_screen_rect();
     let px = (x - size.0 / 2).clamp(sx, (sx + sw - size.0).max(sx));
     let py = (y + 20).clamp(sy, (sy + sh - size.1).max(sy));
@@ -2102,7 +2141,8 @@ fn show_sayit_window(app: &AppHandle<Wry>) {
     emit_sayit_status(app);
 }
 
-/// Alt+L: play the saved message into the call, or stop it if it's playing.
+/// Alt+L: play the selected message into the call, or stop it if it's
+/// playing.
 fn on_sayit_toggle(app: &AppHandle<Wry>) {
     let state: State<AppState> = app.state();
     if state.sayit.remaining_secs().is_some() {
@@ -2112,28 +2152,32 @@ fn on_sayit_toggle(app: &AppHandle<Wry>) {
     }
     drop(state);
     let cfg = settings::load(app);
-    let message = match read_sayit_message(app) {
-        Ok(Some(m)) if !m.is_empty() => m,
-        Ok(_) => {
-            let text = format!(
-                "No SayIt message saved yet — press {} to record one",
-                cfg.sayit_recorder_hotkey
-            );
-            show_toast(app, ToastKind::Error, &text, Some(Duration::from_secs(4)));
-            return;
-        }
-        Err(e) => {
-            show_toast(app, ToastKind::Error, &format!("Can't read the SayIt message: {e}"), Some(Duration::from_secs(5)));
-            return;
-        }
+    let fail = |text: String| show_toast(app, ToastKind::Error, &text, Some(Duration::from_secs(5)));
+    let store = match sayit_store(app) {
+        Ok(store) => store,
+        Err(e) => return fail(format!("Can't open your SayIt messages: {e}")),
     };
+    let library = store.load();
+    let Some(entry) = library.active_entry().cloned() else {
+        return fail(if library.messages.is_empty() {
+            format!("No SayIt message yet — {} to record or upload one", sayit_window_hint(&cfg))
+        } else {
+            format!("Pick which SayIt message plays — {}", sayit_window_hint(&cfg))
+        });
+    };
+    let name = sayit_toast_name(&entry.name);
+    let (message, rate) = match store.read(&entry.id) {
+        Ok((samples, rate)) if !samples.is_empty() => (samples, rate),
+        Ok(_) => return fail(format!("SayIt message {name} is empty — record or upload it again")),
+        Err(e) => return fail(format!("Can't read SayIt message {name}: {e}")),
+    };
+    let opts = sayit::PlayOptions { mute_mic: cfg.sayit_mute_mic, hear: cfg.sayit_hear_it };
     let state: State<AppState> = app.state();
     let route = state.sayit.route();
-    let started = state.sayit.play(message, SAYIT_RATE);
+    let started = state.sayit.play(message, rate, opts);
     drop(state);
     if let Err(e) = started {
-        show_toast(app, ToastKind::Error, &format!("SayIt couldn't play: {e}"), Some(Duration::from_secs(5)));
-        return;
+        return fail(format!("SayIt couldn't play: {e}"));
     }
     emit_sayit_status(app);
 
@@ -2142,15 +2186,16 @@ fn on_sayit_toggle(app: &AppHandle<Wry>) {
     let app = app.clone();
     std::thread::spawn(move || {
         let hotkey = settings::load(&app).sayit_hotkey;
+        let to_stop = if hotkey.trim().is_empty() { String::new() } else { format!(" · {hotkey} to stop") };
         loop {
             let state: State<AppState> = app.state();
             let left = state.sayit.remaining_secs();
             drop(state);
             let Some(left) = left else { break };
             let text = if route.to_call {
-                format!("SayIt playing into the call · {}s left · {hotkey} to stop", left.ceil() as u64)
+                format!("SayIt {name} playing into the call · {}s left{to_stop}", left.ceil() as u64)
             } else {
-                format!("SayIt playing on your speakers only (no virtual cable) · {}s left", left.ceil() as u64)
+                format!("SayIt {name} playing on your speakers only (no virtual cable) · {}s left", left.ceil() as u64)
             };
             show_toast(&app, ToastKind::Busy, &text, None);
             std::thread::sleep(Duration::from_millis(500));
@@ -2191,36 +2236,103 @@ fn sayit_record_toggle(app: AppHandle<Wry>) -> Result<SayItStatus, String> {
     Ok(status)
 }
 
-/// The new take if there is one, else the saved message — as WAV bytes for
+/// A saved message (`id`), or the new recording (no `id`), as WAV bytes for
 /// the window's player.
 #[tauri::command]
-fn sayit_audio(app: AppHandle<Wry>) -> Result<tauri::ipc::Response, String> {
+fn sayit_audio(app: AppHandle<Wry>, id: Option<String>) -> Result<tauri::ipc::Response, String> {
+    let bytes = match id {
+        Some(id) => sayit_store(&app)
+            .and_then(|store| store.wav_bytes(&id))
+            .map_err(|e| format!("{e:#}"))?,
+        None => {
+            let state: State<AppState> = app.state();
+            let take = state.sayit_take.lock().clone();
+            drop(state);
+            let take = take.ok_or_else(|| "nothing recorded yet".to_string())?;
+            groq::encode_wav_16k_mono(&take).map_err(|e| e.to_string())?
+        }
+    };
+    Ok(tauri::ipc::Response::new(bytes))
+}
+
+/// Save the new recording as a message called `name`.
+#[tauri::command]
+fn sayit_save(app: AppHandle<Wry>, name: String) -> Result<SayItStatus, String> {
     let state: State<AppState> = app.state();
     let take = state.sayit_take.lock().clone();
     drop(state);
-    let samples = match take {
-        Some(t) => t,
-        None => read_sayit_message(&app)
-            .map_err(|e| e.to_string())?
-            .ok_or_else(|| "nothing recorded yet".to_string())?,
+    let take = take.ok_or_else(|| "record a message first".to_string())?;
+    sayit_change(&app, |store| {
+        store.add(&name, &take, SAYIT_RATE)?;
+        // Cleared only once it's saved, so a failed save keeps the take.
+        let state: State<AppState> = app.state();
+        *state.sayit_take.lock() = None;
+        Ok(())
+    })
+}
+
+/// Add an uploaded voicemail. The window decodes the file (the WebView reads
+/// MP3, WAV, WebM, OGG, M4A and FLAC) and sends its mono samples as raw
+/// little-endian f32s, with the name (URI-encoded) and the sample rate in
+/// headers. Silence around it is cut and it's leveled, like a recording.
+#[tauri::command]
+fn sayit_import(app: AppHandle<Wry>, request: tauri::ipc::Request<'_>) -> Result<SayItStatus, String> {
+    let samples = match request.body() {
+        tauri::ipc::InvokeBody::Raw(bytes) => f32_samples(bytes),
+        // The IPC's fallback transport sends the bytes as a JSON array.
+        tauri::ipc::InvokeBody::Json(serde_json::Value::Array(items)) => {
+            let bytes: Vec<u8> = items.iter().map(|v| v.as_u64().unwrap_or(0) as u8).collect();
+            f32_samples(&bytes)
+        }
+        _ => return Err("no audio was sent".into()),
     };
-    groq::encode_wav_16k_mono(&samples)
-        .map(tauri::ipc::Response::new)
-        .map_err(|e| e.to_string())
+    let header = |key: &str| {
+        request
+            .headers()
+            .get(key)
+            .and_then(|v| v.to_str().ok())
+            .unwrap_or_default()
+            .to_string()
+    };
+    let rate: u32 = header("x-sayit-rate").parse().unwrap_or(0);
+    if !(8_000..=192_000).contains(&rate) {
+        return Err(format!("unsupported sample rate ({rate} Hz)"));
+    }
+    let name = sayit_library::percent_decode(&header("x-sayit-name"));
+    let secs = samples.len() as f64 / rate as f64;
+    if secs > SAYIT_MAX_UPLOAD_SECS {
+        return Err(format!(
+            "it's {} minutes long; a message can be up to {} minutes",
+            (secs / 60.0).ceil(),
+            SAYIT_MAX_UPLOAD_SECS / 60.0
+        ));
+    }
+    let message = sayit::prepare_message(&samples, rate);
+    let loudest = message.iter().fold(0.0f32, |m, s| m.max(s.abs()));
+    if loudest < 1e-3 || (message.len() as f64) < rate as f64 * 0.3 {
+        return Err("there's no sound in it".into());
+    }
+    sayit_change(&app, |store| store.add(&name, &message, rate).map(|_| ()))
+}
+
+/// Little-endian f32 samples; anything that isn't a number becomes silence.
+fn f32_samples(bytes: &[u8]) -> Vec<f32> {
+    bytes
+        .chunks_exact(4)
+        .map(|b| f32::from_le_bytes([b[0], b[1], b[2], b[3]]))
+        .map(|v| if v.is_finite() { v.clamp(-1.0, 1.0) } else { 0.0 })
+        .collect()
+}
+
+/// Pick the message the hotkey plays.
+#[tauri::command]
+fn sayit_select(app: AppHandle<Wry>, id: String) -> Result<SayItStatus, String> {
+    sayit_change(&app, |store| store.select(&id))
 }
 
 #[tauri::command]
-fn sayit_save(app: AppHandle<Wry>) -> Result<SayItStatus, String> {
-    let state: State<AppState> = app.state();
-    let take = state.sayit_take.lock().take();
-    drop(state);
-    let take = take.ok_or_else(|| "record a message first".to_string())?;
-    let wav = groq::encode_wav_16k_mono(&take).map_err(|e| e.to_string())?;
-    let path = sayit_file(&app).map_err(|e| e.to_string())?;
-    std::fs::write(&path, wav).map_err(|e| format!("couldn't save the message: {e}"))?;
-    let status = sayit_status_for(&app);
-    let _ = app.emit("sayit-status", status.clone());
-    Ok(status)
+fn sayit_rename(app: AppHandle<Wry>, id: String, name: String) -> Result<SayItStatus, String> {
+    sayit_change(&app, |store| store.rename(&id, &name).map(|_| ()))
 }
 
 #[tauri::command]
@@ -2236,18 +2348,10 @@ fn sayit_discard(app: AppHandle<Wry>) -> SayItStatus {
     status
 }
 
+/// Delete a message. (If it's playing right now, that playback finishes.)
 #[tauri::command]
-fn sayit_delete(app: AppHandle<Wry>) -> Result<SayItStatus, String> {
-    let state: State<AppState> = app.state();
-    state.sayit.stop();
-    drop(state);
-    let path = sayit_file(&app).map_err(|e| e.to_string())?;
-    if path.exists() {
-        std::fs::remove_file(&path).map_err(|e| format!("couldn't delete the message: {e}"))?;
-    }
-    let status = sayit_status_for(&app);
-    let _ = app.emit("sayit-status", status.clone());
-    Ok(status)
+fn sayit_delete(app: AppHandle<Wry>, id: String) -> Result<SayItStatus, String> {
+    sayit_change(&app, |store| store.remove(&id))
 }
 
 #[tauri::command]
@@ -2678,6 +2782,9 @@ pub fn run() {
             sayit_record_toggle,
             sayit_audio,
             sayit_save,
+            sayit_import,
+            sayit_select,
+            sayit_rename,
             sayit_discard,
             sayit_delete,
             sayit_play_toggle,

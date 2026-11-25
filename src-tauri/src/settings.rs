@@ -83,6 +83,11 @@ pub struct Settings {
     /// SayIt: keep passing the real microphone into that device so the call
     /// hears you normally between messages.
     pub sayit_route_mic: bool,
+    /// SayIt: keep the microphone out of the call while a message plays.
+    pub sayit_mute_mic: bool,
+    /// SayIt: also play the message on your own speakers or headset, so you
+    /// hear exactly when it starts and ends.
+    pub sayit_hear_it: bool,
 }
 
 impl Default for Settings {
@@ -112,6 +117,8 @@ impl Default for Settings {
             sayit_recorder_hotkey: "Control+Alt+L".to_string(),
             sayit_output_device: String::new(),
             sayit_route_mic: true,
+            sayit_mute_mic: true,
+            sayit_hear_it: true,
         }
     }
 }

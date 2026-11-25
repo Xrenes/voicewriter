@@ -12,20 +12,42 @@
       <button class="close" id="closeBtn" aria-label="Close">×</button>
     </div>
     <main class="app">
-      <p class="state" id="stateText">Loading…</p>
+      <div class="libhead">
+        <span class="label">Messages</span>
+        <span class="count" id="countText"></span>
+      </div>
+      <ul class="lib" id="lib" aria-label="Saved messages"></ul>
+      <p class="empty" id="emptyText" hidden>
+        No messages yet. Record one, or upload voicemail files (MP3, WAV, WebM, OGG, M4A) — one per project.
+      </p>
 
       <div class="row">
         <button id="recordBtn" class="rec">● Record</button>
-        <button id="listenBtn" class="ghost">▶ Listen</button>
-        <button id="saveBtn" class="primary" hidden>Save</button>
-        <button id="discardBtn" class="ghost" hidden>Discard</button>
-        <button id="deleteBtn" class="ghost danger" hidden>Delete</button>
+        <button id="uploadBtn" class="ghost">Upload audio…</button>
+        <input
+          id="fileInput"
+          type="file"
+          multiple
+          hidden
+          accept="audio/*,.mp3,.wav,.webm,.ogg,.oga,.opus,.m4a,.aac,.flac"
+        />
       </div>
 
-      <button id="playBtn" class="ghost wide">▶ Play into the call now</button>
+      <div class="take" id="takeBox" hidden>
+        <p class="state" id="stateText"></p>
+        <div class="takerow" id="takeRow">
+          <input id="takeName" type="text" maxlength="60" spellcheck="false" aria-label="Name for the new recording" />
+          <button id="takeListen" class="ghost" title="Listen">▶</button>
+          <button id="saveBtn" class="primary">Save</button>
+          <button id="discardBtn" class="ghost">Discard</button>
+        </div>
+      </div>
+
+      <button id="playBtn" class="ghost wide" hidden>▶ Play into the call now</button>
 
       <p class="route" id="routeText"></p>
       <p class="hint" id="hintText"></p>
+      <p class="note" id="noteText"></p>
       <p class="error" id="errorText"></p>
       <audio id="player"></audio>
     </main>

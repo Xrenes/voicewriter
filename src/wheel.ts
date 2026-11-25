@@ -39,7 +39,7 @@ const ICON_PLAY =
 
 const ICON_STOP = '<rect x="6.5" y="6.5" width="11" height="11" rx="2" fill="currentColor"/>';
 
-// A microphone — record or change the SayIt message.
+// A microphone — record, upload or pick SayIt messages.
 const ICON_MESSAGE =
   '<rect x="9" y="3.5" width="6" height="10.5" rx="3" fill="none" stroke="currentColor" stroke-width="1.6"/>' +
   '<path d="M6 11a6 6 0 0 0 12 0M12 17v3.5M9 20.5h6" fill="none" stroke="currentColor" stroke-width="1.6" ' +
@@ -103,7 +103,7 @@ function sayitWedges(): WedgeDef[] {
   const playing = state.sayitPlaying;
   return [
     { action: "__sayit:play", label: playing ? "Stop" : "Play", icon: playing ? ICON_STOP : ICON_PLAY },
-    { action: "__sayit:message", label: "Message", icon: ICON_MESSAGE },
+    { action: "__sayit:message", label: "Messages", icon: ICON_MESSAGE },
   ];
 }
 

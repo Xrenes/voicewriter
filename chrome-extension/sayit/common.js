@@ -57,6 +57,56 @@ async function sayitSettings() {
   return { ...SAYIT_DEFAULTS, ...(settings || {}) };
 }
 
+// ---- Saved messages ----
+// In chrome.storage.local:
+//   messages    [{ id, name, secs, added }] — in the order they were added
+//   activeId    the message the hotkey plays ("" = none picked)
+//   msg:<id>    { data: base64 WAV, type } — each message's audio
+// SayIt 0.3 kept a single message under "message"; it becomes "My message".
+const SAYIT_LEGACY_ID = "legacy";
+const sayitAudioKey = (id) => `msg:${id}`;
+
+// The list and the message the hotkey plays. A lone message always plays.
+// Until the old single message is moved over, it counts as the list.
+async function sayitLibrary() {
+  const { messages, activeId, message } = await chrome.storage.local.get(["messages", "activeId", "message"]);
+  if (!Array.isArray(messages) && message) {
+    const legacy = { id: SAYIT_LEGACY_ID, name: "My message", secs: message.secs || 0, added: 0 };
+    return { messages: [legacy], activeId: SAYIT_LEGACY_ID };
+  }
+  const list = Array.isArray(messages) ? messages : [];
+  let active = list.some((m) => m.id === activeId) ? activeId : "";
+  if (!active && list.length === 1) active = list[0].id;
+  return { messages: list, activeId: active };
+}
+
+// A message's audio: { data (base64 WAV), type }, or null.
+async function sayitAudioOf(id) {
+  if (!id) return null;
+  const key = sayitAudioKey(id);
+  const got = await chrome.storage.local.get([key, "message"]);
+  return got[key] || (id === SAYIT_LEGACY_ID && got.message) || null;
+}
+
+async function sayitActiveAudio() {
+  return sayitAudioOf((await sayitLibrary()).activeId);
+}
+
+// Move SayIt 0.3's single message into the list. Safe to run more than once,
+// even at the same time: it always lands under the same id.
+async function sayitMigrate() {
+  const { message, messages } = await chrome.storage.local.get(["message", "messages"]);
+  if (!message) return;
+  if (!Array.isArray(messages)) {
+    await chrome.storage.local.set({
+      [sayitAudioKey(SAYIT_LEGACY_ID)]: { data: message.data, type: message.type || "audio/wav" },
+      messages: [{ id: SAYIT_LEGACY_ID, name: "My message", secs: message.secs || 0, added: Date.now() }],
+      activeId: SAYIT_LEGACY_ID,
+    });
+  }
+  await chrome.storage.local.remove("message");
+}
+
 function sayitBase64ToBuffer(b64) {
   const bin = atob(b64);
   const bytes = new Uint8Array(bin.length);

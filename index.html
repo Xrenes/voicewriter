@@ -121,7 +121,7 @@
             </div>
             <p class="hint dim">
               Press this key for a quick menu: Live (record a call with a live transcript), Record,
-              SayIt (play your message, or record a new one), Web and AI. Clear the hotkey to
+              SayIt (play the selected message, or open your messages), Web and AI. Clear the hotkey to
               disable it.
             </p>
 
@@ -146,13 +146,17 @@
         <div class="section-body">
           <div class="card">
             <div class="row">
-              <label>Record message</label>
+              <label>Messages</label>
               <div class="hotkey">
                 <input id="hotkeySayItRecorder" type="text" value="Control+Alt+L" readonly />
                 <button id="hotkeySayItRecorderEdit" class="ghost">Change</button>
               </div>
             </div>
-            <p class="hint dim">Opens the SayIt window: record your message, listen to it, re-record, save or delete it.</p>
+            <p class="hint dim">
+              Opens the SayIt window: record messages or upload voicemail files (MP3, WAV, WebM, OGG, M4A,
+              several at once), one per project if you like, and pick the one calls get. Listen to, rename
+              or delete them there too.
+            </p>
             <div class="row">
               <label>Play / stop</label>
               <div class="hotkey">
@@ -160,7 +164,15 @@
                 <button id="hotkeySayItEdit" class="ghost">Change</button>
               </div>
             </div>
-            <p class="hint dim">During a call, press it to play your saved message into the call; press it again to stop.</p>
+            <p class="hint dim">During a call, press it to play the selected message into the call; press it again to stop.</p>
+            <label class="check">
+              <input type="checkbox" id="sayitMuteMic" />
+              Mute my microphone while the message plays
+            </label>
+            <label class="check">
+              <input type="checkbox" id="sayitHearIt" />
+              Let me hear the message too (on my speakers or headset)
+            </label>
           </div>
 
           <div class="card">
@@ -466,7 +478,7 @@
             <ol>
               <li>Press <strong>Shift+Alt+C</strong> to open the wheel.</li>
               <li><strong>Live</strong>, <strong>Record</strong> and <strong>Web</strong> have their own guides below. While a recording runs, its wedge reads <strong>Stop</strong>.</li>
-              <li><strong>SayIt</strong> opens two choices: <strong>Play</strong> sends your saved message into the call (it reads Stop while playing), and <strong>Message</strong> opens the SayIt window to record or change it. Press Esc to go back.</li>
+              <li><strong>SayIt</strong> opens two choices: <strong>Play</strong> sends the selected message into the call (it reads Stop while playing), and <strong>Messages</strong> opens the SayIt window to record or upload messages and pick the one calls get. Press Esc to go back.</li>
               <li><strong>AI</strong> opens a chat window — needs its own Groq key, see below.</li>
               <li>Refine, Professional and Humanize stay on their hotkeys (Alt+R, Alt+P, Alt+H).</li>
             </ol>

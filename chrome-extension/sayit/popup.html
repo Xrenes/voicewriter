@@ -9,22 +9,36 @@
     <header>
       <span class="brand">SayIt</span>
       <nav>
-        <button id="tabMessage" class="tab on">Message</button>
+        <button id="tabMessage" class="tab on">Messages</button>
         <button id="tabSettings" class="tab">Settings</button>
       </nav>
     </header>
 
     <section id="viewMessage">
-      <p class="state" id="state">Loading…</p>
+      <ul class="lib" id="lib" aria-label="Saved messages"></ul>
+      <p class="empty" id="empty" hidden>
+        No messages yet. Record one, or upload voicemail files (MP3, WAV, WebM, OGG, M4A) — one per project.
+      </p>
+
       <div class="row">
         <button id="record" class="rec">● Record</button>
-        <button id="listen" hidden>▶ Play</button>
-        <button id="save" class="primary" hidden>Save</button>
-        <button id="discard" hidden>Discard</button>
-        <button id="remove" class="danger" hidden>Delete</button>
+        <button id="upload">Upload audio…</button>
+        <input id="file" type="file" multiple hidden />
       </div>
+
+      <div class="take" id="takeBox" hidden>
+        <p class="state" id="state"></p>
+        <div class="takerow" id="takeRow">
+          <input id="takeName" type="text" maxlength="60" spellcheck="false" aria-label="Name for the new recording" />
+          <button id="takeListen" title="Listen">▶</button>
+          <button id="save" class="primary">Save</button>
+          <button id="discard">Discard</button>
+        </div>
+      </div>
+
       <button id="playCall" class="wide" hidden>Play into the call now</button>
       <p class="hint" id="hint"></p>
+      <p class="note" id="note"></p>
       <button id="allowMic" class="wide" hidden>Allow microphone access…</button>
       <p class="error" id="error"></p>
       <p class="tabstate" id="tabState" hidden></p>
@@ -40,7 +54,7 @@
           <button id="changeHotkey">Change</button>
           <button id="resetHotkey">Reset</button>
         </div>
-        <p class="hint" id="hotkeyHint">Works on any web page in Chrome — the message plays on your call wherever it is. Press again to stop.</p>
+        <p class="hint" id="hotkeyHint">Works on any web page in Chrome — the selected message plays on your call wherever it is. Press again to stop.</p>
       </div>
 
       <label class="check">
@@ -75,6 +89,7 @@
     </section>
 
     <script src="common.js"></script>
+    <script src="library.js"></script>
     <script src="popup.js"></script>
   </body>
 </html>

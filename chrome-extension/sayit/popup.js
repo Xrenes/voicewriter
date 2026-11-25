@@ -1,52 +1,272 @@
 const $ = (id) => document.getElementById(id);
 const els = {
-  state: $("state"),
+  lib: $("lib"),
+  empty: $("empty"),
   record: $("record"),
-  listen: $("listen"),
+  upload: $("upload"),
+  file: $("file"),
+  takeBox: $("takeBox"),
+  state: $("state"),
+  takeRow: $("takeRow"),
+  takeName: $("takeName"),
+  takeListen: $("takeListen"),
   save: $("save"),
   discard: $("discard"),
-  remove: $("remove"),
   playCall: $("playCall"),
   hint: $("hint"),
+  note: $("note"),
   allowMic: $("allowMic"),
   error: $("error"),
   player: $("player"),
 };
+els.file.accept = SAYIT_ACCEPT;
 
 let settings = { ...SAYIT_DEFAULTS };
-let saved = null; // { data (base64 WAV), type, secs }
+let lib = { messages: [], activeId: "" };
 let take = null; // { wav: Uint8Array, secs } — recorded, not saved yet
 let recorder = null;
 let startedAt = 0;
 let tick = 0;
+let listening = null; // what the player plays: a message id, or "take"
+let blobUrl = null;
+let renaming = null; // the message whose name is being edited
+let armedDelete = null; // the message whose delete button asks "Delete?"
+let armTimer = 0;
+let uploading = false;
+let rebuilding = false; // the list is being rebuilt (that blurs a rename box)
+let callPlaying = false; // a call is playing the message right now
+let os = "win";
 
 const clock = (s) => {
-  const t = Math.round(s);
+  const t = Math.max(0, Math.round(s));
   return `${Math.floor(t / 60)}:${String(t % 60).padStart(2, "0")}`;
 };
-const showError = (e) => (els.error.textContent = e ? String(e) : "");
+const errText = (e) => (e && e.message ? e.message : String(e));
+const showError = (e) => (els.error.textContent = e ? errText(e) : "");
+const showNote = (text) => (els.note.textContent = text || "");
+const activeEntry = () => lib.messages.find((m) => m.id === lib.activeId);
 
-// ---- Message view ----
-function render() {
-  const recording = !!recorder;
-  if (recording) els.state.textContent = `● Recording ${clock((Date.now() - startedAt) / 1000)} — say your message`;
-  else if (take) els.state.textContent = `New recording · ${clock(take.secs)} · not saved yet`;
-  else if (saved) els.state.textContent = `Saved message · ${clock(saved.secs || 0)}`;
-  else els.state.textContent = "No message yet — press Record";
-  els.state.classList.toggle("live", recording);
-
-  els.record.textContent = recording ? "■ Stop" : saved || take ? "● Re-record" : "● Record";
-  els.listen.hidden = recording || (!take && !saved);
-  els.save.hidden = els.discard.hidden = recording || !take;
-  els.remove.hidden = recording || !!take || !saved;
-  els.playCall.hidden = recording || !!take || !saved;
-  els.hint.textContent = saved
-    ? `During a call press ${sayitHotkeyLabel(settings.hotkey)} — again to stop.`
-    : "";
+async function reloadLibrary() {
+  lib = await sayitLibrary();
+  render();
 }
 
+// ---- The message list ----
+function el(tag, className, text) {
+  const node = document.createElement(tag);
+  node.className = className;
+  if (text != null) node.textContent = text;
+  return node;
+}
+
+function iconButton(text, title, onClick) {
+  const b = el("button", "icon", text);
+  b.title = title;
+  b.setAttribute("aria-label", title);
+  b.addEventListener("click", (e) => {
+    e.stopPropagation();
+    onClick();
+  });
+  return b;
+}
+
+function messageRow(m, active) {
+  const li = el("li", active ? "msg on" : "msg");
+  li.title = active ? "Calls get this message" : "Click to use this message for calls";
+  li.addEventListener("click", () => select(m.id));
+
+  const pick = el("button", "pick");
+  pick.setAttribute("aria-pressed", String(active));
+  pick.setAttribute("aria-label", `Use “${m.name}” for calls`);
+  pick.addEventListener("click", (e) => {
+    e.stopPropagation();
+    select(m.id);
+  });
+
+  let label;
+  if (renaming === m.id) {
+    label = el("input", "rename");
+    label.value = m.name;
+    label.maxLength = SAYIT_MAX_NAME;
+    label.spellcheck = false;
+    label.dataset.id = m.id;
+    label.setAttribute("aria-label", "New name");
+    label.addEventListener("click", (e) => e.stopPropagation());
+    label.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") commitRename(m.id, label.value);
+      else if (e.key === "Escape") cancelRename();
+    });
+    label.addEventListener("blur", () => {
+      if (!rebuilding) commitRename(m.id, label.value);
+    });
+  } else {
+    label = el("span", "name", m.name);
+  }
+
+  const playing = listening === m.id;
+  const listenBtn = iconButton(playing ? "■" : "▶", playing ? "Stop" : "Listen", () => toggleListen(m.id));
+  const renameBtn = iconButton("✎", "Rename", () => startRename(m.id));
+  const armed = armedDelete === m.id;
+  const deleteBtn = iconButton(armed ? "Delete?" : "✕", armed ? "Click again to delete" : "Delete", () =>
+    deleteMessage(m.id),
+  );
+  if (armed) deleteBtn.classList.add("armed");
+
+  li.append(pick, label, el("span", "dur", clock(m.secs || 0)), listenBtn, renameBtn, deleteBtn);
+  return li;
+}
+
+function renderList() {
+  // Keep an open rename box (and what's typed in it) across refreshes.
+  const open = els.lib.querySelector("input.rename");
+  const typed =
+    open && open.dataset.id === renaming
+      ? { value: open.value, start: open.selectionStart, end: open.selectionEnd }
+      : null;
+  if (renaming && !lib.messages.some((m) => m.id === renaming)) renaming = null;
+  rebuilding = true;
+  try {
+    els.lib.replaceChildren(...lib.messages.map((m) => messageRow(m, m.id === lib.activeId)));
+  } finally {
+    rebuilding = false;
+  }
+  const input = els.lib.querySelector("input.rename");
+  if (input) {
+    if (typed) {
+      input.value = typed.value;
+      input.setSelectionRange(typed.start, typed.end);
+    } else {
+      input.select();
+    }
+    input.focus();
+  }
+}
+
+function renderClock() {
+  els.state.textContent = `● Recording ${clock((Date.now() - startedAt) / 1000)} — say your message`;
+}
+
+function render() {
+  renderList();
+  const recording = !!recorder;
+  const active = activeEntry();
+  els.empty.hidden = lib.messages.length > 0 || recording || !!take;
+
+  // The new recording: recording now, or waiting for a name.
+  els.takeBox.hidden = !recording && !take;
+  els.takeRow.hidden = recording;
+  if (recording) renderClock();
+  else if (take) els.state.textContent = `New recording · ${clock(take.secs)} · name it and save`;
+  els.state.classList.toggle("live", recording);
+  els.takeListen.textContent = listening === "take" ? "■" : "▶";
+
+  els.record.textContent = recording ? "■ Stop" : take ? "● Re-record" : "● Record";
+  els.record.disabled = uploading;
+  els.upload.disabled = uploading || recording;
+  els.upload.textContent = uploading ? "Adding…" : "Upload audio…";
+
+  els.playCall.hidden = recording || (!active && !callPlaying);
+  els.playCall.textContent = callPlaying ? "■ Stop playing" : `▶ Play “${active ? active.name : ""}” into the call now`;
+
+  const key = sayitHotkeyLabel(settings.hotkey);
+  if (!lib.messages.length) els.hint.textContent = "";
+  else if (!active) els.hint.textContent = "Click the message calls should get.";
+  else els.hint.textContent = `During a call press ${key} to play it — again to stop. Click another message to switch.`;
+}
+
+// ---- Picking, renaming, deleting ----
+async function select(id) {
+  if (id === lib.activeId) return;
+  showError("");
+  try {
+    await sayitSelect(id);
+    await reloadLibrary();
+  } catch (e) {
+    showError(e);
+  }
+}
+
+function startRename(id) {
+  renaming = id;
+  armedDelete = null;
+  render();
+}
+
+function cancelRename() {
+  renaming = null;
+  render();
+}
+
+async function commitRename(id, value) {
+  if (renaming !== id) return; // Enter, then the blur that follows
+  renaming = null;
+  const current = lib.messages.find((m) => m.id === id);
+  if (!current || !value.trim() || value.trim() === current.name) return render();
+  try {
+    await sayitRename(id, value);
+  } catch (e) {
+    showError(e);
+  }
+  await reloadLibrary();
+}
+
+async function deleteMessage(id) {
+  if (armedDelete !== id) {
+    armedDelete = id;
+    clearTimeout(armTimer);
+    armTimer = setTimeout(() => {
+      armedDelete = null;
+      render();
+    }, 3000);
+    return render();
+  }
+  armedDelete = null;
+  clearTimeout(armTimer);
+  if (listening === id) stopListening();
+  try {
+    await sayitDelete(id);
+  } catch (e) {
+    showError(e);
+  }
+  await reloadLibrary();
+}
+
+// ---- Listening (here, not on the call) ----
+function stopListening() {
+  els.player.pause();
+  const was = listening;
+  listening = null;
+  if (was) render();
+}
+
+async function toggleListen(id) {
+  const key = id || "take";
+  if (listening === key) return stopListening();
+  stopListening();
+  try {
+    if (id) {
+      const audio = await sayitAudioOf(id);
+      if (!audio) throw new Error("that message's audio is missing — record or upload it again");
+      els.player.src = `data:${audio.type || "audio/wav"};base64,${audio.data}`;
+    } else {
+      if (blobUrl) URL.revokeObjectURL(blobUrl);
+      blobUrl = URL.createObjectURL(new Blob([take.wav], { type: "audio/wav" }));
+      els.player.src = blobUrl;
+    }
+    await els.player.play();
+    listening = key;
+    render();
+  } catch (e) {
+    showError(e);
+  }
+}
+els.player.addEventListener("ended", stopListening);
+els.takeListen.addEventListener("click", () => toggleListen(null));
+
+// ---- Recording ----
 els.record.addEventListener("click", async () => {
   showError("");
+  showNote("");
   stopListening();
   if (recorder) {
     recorder.stop();
@@ -70,41 +290,40 @@ els.record.addEventListener("click", async () => {
     recorder = null;
     clearInterval(tick);
     try {
-      take = await processTake(new Blob(chunks, { type }));
+      take = await sayitFromRecording(new Blob(chunks, { type }));
     } catch (e) {
       take = null;
-      showError(`Couldn't use that recording: ${e}`);
+      showError(`Couldn't use that recording: ${errText(e)}`);
     }
     render();
+    if (take) {
+      els.takeName.value = sayitDefaultName(lib.messages);
+      els.takeName.focus();
+      els.takeName.select();
+    }
   };
   take = null;
   startedAt = Date.now();
   recorder.start();
-  tick = setInterval(render, 500);
+  tick = setInterval(renderClock, 500);
   render();
 });
 
-function stopListening() {
-  els.player.pause();
-  els.listen.textContent = "▶ Play";
-}
-
-els.listen.addEventListener("click", () => {
-  if (!els.player.paused) return stopListening();
-  els.player.src = take
-    ? URL.createObjectURL(new Blob([take.wav], { type: "audio/wav" }))
-    : `data:audio/wav;base64,${saved.data}`;
-  els.player.play();
-  els.listen.textContent = "■ Stop";
-});
-els.player.addEventListener("ended", stopListening);
-
-els.save.addEventListener("click", async () => {
+async function saveTake() {
+  if (!take) return;
   stopListening();
-  saved = { data: bytesToBase64(take.wav), type: "audio/wav", secs: take.secs };
-  await chrome.storage.local.set({ message: saved });
-  take = null;
-  render();
+  try {
+    const entry = await sayitAdd(els.takeName.value, take);
+    take = null;
+    showNote(`Saved “${entry.name}”.`);
+  } catch (e) {
+    showError(e);
+  }
+  await reloadLibrary();
+}
+els.save.addEventListener("click", saveTake);
+els.takeName.addEventListener("keydown", (e) => {
+  if (e.key === "Enter") saveTake();
 });
 
 els.discard.addEventListener("click", () => {
@@ -113,102 +332,37 @@ els.discard.addEventListener("click", () => {
   render();
 });
 
-let removeArmed = false;
-els.remove.addEventListener("click", async () => {
-  if (!removeArmed) {
-    removeArmed = true;
-    els.remove.textContent = "Sure? Delete";
-    setTimeout(() => {
-      removeArmed = false;
-      els.remove.textContent = "Delete";
-    }, 3000);
-    return;
-  }
-  removeArmed = false;
-  els.remove.textContent = "Delete";
+// ---- Uploading voicemail files ----
+els.upload.addEventListener("click", () => {
+  showError("");
+  showNote("");
+  // Windows opens the file picker over the popup. Elsewhere Chrome closes the
+  // popup when a picker opens, so SayIt's own page takes the files instead.
+  if (os === "win") els.file.click();
+  else chrome.tabs.create({ url: "options.html#upload" });
+});
+
+els.file.addEventListener("change", async () => {
+  const files = Array.from(els.file.files || []);
+  els.file.value = ""; // so picking the same file again still counts
+  if (!files.length) return;
   stopListening();
-  await chrome.storage.local.remove("message");
-  saved = null;
+  uploading = true;
   render();
+  const report = sayitAddFilesReport(await sayitAddFiles(files, showNote));
+  uploading = false;
+  showNote(report.note);
+  showError(report.error);
+  await reloadLibrary();
+});
+
+// Uploads from SayIt's page, and changes made in another window.
+chrome.storage.onChanged.addListener((changes, area) => {
+  if (area === "local" && (changes.messages || changes.activeId || changes.message)) reloadLibrary();
 });
 
 els.playCall.addEventListener("click", () => chrome.runtime.sendMessage({ sayit: "toggle-calls" }));
 els.allowMic.addEventListener("click", () => chrome.tabs.create({ url: "options.html#mic" }));
-
-// Mono, trimmed of the silence around it (so it starts the instant the
-// hotkey is pressed), leveled to about -1 dBFS, stored as 24 kHz WAV.
-async function processTake(blob) {
-  const RATE = 24000;
-  const decoded = await new OfflineAudioContext(1, 1, RATE).decodeAudioData(await blob.arrayBuffer());
-  const n = decoded.length;
-  const mono = new Float32Array(n);
-  for (let c = 0; c < decoded.numberOfChannels; c++) {
-    const d = decoded.getChannelData(c);
-    for (let i = 0; i < n; i++) mono[i] += d[i] / decoded.numberOfChannels;
-  }
-  const out = trimAndLevel(mono, RATE);
-  if (out.length < RATE * 0.3) throw new Error("it was too short — record again");
-  return { wav: encodeWav(out, RATE), secs: out.length / RATE };
-}
-
-function trimAndLevel(s, rate) {
-  const frame = Math.max(1, Math.round(rate / 50)); // 20 ms
-  const rms = [];
-  for (let i = 0; i < s.length; i += frame) {
-    let acc = 0;
-    const end = Math.min(s.length, i + frame);
-    for (let j = i; j < end; j++) acc += s[j] * s[j];
-    rms.push(Math.sqrt(acc / (end - i)));
-  }
-  const loudest = Math.max(0, ...rms);
-  if (loudest <= 0) return s;
-  const voiced = (r) => r >= loudest * 0.06;
-  const first = rms.findIndex(voiced);
-  let last = rms.length - 1;
-  while (last > 0 && !voiced(rms[last])) last--;
-  const pad = Math.ceil((rate * 0.02) / frame);
-  const start = Math.max(0, first - pad) * frame;
-  const end = Math.min(s.length, (last + 1 + pad) * frame);
-  const out = s.slice(start, end);
-  let peak = 0;
-  for (const v of out) peak = Math.max(peak, Math.abs(v));
-  if (peak > 1e-4) {
-    const gain = Math.min(0.89 / peak, 8);
-    for (let i = 0; i < out.length; i++) out[i] *= gain;
-  }
-  return out;
-}
-
-function encodeWav(samples, rate) {
-  const buf = new ArrayBuffer(44 + samples.length * 2);
-  const v = new DataView(buf);
-  const str = (o, t) => [...t].forEach((c, i) => v.setUint8(o + i, c.charCodeAt(0)));
-  str(0, "RIFF");
-  v.setUint32(4, 36 + samples.length * 2, true);
-  str(8, "WAVE");
-  str(12, "fmt ");
-  v.setUint32(16, 16, true);
-  v.setUint16(20, 1, true); // PCM
-  v.setUint16(22, 1, true); // mono
-  v.setUint32(24, rate, true);
-  v.setUint32(28, rate * 2, true);
-  v.setUint16(32, 2, true);
-  v.setUint16(34, 16, true);
-  str(36, "data");
-  v.setUint32(40, samples.length * 2, true);
-  for (let i = 0; i < samples.length; i++) {
-    v.setInt16(44 + i * 2, Math.max(-1, Math.min(1, samples[i])) * 0x7fff, true);
-  }
-  return new Uint8Array(buf);
-}
-
-function bytesToBase64(bytes) {
-  let bin = "";
-  for (let i = 0; i < bytes.length; i += 0x8000) {
-    bin += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
-  }
-  return btoa(bin);
-}
 
 // ---- Settings view ----
 const hotkeyLabel = $("hotkeyLabel");
@@ -325,16 +479,22 @@ async function renderCall() {
   } catch {}
   const playing = list.find((f) => f.playing);
   const live = list.find((f) => f.live > 0);
+  const active = activeEntry();
+  const what = active ? `“${active.name}”` : "your message";
   let text;
   let tone = "";
-  if (playing) [text, tone] = [`Playing your message · ${placeOf(playing.where)}`, "ok"];
-  else if (live) [text, tone] = [`Live call found — ${sayitHotkeyLabel(settings.hotkey)} plays it · ${placeOf(live.where)}`, "ok"];
+  if (playing) [text, tone] = [`Playing ${what} · ${placeOf(playing.where)}`, "ok"];
+  else if (live) [text, tone] = [`Live call found — ${sayitHotkeyLabel(settings.hotkey)} plays ${what} · ${placeOf(live.where)}`, "ok"];
   else if (list.length) text = `Microphone found, no connected call yet · ${placeOf(list[0].where)}`;
   else text = "No call found yet — start a call, then look here.";
-  const el = $("tabState");
-  el.textContent = text;
-  el.className = `tabstate ${tone}`;
-  el.hidden = false;
+  const stateLine = $("tabState");
+  stateLine.textContent = text;
+  stateLine.className = `tabstate ${tone}`;
+  stateLine.hidden = false;
+  if (!!playing !== callPlaying) {
+    callPlaying = !!playing;
+    render();
+  }
 }
 
 function renderSites() {
@@ -376,8 +536,12 @@ $("tabMessage").addEventListener("click", () => showView("message"));
 $("tabSettings").addEventListener("click", () => showView("settings"));
 
 (async () => {
+  try {
+    os = (await chrome.runtime.getPlatformInfo()).os;
+  } catch {}
+  await sayitMigrate().catch(() => {});
   settings = await sayitSettings();
-  ({ message: saved = null } = await chrome.storage.local.get("message"));
+  lib = await sayitLibrary();
   renderSettings();
   render();
   checkTab();

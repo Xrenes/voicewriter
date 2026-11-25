@@ -18,10 +18,25 @@
         <p class="ok" id="micOk" hidden>Done — open SayIt from the toolbar and press Record.</p>
       </section>
 
+      <section id="uploadSection">
+        <h2>Upload voicemails</h2>
+        <p>Add pre-recorded messages — MP3, WAV, WebM, OGG or M4A, several at once — one per project if
+          you like. Each is named after its file. Pick the one calls get (and rename them) from the
+          SayIt button in the toolbar.</p>
+        <div class="drop" id="drop">
+          <button id="uploadBtn" class="primary">Choose files…</button>
+          <span>or drop them here</span>
+        </div>
+        <input id="file" type="file" multiple hidden />
+        <p class="ok" id="uploadNote"></p>
+        <p class="error" id="uploadError"></p>
+        <p id="libLine"></p>
+      </section>
+
       <section>
         <h2>Test it</h2>
         <p>This page acts like a call. Press <strong>Start test</strong>, say something, press
-          <span class="k" id="hotkey">Alt+L</span> to play your message (again to stop it early),
+          <span class="k" id="hotkey">Alt+L</span> to play the selected message (again to stop it early),
           then <strong>Stop test</strong> and listen: that's exactly what the other side of a call hears.</p>
         <div class="row">
           <button id="testStart" class="primary">Start test</button>
@@ -38,6 +53,8 @@
             close and reopen any calling window.</li>
           <li>The hotkey works on any web page in Chrome: the message plays on your connected call,
             wherever it is (another tab, a calling window). Nothing shows on screen.</li>
+          <li>Keep a message per project: the hotkey plays the one picked in the SayIt popup, and
+            the popup shows which that is.</li>
           <li>During a call, the SayIt popup shows where the call was found.</li>
           <li>Change the hotkey in the SayIt popup → Settings.</li>
           <li>Another dialer (a white-label GHL, a mic-test site)? Open it, then SayIt popup →
@@ -48,6 +65,7 @@
       <p class="error" id="error"></p>
     </main>
     <script src="common.js"></script>
+    <script src="library.js"></script>
     <script src="relay.js"></script>
     <script src="options.js"></script>
   </body>

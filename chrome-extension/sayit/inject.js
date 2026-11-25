@@ -491,7 +491,7 @@
 
   // For tests and troubleshooting.
   Object.defineProperty(window, "__sayitStatus", {
-    value: () => ({ covered, call: calls.size > 0, live: liveCalls().length > 0, playing: !!current, ready: !!clip, altKeysClaimed, sink: ctx ? ctx.sinkId : sinkId }),
+    value: () => ({ covered, call: calls.size > 0, live: liveCalls().length > 0, playing: !!current, ready: !!clip, clipSecs: clip ? span[1] : 0, altKeysClaimed, sink: ctx ? ctx.sinkId : sinkId }),
   });
 
   report("ready");

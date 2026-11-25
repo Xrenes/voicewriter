@@ -1,7 +1,7 @@
 // Extension side of every page (and of the test page). It hands inject.js the
-// settings — and, where SayIt's microphone runs, the saved message — and links
-// pages holding a call to the background, which finds the call wherever it is.
-// (inject.js runs in the page, so it can't reach the extension itself.)
+// settings — and, where SayIt's microphone runs, the selected message — and
+// links pages holding a call to the background, which finds the call wherever
+// it is. (inject.js runs in the page, so it can't reach the extension itself.)
 (() => {
   if (window.__sayitRelay) return;
   window.__sayitRelay = true;
@@ -18,6 +18,7 @@
 
   let covered = false;
   let clipSent = false;
+  let activeId = ""; // the message this page has
 
   async function loadSettings() {
     if (!alive()) return;
@@ -32,22 +33,26 @@
   async function sendClip() {
     if (!alive()) return;
     clipSent = true;
-    const { message } = await chrome.storage.local.get("message");
+    activeId = (await sayitLibrary()).activeId;
+    const message = await sayitAudioOf(activeId);
     if (!message) return toPage({ __sayit: "clear" });
     const bytes = sayitBase64ToBuffer(message.data);
     toPage({ __sayit: "clip", bytes }, [bytes]);
   }
 
-  // Only pages where the microphone runs follow changes live (the saved
-  // message is large); the others re-read the settings when you come back.
+  // Only pages where the microphone runs follow changes live (messages are
+  // large); the others re-read the settings when you come back.
   let watching = false;
   function watchStorage() {
     if (watching) return;
     watching = true;
-    chrome.storage.onChanged.addListener((changes, area) => {
+    chrome.storage.onChanged.addListener(async (changes, area) => {
       if (area !== "local" || !alive()) return;
       if (changes.settings) loadSettings();
-      if (changes.message) sendClip();
+      // Another message picked, or the picked one re-recorded / moved over.
+      if (changes.activeId || changes.message || (activeId && changes[sayitAudioKey(activeId)])) return sendClip();
+      // A changed list can change which one plays (a lone message always does).
+      if (changes.messages && (await sayitLibrary()).activeId !== activeId) sendClip();
     });
   }
   window.addEventListener("focus", loadSettings);

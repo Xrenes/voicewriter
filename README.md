@@ -24,8 +24,15 @@ No window — speech is transcribed by Groq's Whisper using your own free Groq A
 
   All three hotkeys can be changed in Settings. On Linux/Wayland, bind
   `voicewriter --refine`, `--professional` or `--humanize` to a desktop shortcut.
-- **Wheel** (`Shift+Alt+C`): Live, Record, SayIt (Play / Message), Web and AI. Whatever is
+- **Wheel** (`Shift+Alt+C`): Live, Record, SayIt (Play / Messages), Web and AI. Whatever is
   running reads Stop.
+- **SayIt** (voicemail drop): keep several voice messages, one per project if you like,
+  recorded in the app or uploaded as MP3, WAV, WebM, OGG or M4A files (several at once), and
+  pick the one calls get in the SayIt window (`Control+Alt+L`, or wheel → SayIt → Messages).
+  During a call `Alt+L` plays it into the call through VB-Audio Virtual Cable; press again to
+  stop. Settings → SayIt: mute your microphone while it plays, and hear it yourself on your
+  speakers or headset (both on by default). A message saved before the list is kept as
+  "My message". The matching Chrome extension for web dialers is in `chrome-extension/sayit/`.
 - **Call recording** (wheel → Record): records your mic and the PC's audio output as two
   time-aligned tracks, saves the mixed audio, and transcribes each track separately into a
   timestamped transcript labeled You / Device.

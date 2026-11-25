@@ -14,6 +14,7 @@ html,
 body {
   margin: 0;
   padding: 0;
+  height: 100%;
   background: var(--bg);
   color: var(--text);
   font: 13px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
@@ -23,11 +24,17 @@ body {
   overflow: hidden;
 }
 
+body {
+  display: flex;
+  flex-direction: column;
+}
+
 [hidden] {
   display: none !important;
 }
 
 .titlebar {
+  flex: none;
   height: 28px;
   display: flex;
   align-items: center;
@@ -58,10 +65,176 @@ body {
 }
 
 .app {
+  flex: 1;
+  min-height: 0;
   padding: 12px 14px 14px;
   display: flex;
   flex-direction: column;
   gap: 10px;
+}
+
+/* Everything keeps its height; the message list scrolls instead. */
+.app > * {
+  flex: none;
+}
+
+/* ---- Saved messages ---- */
+.libhead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+}
+
+.label {
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.count {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.app > .lib {
+  flex: 0 1 auto;
+  min-height: 44px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: #3a3a40 transparent;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.lib:empty {
+  display: none;
+}
+
+.msg {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 4px 4px 8px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.msg:hover {
+  border-color: #2c2c30;
+}
+
+.msg.on {
+  border-color: var(--accent);
+  background: #160a0e;
+}
+
+/* The radio dot: filled on the message calls get. */
+.pick {
+  flex: none;
+  width: 14px;
+  height: 14px;
+  margin-right: 4px;
+  padding: 0;
+  border-radius: 50%;
+  border: 1.5px solid #5a5a60;
+  background: none;
+}
+
+.msg.on .pick {
+  border-color: var(--accent);
+  background: radial-gradient(circle, var(--accent) 0 3px, transparent 3.5px);
+}
+
+.name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.msg.on .name {
+  font-weight: 600;
+}
+
+.dur {
+  flex: none;
+  margin: 0 2px;
+  font-size: 11.5px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+button.icon {
+  flex: none;
+  min-width: 26px;
+  padding: 2px 6px;
+  border-radius: 6px;
+  background: none;
+  border: 1px solid transparent;
+  color: var(--muted);
+}
+
+button.icon:hover {
+  color: var(--text);
+  border-color: #2c2c30;
+}
+
+button.icon.armed {
+  color: #ff9a9a;
+  border-color: #6b2235;
+}
+
+input[type="text"],
+input.rename {
+  flex: 1;
+  min-width: 0;
+  font: inherit;
+  color: var(--text);
+  background: #0d0d0d;
+  border: 1px solid #2c2c30;
+  border-radius: 6px;
+  padding: 4px 7px;
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+input[type="text"]:focus,
+input.rename:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.empty {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+/* ---- A new recording ---- */
+.take {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px;
+  border: 1px dashed #2c2c30;
+  border-radius: 8px;
+}
+
+.takerow {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.takerow[hidden] {
+  display: none;
 }
 
 .state {
@@ -119,11 +292,34 @@ button.wide {
   width: 100%;
 }
 
+/* "Play “a long message name…” into the call now" stays on one line. */
+#playBtn {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
 .route,
 .hint,
+.note,
 .error {
   margin: 0;
   font-size: 11.5px;
+}
+
+.note {
+  color: #6fd3a0;
+}
+
+.note:empty,
+.error:empty,
+.hint:empty {
+  display: none;
 }
 
 .route.ok {

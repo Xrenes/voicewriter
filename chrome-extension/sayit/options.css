@@ -80,3 +80,22 @@ ul {
   margin: 0;
   padding-left: 18px;
 }
+.drop {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px;
+  border: 1.5px dashed #2c2c30;
+  border-radius: 10px;
+  color: #8a8a8f;
+}
+.drop.over {
+  border-color: #b23859;
+  background: #160a0e;
+}
+section.flash {
+  border-color: #b23859;
+}
+p:empty {
+  display: none;
+}

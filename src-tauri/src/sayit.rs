@@ -6,8 +6,10 @@
 //! Virtual Cable): the call app's microphone is set to "CABLE Output", and
 //! SayIt feeds the cable's playback side ("CABLE Input") with the real
 //! microphone — or, while a message plays, with the message instead (the
-//! mic is muted for that time). Without a cable, messages play on the
-//! default speakers so they can still be checked, but calls won't hear them.
+//! mic is muted for that time, unless that's switched off). Without a cable,
+//! messages play on the default speakers so they can still be checked, but
+//! calls won't hear them. With one, you can also hear the message yourself
+//! on your speakers or headset while the call gets it.
 
 use anyhow::{anyhow, Context, Result};
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
@@ -23,6 +25,18 @@ use std::time::Duration;
 const PRIME_SECS: f64 = 0.03;
 /// Upper bound on queued mic audio, so the call never lags behind the user.
 const MAX_QUEUE_SECS: f64 = 0.15;
+/// How loud you hear the message yourself (the call gets it at full level).
+const MONITOR_GAIN: f32 = 0.6;
+
+/// How a message plays (SayIt settings).
+#[derive(Clone, Copy, Debug)]
+pub struct PlayOptions {
+    /// Keep your microphone out of the call while the message plays.
+    pub mute_mic: bool,
+    /// Also play it on your own speakers or headset, so you hear exactly when
+    /// it starts and ends.
+    pub hear: bool,
+}
 
 /// Where SayIt messages currently go.
 #[derive(Clone, Debug, Default, Serialize)]
@@ -37,10 +51,13 @@ pub struct Route {
     pub error: Option<String>,
 }
 
-/// What one output stream plays: queued mic audio, or a message in its place.
+/// What one output stream plays: queued mic audio, a message in its place,
+/// or (with the mic left on) both.
 struct Mix {
     rate: u32,
     passthrough: bool,
+    /// The mic is left out while a message plays.
+    mute_mic: bool,
     mic: VecDeque<f32>,
     primed: bool,
     prime: usize,
@@ -58,6 +75,7 @@ impl Mix {
         Self {
             rate,
             passthrough,
+            mute_mic: true,
             mic: VecDeque::new(),
             primed: false,
             prime: (rate as f64 * PRIME_SECS) as usize,
@@ -67,8 +85,7 @@ impl Mix {
     }
 
     fn push_mic(&mut self, samples: &[f32]) {
-        // The mic is muted while a message plays.
-        if !self.passthrough || self.clip.is_some() {
+        if !self.passthrough || (self.clip.is_some() && self.mute_mic) {
             return;
         }
         self.mic.extend(samples.iter().copied());
@@ -78,15 +95,22 @@ impl Mix {
     }
 
     fn next_sample(&mut self) -> f32 {
-        if let Some(clip) = self.clip.as_mut() {
-            let v = clip.samples[clip.pos];
-            clip.pos += 1;
-            let done = clip.pos >= clip.samples.len();
-            if done {
-                self.clip = None;
-            }
-            return v;
+        let Some(clip) = self.clip.as_mut() else {
+            return self.next_mic();
+        };
+        let v = clip.samples[clip.pos];
+        clip.pos += 1;
+        if clip.pos >= clip.samples.len() {
+            self.clip = None;
         }
+        if self.mute_mic {
+            v
+        } else {
+            (v + self.next_mic()).clamp(-1.0, 1.0)
+        }
+    }
+
+    fn next_mic(&mut self) -> f32 {
         if !self.passthrough {
             return 0.0;
         }
@@ -105,9 +129,12 @@ impl Mix {
         }
     }
 
-    fn start_clip(&mut self, samples: Vec<f32>) {
-        self.mic.clear();
-        self.primed = false;
+    fn start_clip(&mut self, samples: Vec<f32>, mute_mic: bool) {
+        self.mute_mic = mute_mic;
+        if mute_mic {
+            self.mic.clear();
+            self.primed = false;
+        }
         self.clip = if samples.is_empty() { None } else { Some(Clip { samples, pos: 0 }) };
     }
 
@@ -224,7 +251,7 @@ enum Cmd {
     /// (Re)connect to a cable's playback device, passing `mic` through when
     /// given; `output: None` disconnects.
     Connect { output: Option<String>, mic: Option<String>, reply: Sender<Route> },
-    Play { samples: Vec<f32>, rate: u32, reply: Sender<Result<f64>> },
+    Play { samples: Vec<f32>, rate: u32, opts: PlayOptions, reply: Sender<Result<f64>> },
     Stop,
 }
 
@@ -264,10 +291,10 @@ impl SayIt {
     }
 
     /// Start playing `samples` (mono at `rate`); returns its length in seconds.
-    pub fn play(&self, samples: Vec<f32>, rate: u32) -> Result<f64> {
+    pub fn play(&self, samples: Vec<f32>, rate: u32, opts: PlayOptions) -> Result<f64> {
         let (reply, resp) = mpsc::channel();
         self.tx
-            .send(Cmd::Play { samples, rate, reply })
+            .send(Cmd::Play { samples, rate, opts, reply })
             .map_err(|_| anyhow!("SayIt audio thread stopped"))?;
         resp.recv().map_err(|_| anyhow!("SayIt audio thread stopped"))?
     }
@@ -323,21 +350,42 @@ fn audio_thread(
                 *route.lock() = r.clone();
                 let _ = reply.send(r);
             }
-            Cmd::Play { samples, rate, reply } => {
+            Cmd::Play { samples, rate, opts, reply } => {
                 let cable = cable_slot.lock().clone();
+                speaker_stream = None;
+                *speaker_slot.lock() = None;
                 let result = match cable {
                     Some(mix) => {
-                        let mut m = mix.lock();
-                        let clip = resample(&samples, rate, m.rate);
-                        let secs = clip.len() as f64 / m.rate as f64;
-                        m.start_clip(clip);
+                        let secs = {
+                            let mut m = mix.lock();
+                            let clip = resample(&samples, rate, m.rate);
+                            let secs = clip.len() as f64 / m.rate as f64;
+                            m.start_clip(clip, opts.mute_mic);
+                            secs
+                        };
+                        // Your own copy is a nicety: the call gets the
+                        // message whether or not it can play.
+                        if opts.hear {
+                            let cable_name = route.lock().device.clone();
+                            match monitor_device(&cable_name)
+                                .and_then(|device| open_player(device, &samples, rate, MONITOR_GAIN))
+                            {
+                                Ok((stream, mix, _)) => {
+                                    speaker_stream = Some(stream);
+                                    *speaker_slot.lock() = Some(mix);
+                                }
+                                Err(e) => eprintln!("sayit: can't play the message for you too: {e}"),
+                            }
+                        }
                         Ok(secs)
                     }
-                    None => open_speaker(&samples, rate).map(|(stream, mix, secs)| {
-                        speaker_stream = Some(stream);
-                        *speaker_slot.lock() = Some(mix);
-                        secs
-                    }),
+                    None => default_speakers()
+                        .and_then(|device| open_player(device, &samples, rate, 1.0))
+                        .map(|(stream, mix, secs)| {
+                            speaker_stream = Some(stream);
+                            *speaker_slot.lock() = Some(mix);
+                            secs
+                        }),
                 };
                 let _ = reply.send(result);
             }
@@ -384,17 +432,43 @@ fn open_cable(output: &str, mic: Option<&str>) -> Result<(Vec<cpal::Stream>, Arc
     Ok((streams, mix, route))
 }
 
-/// No cable: play the message on the default speakers instead.
-fn open_speaker(samples: &[f32], rate: u32) -> Result<(cpal::Stream, Arc<Mutex<Mix>>, f64)> {
-    let device = cpal::default_host()
+/// No cable: the message plays on the default speakers instead.
+fn default_speakers() -> Result<cpal::Device> {
+    cpal::default_host()
         .default_output_device()
-        .ok_or_else(|| anyhow!("no speakers found"))?;
+        .ok_or_else(|| anyhow!("no speakers found"))
+}
+
+/// Where you hear the message yourself while the call gets it: the default
+/// speakers or headset — never a virtual cable or the device the call
+/// listens to, which would send the message into the call twice.
+fn monitor_device(call_device: &str) -> Result<cpal::Device> {
+    let host = cpal::default_host();
+    let usable = |d: &cpal::Device| {
+        let name = d.name().unwrap_or_default();
+        !looks_virtual(&name) && name != call_device
+    };
+    if let Some(d) = host.default_output_device() {
+        if usable(&d) {
+            return Ok(d);
+        }
+    }
+    host.output_devices()?
+        .find(|d| usable(d))
+        .ok_or_else(|| anyhow!("no speakers or headset found"))
+}
+
+/// Play a message on its own on `device`, at `gain`.
+fn open_player(device: cpal::Device, samples: &[f32], rate: u32, gain: f32) -> Result<(cpal::Stream, Arc<Mutex<Mix>>, f64)> {
     let config = device.default_output_config().context("query speaker format")?;
     let out_rate = config.sample_rate().0;
     let mut mix = Mix::new(out_rate, false);
-    let clip = resample(samples, rate, out_rate);
+    let mut clip = resample(samples, rate, out_rate);
+    if gain != 1.0 {
+        clip.iter_mut().for_each(|s| *s *= gain);
+    }
     let secs = clip.len() as f64 / out_rate as f64;
-    mix.start_clip(clip);
+    mix.start_clip(clip, true);
     let mix = Arc::new(Mutex::new(mix));
     let stream = build_output(&device, config, mix.clone())?;
     Ok((stream, mix, secs))
@@ -496,13 +570,39 @@ mod tests {
         let mut m = Mix::new(1000, true);
         m.push_mic(&[0.1; 40]);
         assert_eq!(m.next_sample(), 0.1);
-        m.start_clip(vec![0.5, 0.6]);
+        m.start_clip(vec![0.5, 0.6], true);
         m.push_mic(&[0.9; 40]); // muted while the message plays
         assert_eq!(m.next_sample(), 0.5);
         assert_eq!(m.remaining_secs(), Some(0.001));
         assert_eq!(m.next_sample(), 0.6);
         assert!(m.clip.is_none());
         assert_eq!(m.next_sample(), 0.0); // mic queue was cleared
+    }
+
+    #[test]
+    fn mic_left_on_is_mixed_with_the_message() {
+        let mut m = Mix::new(1000, true);
+        m.push_mic(&[0.1; 40]);
+        assert_eq!(m.next_sample(), 0.1);
+        m.start_clip(vec![0.5, 0.5, 0.9], false);
+        m.push_mic(&[0.2; 10]); // still reaches the call
+        assert!((m.next_sample() - 0.6).abs() < 1e-6);
+        assert!((m.next_sample() - 0.6).abs() < 1e-6);
+        m.mic.clear();
+        m.push_mic(&[0.5; 40]);
+        assert_eq!(m.next_sample(), 1.0, "mixed audio is clipped, not wrapped");
+        assert!(m.clip.is_none());
+        assert_eq!(m.next_sample(), 0.5, "the voice carries on after the message");
+    }
+
+    #[test]
+    fn muting_can_change_between_messages() {
+        let mut m = Mix::new(1000, true);
+        m.start_clip(vec![0.3], false);
+        m.next_sample();
+        m.start_clip(vec![0.3, 0.3], true);
+        m.push_mic(&[0.9; 40]);
+        assert_eq!(m.next_sample(), 0.3);
     }
 
     #[test]

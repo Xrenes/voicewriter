@@ -68,9 +68,13 @@ chrome.storage.onChanged.addListener(async (changes, area) => {
   }
 });
 
-// SayIt 0.2 registered extra scripts for added sites; it now runs on every
-// page, so remove them (otherwise those pages would get it twice).
 chrome.runtime.onInstalled.addListener(async () => {
+  // SayIt 0.3 kept one message; it now keeps a list ("My message" first).
+  try {
+    await sayitMigrate();
+  } catch {}
+  // SayIt 0.2 registered extra scripts for added sites; it now runs on every
+  // page, so remove them (otherwise those pages would get it twice).
   try {
     const old = await chrome.scripting.getRegisteredContentScripts();
     if (old.length) await chrome.scripting.unregisterContentScripts({ ids: old.map((s) => s.id) });

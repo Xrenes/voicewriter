@@ -26,6 +26,8 @@ interface Settings {
   sayitRecorderHotkey: string;
   sayitOutputDevice: string;
   sayitRouteMic: boolean;
+  sayitMuteMic: boolean;
+  sayitHearIt: boolean;
 }
 
 type Status = "idle" | "recording" | "transcribing" | "ready" | "speaking" | "refining" | "error";
@@ -707,6 +709,8 @@ const hotkeySayItInput = $<HTMLInputElement>("hotkeySayIt");
 const hotkeySayItRecorderInput = $<HTMLInputElement>("hotkeySayItRecorder");
 const sayitDeviceSel = $<HTMLSelectElement>("sayitDevice");
 const sayitRouteMicChk = $<HTMLInputElement>("sayitRouteMic");
+const sayitMuteMicChk = $<HTMLInputElement>("sayitMuteMic");
+const sayitHearItChk = $<HTMLInputElement>("sayitHearIt");
 const sayitRouteText = $("sayitRoute");
 const sayitReconnectBtn = $<HTMLButtonElement>("sayitReconnect");
 
@@ -746,6 +750,9 @@ async function initSayIt() {
   hotkeySayItInput.value = settings.sayitHotkey || "(disabled)";
   hotkeySayItRecorderInput.value = settings.sayitRecorderHotkey || "(disabled)";
   sayitRouteMicChk.checked = settings.sayitRouteMic;
+  sayitMuteMicChk.checked = settings.sayitMuteMic;
+  sayitMuteMicChk.disabled = !settings.sayitRouteMic;
+  sayitHearItChk.checked = settings.sayitHearIt;
   try {
     const devices = await invoke<string[]>("list_output_devices");
     for (const d of devices) {
@@ -771,9 +778,14 @@ sayitDeviceSel.addEventListener("change", async () => {
   await reconnectSayIt();
 });
 sayitRouteMicChk.addEventListener("change", async () => {
+  // Muting only matters while your voice is passed through.
+  sayitMuteMicChk.disabled = !sayitRouteMicChk.checked;
   await save({ sayitRouteMic: sayitRouteMicChk.checked });
   await reconnectSayIt();
 });
+// Both are read each time a message starts: no reconnect needed.
+sayitMuteMicChk.addEventListener("change", () => save({ sayitMuteMic: sayitMuteMicChk.checked }));
+sayitHearItChk.addEventListener("change", () => save({ sayitHearIt: sayitHearItChk.checked }));
 sayitReconnectBtn.addEventListener("click", () => {
   reconnectSayIt().catch((e) => (sayitRouteText.textContent = String(e)));
 });
